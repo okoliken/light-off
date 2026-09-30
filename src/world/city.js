@@ -777,11 +777,14 @@ export function buildCity(scene, opt = {}) {
   // Tejuosho Market, Yaba: the rebuilt multi-storey shopping complex, phone kiosks out front
   function buildTejuosho(r) {
     const i = WALK + 9, x0 = r.x0 + i, z0 = r.z0 + i, x1 = r.x1 - i, z1 = r.z1 - i;
-    addBuilding(x0, z0, x1, z1, 4, '#d9d2c3', true, [0, -1], false, 'yaba');
+    addBuilding(x0, z0, x1, z1, 5, '#d9d2c3', true, [0, -1], false, 'yaba'); // 5 floors, ~1,600 shops, its own generators (always lit)
+    // ramp down to the underground car park on the east side
+    B.misc.box(4.5, 0.2, 10, { p: [x1 + 4, CURB + 0.05, (z0 + z1) / 2], r: [0.12, 0, 0] }, '#3a3a3a'); B.misc.box(0.3, 1.2, 10, { p: [x1 + 6.4, CURB + 0.6, (z0 + z1) / 2] }, '#9e9e9e');
+    board('CAR PARK ↓', '#263238', '#ffeb3b', 3, 0.7, x1 + 4, CURB + 2.6, (z0 + z1) / 2 - 5.2, 0, null, 0.6);
     // blue canopy over the ground-floor shops, all the way round
     for (const [cx, cz, w, d] of [[(x0 + x1) / 2, z0 - 1.3, x1 - x0 + 5, 2.6], [(x0 + x1) / 2, z1 + 1.3, x1 - x0 + 5, 2.6], [x0 - 1.3, (z0 + z1) / 2, 2.6, z1 - z0], [x1 + 1.3, (z0 + z1) / 2, 2.6, z1 - z0]])
       B.metal.box(w, 0.12, d, { p: [cx, CURB + 3.4, cz] }, '#1565c0');
-    board('TEJUOSHO MARKET', '#0d47a1', '#ffffff', 22, 3, (x0 + x1) / 2, CURB + 8.5, z0 - 0.12, 0, 'SHOPPING COMPLEX · YABA', 0.6);
+    board('TEJUOSHO MARKET', '#0d47a1', '#ffffff', 22, 3, (x0 + x1) / 2, CURB + 11.5, z0 - 0.12, 0, 'ULTRA-MODERN SHOPPING CENTRE · OJUELEGBA-ITIRE ROAD', 0.6);
     // phone and gadget kiosks lining the north walk, screens glowing
     for (let x = x0 - 1; x < x1; x += 3.4) {
       const z = z0 - 5.2;
