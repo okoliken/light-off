@@ -50,7 +50,7 @@ export function createPlayer(scene, world, traffic) {
     if (p.invuln > 0 || ['roll', 'down', 'crawl', 'getup'].includes(p.mode)) return false;
     if (p.mode === 'act') { if (p.act.invuln) return false; p.mode = 'foot'; p.act = null; p.onGround = p.pos.y <= p.lastGround + 0.05; }
     p.hp -= dmg; p.hurtT = 0; p.invuln = 0.45; p.staggerT = 0;
-    p.injury = Math.min(75, p.injury + dmg * 0.22);
+    p.injury = Math.min(55, p.injury + dmg * 0.22); // injury never caps him below 45
     emit('hurt', { dmg });
     const dx = p.pos.x - fx, dz = p.pos.z - fz, d = Math.hypot(dx, dz) || 1;
     p.vel.x += (dx / d) * knock; p.vel.z += (dz / d) * knock;
@@ -100,7 +100,7 @@ export function createPlayer(scene, world, traffic) {
   const ACT = {
     jab: [0.26, 0.11], hook: [0.3, 0.13], knee: [0.32, 0.14], spin: [0.42, 0.22], flipkick: [0.55, 0.24],
     launch: [0.42, 0.16], air: [0.3, 0.1], slam: [0.45, 0.18], counter: [0.42, 0.14], takedown: [0.62, 0.34], web: [0.22, 0.05],
-    pounce: [0.62, 0.5], throw: [0.32, 0.14], sweep: [0.55, 0.2],
+    pounce: [0.62, 0.5], throw: [0.32, 0.14], sweep: [0.55, 0.2], flurry: [1.0, 0.82],
   };
   p.startAct = (kind, target, onHit, { invuln = false, reach = 1.15 } = {}) => {
     const [dur, hitAt] = ACT[kind];
@@ -216,7 +216,7 @@ export function createPlayer(scene, world, traffic) {
     const w = wishDir(inp, camYaw), mag = Math.min(1, w.length());
     const sprint = inp.held.sprint && mag > 0.5 && !p.aiming;
     const cond = world.roadCond?.(p.pos.x, p.pos.z);
-    const max = (p.cuffed ? 0.88 : 1) * (cond === 'flood' && p.onGround ? 0.55 : 1) * (p.aiming ? 3.2 * mag : sprint ? 9.2 : 6.4 * Math.max(0.35, mag)) * (0.7 + 0.3 * p.eff) * (p.hp < 35 ? 0.8 : p.hp < 15 ? 0.7 : 1);
+    const max = (p.adrenT > 0 ? 1.15 : 1) * (p.cuffed ? 0.88 : 1) * (cond === 'flood' && p.onGround ? 0.55 : 1) * (p.aiming ? 3.2 * mag : sprint ? 9.2 : 6.4 * Math.max(0.35, mag)) * (0.7 + 0.3 * p.eff) * (p.hp < 35 ? 0.8 : p.hp < 15 ? 0.7 : 1);
     const acc = p.onGround ? (p.guard > 0 ? 28 : 42) : 7;
     const tx = mag > 0.05 ? (w.x / (w.length() || 1)) * max * mag : 0, tz = mag > 0.05 ? (w.z / (w.length() || 1)) * max * mag : 0;
     if (p.onGround || mag > 0.05) { // in the air with no input he keeps his momentum (leaps carry)
@@ -487,6 +487,15 @@ export function createPlayer(scene, world, traffic) {
     if (w.t > 1.25 || offEdge || inp.pressed.roll || p.pos.y <= g.h + 0.05) { end(); if (p.pos.y <= g.h + 0.05) { p.pos.y = g.h; p.onGround = true; } }
   }
 
+  // on the ground: mash Space / F for an adrenaline burst that throws him back on his feet
+  p.adren = 0;
+  function adrenaline(dt, inp) {
+    if (inp.pressed.jump || inp.pressed.act) p.adren += 0.1 + 0.05 * p.eff;
+    p.adren = Math.max(0, p.adren - dt * 0.18);
+    if (p.adren < 1) return false;
+    p.adren = 0; p.getUp(Math.max(p.hp, 25)); p.critical = false; p.invuln = 2.2; p.adrenT = 4; emit('adrenaline');
+    return true;
+  }
   function startClimb(wall) {
     if (p.cuffed) return; // hands cuffed behind him: no climbing
     p.mode = 'climb'; p.climb = { s: wall.s, nx: Math.round(wall.nx), nz: Math.round(wall.nz) };
@@ -546,7 +555,8 @@ export function createPlayer(scene, world, traffic) {
     p.aiming = !!inp.held.aim && !!p.holding && ['foot', 'board'].includes(p.mode);
     p.aimYaw = camYaw;
     p.leapCd -= dt;
-    if (p.hurtT > 6 && p.hp < p.cap() && !['down', 'crawl'].includes(p.mode)) p.hp = Math.min(p.cap(), p.hp + dt * 2.2 * p.eff);
+    if (p.hurtT > 6 && p.hp < p.cap() && !['down', 'crawl'].includes(p.mode)) p.hp = Math.min(p.cap(), p.hp + dt * 2.2 * Math.max(0.6, p.eff)); // even hungry, he heals (slowly)
+    p.adrenT = Math.max(0, (p.adrenT || 0) - dt);
     switch (p.mode) {
       case 'foot': foot(dt, inp, camYaw); break;
       case 'board': skate(dt, inp, camYaw); break;
@@ -559,13 +569,16 @@ export function createPlayer(scene, world, traffic) {
       case 'roll': roll(dt); break;
       case 'bail': bail(dt); break;
       case 'down': {
+        if (adrenaline(dt, inp)) break;
         p.downT += dt; p.vel.x *= 0.9; p.vel.z *= 0.9; physics(dt);
         if (p.critical && p.downT > 1.4) { p.mode = 'crawl'; p.crawlT = 0; emit('crawl'); }
         else if (!p.critical && p.downT > 4.5) p.getUp(30);
         break;
       }
       case 'crawl': { // critical: drag himself away before they reach him
+        if (adrenaline(dt, inp)) break;
         p.crawlT += dt;
+        p.hp = Math.min(p.cap(), p.hp + dt * 1.2); // the body keeps fighting even here
         const w = wishDir(inp, camYaw), m = Math.min(1, w.length());
         if (m > 0.1) { p.yaw += clamp(wrap(Math.atan2(w.x, w.z) - p.yaw), -3 * dt, 3 * dt); p.anim += dt * 5; }
         p.vel.x = Math.sin(p.yaw) * 1.4 * m; p.vel.z = Math.cos(p.yaw) * 1.4 * m;

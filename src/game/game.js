@@ -607,7 +607,7 @@ export function createGame(ctx) {
     const corners = [[0, 0], [N, 0], [0, N], [N, N]].map(([i, j]) => ({ x: roadLine(i), z: roadLine(j) }));
     const dest = corners.sort((a, b) => dist2(b, player.pos) - dist2(a, player.pos))[0];
     car.police.mode = 'transport'; car.police.dest = dest; car.police.route = []; car.police.siren = true;
-    player.mode = 'foot'; player.getupT = 0; player.critical = false; player.hp = Math.max(player.hp, 8);
+    player.mode = 'foot'; player.getupT = 0; player.critical = false; player.hp = Math.max(player.hp, 25); player.adren = 0;
     player.startRide(car, false);
     L.wallet = 0;
     game.arrest = { car, t: 0, struggle: 0, second: !!player.cuffed };
@@ -618,14 +618,15 @@ export function createGame(ctx) {
     const A = game.arrest; if (!A) return;
     const v = A.car;
     A.t += dt;
-    if (input.pressed.act || input.pressed.jump) { A.struggle += (A.second ? 0.05 : 0.07) * (0.35 + player.hp / 100); camera.shake = 0.25; audio.clank?.(v.pos); }
+    const window = v.speed < 4; // the car slows at a junction: that's when a kick really counts
+    if (input.pressed.act || input.pressed.jump) { A.struggle += (A.second ? 0.045 : 0.06) * (0.7 + 0.5 * player.hp / Math.max(1, player.cap())) * (window ? 2 : 1); camera.shake = 0.25; audio.clank?.(v.pos); }
     A.struggle = Math.max(0, A.struggle - dt * 0.1);
-    game.catchMeter = A.struggle; game.catchLabel = `IN THE BACK OF THE POLICE CAR · MASH F / SPACE TO KICK THE DOOR · ${Math.max(0, Math.ceil(50 - A.t))}s TO THE STATION`;
+    game.hudMeter = A.struggle; game.catchMeter = 0; game.catchLabel = window ? 'THE CAR IS SLOWING · KICK NOW!' : `KICK THE DOOR: MASH F / SPACE · ${Math.max(0, Math.ceil(50 - A.t))}s TO THE STATION`;
     if (A.struggle >= 1) {
       // the door gives: out onto the road, still in cuffs
       const side = R() < 0.5 ? 1 : -1;
       player.endRide(v.pos.x + v.rt.x * side * 2.2, v.pos.z + v.rt.z * side * 2.2);
-      player.cuffed = true; player.invuln = 1.5; game.catchMeter = 0; game.catchLabel = null;
+      player.cuffed = true; player.invuln = 1.5; game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null;
       v.police.mode = 'chase'; v.police.parked = true; v.police.target.copy(player.pos);
       game.arrest = null; game.cuffT = 0;
       game.heat = 3; game.heatTimer = 0; audio.alert(); camera.shake = 0.8;
@@ -633,7 +634,7 @@ export function createGame(ctx) {
       game.say(null, 'E don escape! Block the road! Block am!', 'Police');
       return;
     }
-    if (A.t > 50) { game.arrest = null; game.catchMeter = 0; game.catchLabel = null; player.endRide(v.pos.x, v.pos.z); player.cuffed = false; v.police.mode = 'patrol'; game.heat = 0; jailed(); }
+    if (A.t > 50) { game.arrest = null; game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null; player.endRide(v.pos.x, v.pos.z); player.cuffed = false; v.police.mode = 'patrol'; game.heat = 0; jailed(); }
   }
   function jailed() {
     game.respawnT = 999;
@@ -667,7 +668,7 @@ export function createGame(ctx) {
     game.beatenHeat = game.heat; // where he wakes up depends on how hot things were
     hud.banner('BEATEN', 'They kicked you until you stopped moving, emptied your pockets and left you in the gutter.', 'red', 4);
     setTimeout(() => {
-      L.wallet = 0; player.injury = Math.min(75, player.injury + 25); player.hp = 10;
+      L.wallet = 0; player.injury = Math.min(55, player.injury + 25); player.hp = 10;
       L.suspicion = Math.min(100, L.suspicion + 8); // he comes home wrecked, and Mama notices
       game.heat = 0; game.catchMeter = 0; loseItem(); player.dropHeld();
       for (const t of game.thugs) if (t.alive && t.engaged) t.state = 'return';
@@ -763,10 +764,10 @@ export function createGame(ctx) {
       else if (input.pressed.act) {
         if (opt && opt.kind !== 'none' && doInteraction(opt)) { /* handled */ }
         else if (player.mode === 'board' && !player.onGround) player.tryTrick();
-        else if (!combat.attack(dir)) { player.tryPunch(); audio.swing(); }
+        else if (!combat.attack(dir, { sprint: input.held.sprint, moving: Math.hypot(input.move.x, input.move.y) > 0.3 })) { player.tryPunch(); audio.swing(); }
       }
       if (input.pressed.roll && combat.counter()) input.pressed.roll = false;
-      if (input.pressed.gadget) { if (opt?.kind === 'out' && opt.story) game.leaveHome(false); else if (!L.inside && !combat.sweep()) combat.launch(dir); }
+      if (input.pressed.gadget) { if (opt?.kind === 'out' && opt.story) game.leaveHome(false); else if (!L.inside && !combat.flurry(dir) && !combat.sweep()) combat.launch(dir); }
       if (input.pressed.flash && !L.inside) combat.pounce(dir);
       if (input.pressed.radio) game.radio.listen();
     }
@@ -827,6 +828,8 @@ export function createGame(ctx) {
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
 
     updateDowned(dt);
+    if (['down', 'crawl'].includes(player.mode) && !game.arrest) { game.hudMeter = Math.max(0.02, player.adren); game.catchLabel = player.adren > 0.03 ? 'ADRENALINE · KEEP MASHING SPACE' : 'DOWN · MASH SPACE FOR AN ADRENALINE BURST'; }
+    else if (!game.arrest && game.hudMeter != null) { game.hudMeter = null; game.catchLabel = null; }
     if (!game.injuryTold && player.cap() < 88) { game.injuryTold = true; hud.toast('<b>Injury:</b> hits leave damage that caps your health (the striped part of the bar). Health refills up to the cap on its own; <b>food and sleep</b> heal the injury itself.', 'blue'); }
     if (game.respawnT > 0) { game.respawnT -= dt; if (game.respawnT <= 0) respawn(); }
 
@@ -979,6 +982,7 @@ export function createGame(ctx) {
       case 'splash': fx.burst(player.pos.x, player.pos.y + 0.1, player.pos.z, 0x8d7b62, 6, 3); audio.splash?.(); break;
       case 'down': camera.shake = 0.7; if (ev.critical) hud.banner('CRITICAL', 'You can barely move. <b>Crawl away</b> and get out of their sight!', 'red', 3); else hud.notice('DOWN', 'stay down a moment, then get back up', 'red'); break;
       case 'getup': audio.grab(); break;
+      case 'adrenaline': audio.alert(); camera.shake = 0.6; hud.popup('ADRENALINE · <b>RUN</b>'); fx.dust(player.pos.x, player.pos.y + 0.1, player.pos.z, 12); break;
     }
   }
 
@@ -1042,7 +1046,7 @@ export function createGame(ctx) {
 
   game.hudInfo = () => ({
     respect: game.respect, holding: player.holding ? (player.holding.kind === 'sachet' ? 'PURE WATER' : player.holding.kind.toUpperCase()) : null, boardLost: player.boardLost,
-    hp: player.hp, cap: player.cap(), cuffed: player.cuffed, sweep: combat.sweepReady(), charge: player.charge, label: L.label(), inside: L.inside, noise: L.noise, suspicion: L.suspicion, suit: L.suit, critical: player.mode === 'crawl', downT: player.mode === 'down' ? player.downT : -1, aiming: player.aiming, combo: combat.combo, clock: L.timeStr(), night: L.night,
+    hp: player.hp, cap: player.cap(), cuffed: player.cuffed, sweep: combat.sweepReady(), flurry: combat.flurryReady(), charge: player.charge, label: L.label(), inside: L.inside, noise: L.noise, suspicion: L.suspicion, suit: L.suit, critical: player.mode === 'crawl', downT: player.mode === 'down' ? player.downT : -1, aiming: player.aiming, combo: combat.combo, clock: L.timeStr(), night: L.night,
     hunger: L.hunger, energy: L.energy, wallet: L.wallet, wanted: L.wanted, followed: L.followers().length > 0, watched: L.watched(),
   });
   return game;

@@ -255,6 +255,57 @@ export function createHUD(root, world) {
     c.restore();
   }
 
+  // ---- the big map (M): pan, zoom, legend, click to set a waypoint ----
+  const LEGEND = [['#ffffff', 'Home'], ['#ffd54f', 'Story / Look'], ['#ff3d3d', 'Trouble happening now'], ['#ff9100', 'Red Cap levy point'], ['#1e88e5', 'Police checkpoint'], ['#e53935', 'Police car'],
+    ['#69f0ae', 'Runs & escapes'], ['#80deea', 'Errand / job / waypoint'], ['#43a047', 'Return goods here'], ['#fbc02d', 'Bus stop'], ['#ffab40', 'Food'], ['#b39ddb', 'News'], ['#42a5f5', 'Skate challenge']];
+  H.openMap = (game, onClose) => {
+    const wrap = document.createElement('div'); wrap.className = 'bigmap overlay';
+    wrap.innerHTML = `<canvas></canvas><div class="bm-head"><b>LAGOS</b><span>Surulere · Third Mainland · Lagos Island</span></div>
+      <div class="bm-legend">${LEGEND.map(([c, l]) => `<div><i style="background:${c}"></i>${l}</div>`).join('')}</div>
+      <div class="bm-hint">DRAG · MOVE &nbsp; SCROLL · ZOOM &nbsp; CLICK · SET WAYPOINT &nbsp; RIGHT-CLICK · CLEAR &nbsp; M / ESC · CLOSE</div>`;
+    el.overlays.appendChild(wrap);
+    const cv = wrap.querySelector('canvas'), cx2 = cv.getContext('2d');
+    const P = game.player.pos, v = { x: P.x, z: P.z, zoom: 1.4 };
+    let raf = 0, drag = null, moved = false;
+    const resize = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
+    resize();
+    const toWorld = (sx, sy) => ({ x: v.x + (sx * devicePixelRatio - cv.width / 2) / (v.zoom * devicePixelRatio), z: v.z + (sy * devicePixelRatio - cv.height / 2) / (v.zoom * devicePixelRatio) });
+    const draw = () => {
+      const W = cv.width, Hh = cv.height, k = v.zoom * devicePixelRatio;
+      cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.fillStyle = '#0a1420'; cx2.fillRect(0, 0, W, Hh);
+      cx2.setTransform(k, 0, 0, k, W / 2 - (v.x + EXT) * k, Hh / 2 - (v.z + NZ) * k);
+      cx2.imageSmoothingEnabled = v.zoom < 2; cx2.drawImage(mapC, 0, 0);
+      cx2.translate(EXT, NZ);
+      const dot = (x, z, r, col, ring) => { cx2.beginPath(); cx2.arc(x, z, r / v.zoom, 0, 7); cx2.fillStyle = col; cx2.fill(); cx2.lineWidth = 2 / v.zoom; cx2.strokeStyle = ring || 'rgba(0,0,0,0.8)'; cx2.stroke(); };
+      if (game.nav && game.navRoute?.length) { cx2.beginPath(); cx2.moveTo(P.x, P.z); for (const [x, z] of game.navRoute) cx2.lineTo(x, z); cx2.strokeStyle = '#' + new THREE.Color(game.nav.color).getHexString(); cx2.lineWidth = 4 / v.zoom; cx2.lineJoin = 'round'; cx2.stroke(); }
+      for (const m of game.mapMarkers) dot(m.x, m.z, 6, m.color);
+      for (const q of game.traffic.vehicles) if (q.kind === 'police') dot(q.pos.x, q.pos.z, 5, q.police.siren && Math.floor(performance.now() / 160) % 2 ? '#3d7bff' : '#e53935', '#fff');
+      if (game.waypoint) { const w = game.waypoint; cx2.save(); cx2.translate(w.x, w.z); cx2.rotate(Math.PI / 4); cx2.fillStyle = '#80deea'; const s2 = 9 / v.zoom; cx2.fillRect(-s2, -s2, s2 * 2, s2 * 2); cx2.restore(); }
+      // Bolaji: an arrow the way he's facing
+      cx2.save(); cx2.translate(P.x, P.z); cx2.rotate(-game.player.yaw + Math.PI); const a = 11 / v.zoom;
+      cx2.beginPath(); cx2.moveTo(0, -a * 1.3); cx2.lineTo(a * 0.8, a); cx2.lineTo(0, a * 0.45); cx2.lineTo(-a * 0.8, a); cx2.closePath(); cx2.fillStyle = '#ffd54f'; cx2.fill(); cx2.lineWidth = 2 / v.zoom; cx2.strokeStyle = '#000'; cx2.stroke(); cx2.restore();
+      // area names
+      cx2.fillStyle = 'rgba(255,255,255,0.85)'; cx2.font = `bold ${13 / v.zoom}px Inter, sans-serif`; cx2.textAlign = 'center';
+      for (const [n, x, z] of [['AGUDA', -110, -110], ['OJUELEGBA', 60, -130], ['ADELABU', -110, 110], ['NATIONAL STADIUM', 170, 250]]) cx2.fillText(n, x, z);
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    cv.onmousedown = (e) => { drag = { x: e.clientX, y: e.clientY, vx: v.x, vz: v.z }; moved = false; };
+    const onMove = (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; v.x = drag.vx - dx / v.zoom; v.z = drag.vz - dy / v.zoom; };
+    const onUp = (e) => { if (drag && !moved && e.button === 0) { const w = toWorld(e.clientX, e.clientY); game.setWaypoint({ x: w.x, z: w.z, title: 'Waypoint' }); } drag = null; };
+    cv.oncontextmenu = (e) => { e.preventDefault(); game.setWaypoint(null); };
+    cv.onwheel = (e) => { e.preventDefault(); const before = toWorld(e.clientX, e.clientY); v.zoom = Math.max(0.35, Math.min(6, v.zoom * (e.deltaY < 0 ? 1.15 : 0.87))); const after = toWorld(e.clientX, e.clientY); v.x += before.x - after.x; v.z += before.z - after.z; };
+    const close = () => { cancelAnimationFrame(raf); removeEventListener('mousemove', onMove); removeEventListener('mouseup', onUp); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', resize); wrap.remove(); onClose?.(); };
+    const onKey = (e) => {
+      const step = 40 / v.zoom;
+      if (e.code === 'KeyM' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } // don't let the same key reopen it
+      else if (e.code === 'KeyW' || e.code === 'ArrowUp') v.z -= step; else if (e.code === 'KeyS' || e.code === 'ArrowDown') v.z += step;
+      else if (e.code === 'KeyA' || e.code === 'ArrowLeft') v.x -= step; else if (e.code === 'KeyD' || e.code === 'ArrowRight') v.x += step;
+      else if (e.code === 'Equal' || e.code === 'NumpadAdd') v.zoom = Math.min(6, v.zoom * 1.25); else if (e.code === 'Minus' || e.code === 'NumpadSubtract') v.zoom = Math.max(0.35, v.zoom / 1.25);
+      else if (e.code === 'KeyC') { v.x = P.x; v.z = P.z; }
+    };
+    addEventListener('mousemove', onMove); addEventListener('mouseup', onUp); document.addEventListener('keydown', onKey, true); addEventListener('resize', resize);
+  };
   H.toggleMap = () => {
     bigMap = !bigMap;
     Object.assign(el.mapWrap.style, bigMap ? { width: 'min(78vh, 78vw)', height: 'min(78vh, 78vw)', borderRadius: '8px', right: '50%', top: '50%', transform: 'translate(50%, -50%)' } : { width: '', height: '', borderRadius: '', right: '', top: '', transform: '' });
@@ -275,9 +326,10 @@ export function createHUD(root, world) {
     el.sense.style.width = game.senseMeter + '%';
     el.power.textContent = game.power > 0.5 ? 'GRID: ON' : 'NEPA TOOK LIGHT';
     el.power.classList.toggle('off', game.power <= 0.5);
-    el.catchW.classList.toggle('hidden', game.catchMeter <= 0.01);
+    const meterV = game.hudMeter ?? game.catchMeter;
+    el.catchW.classList.toggle('hidden', meterV <= 0.01);
     { const lbl = el.catchW.querySelector('.meterlbl'), want = game.catchLabel || 'OFFICER GRABBING YOU · MOVE!'; if (lbl.textContent !== want) lbl.textContent = want; }
-    el.catchB.style.width = Math.min(100, game.catchMeter * 100) + '%';
+    el.catchB.style.width = Math.min(100, meterV * 100) + '%';
     el.prompt.classList.toggle('hidden', !game.prompt);
     H.setPad(game.input?.usingPad ? game.input.padType || 'xbox' : null);
     if (game.prompt) el.prompt.innerHTML = glyph(game.prompt);
@@ -290,7 +342,7 @@ export function createHUD(root, world) {
     if (hi.charge != null) el.chargeB.style.width = Math.min(100, (hi.charge - 0.08) / 0.5 * 100) + '%';
     el.held.textContent = hi.holding ? '· ' + hi.holding : hi.boardLost ? '· BOARD IS OUT THERE' : '';
     el.gThrow.classList.toggle('on', !!hi.holding);
-    if (hi.sweep !== el.gLaunch._sw) { el.gLaunch._sw = hi.sweep; el.gLaunch.innerHTML = hi.sweep ? 'CAT SWEEP <i>G</i>' : 'LAUNCH <i>G</i>'; el.gLaunch.classList.toggle('on', hi.sweep); }
+    { const g = hi.flurry ? 'FLURRY' : hi.sweep ? 'SWEEP' : 'LAUNCH'; if (g !== el.gLaunch._sw) { el.gLaunch._sw = g; el.gLaunch.innerHTML = (g === 'FLURRY' ? 'ALLEY CAT FLURRY' : g === 'SWEEP' ? 'CAT SWEEP' : 'LAUNCH') + ' <i>G</i>'; el.gLaunch.classList.toggle('on', g !== 'LAUNCH'); } }
     el.roomM.classList.toggle('hidden', !hi.inside);
     if (hi.inside) { el.noise.style.width = Math.min(100, hi.noise * 100) + '%'; el.susp.style.width = hi.suspicion + '%'; }
     el.mapWrap.style.visibility = hi.inside ? 'hidden' : '';

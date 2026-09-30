@@ -149,7 +149,7 @@ function frame() {
   const inp = input.poll();
   if (state === 'play') {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
-    if (inp.pressed.map) hud.toggleMap();
+    if (inp.pressed.map) { state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.patrolBoard && !game.life.inside) { document.exitPointerLock?.(); pause(true); }
     if (inp.pressed.help) hud.help();
     game.update(dt, inp);

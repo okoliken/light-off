@@ -11,6 +11,7 @@
 
 const COMBO = ['jab', 'hook', 'jab', 'knee', 'flipkick'];
 const COMBO2 = ['hook', 'spin', 'jab', 'hook', 'flipkick'];
+const COMBO3 = ['jab', 'hook', 'knee', 'spin', 'jab', 'flipkick']; // the long chain once he's really rolling
 
 export function createCombat(game) {
   const { player, audio, fx, camera, hud } = game;
@@ -64,6 +65,23 @@ export function createCombat(game) {
     C.combo = 0; C.chain = 0; C.comboT = 0; C.attackCd = Math.max(C.attackCd, 0.9);
     for (const t of game.thugs) if (t.alive && t.state === 'windup' && t.t < t.windDur * 0.5) { t.state = 'recover'; t.t = 0; }
   };
+  // Alley Cat Flurry: with a combo of 8+, G unloads a flurry of strikes that finishes whoever is in front of him
+  C.flurryReady = () => C.combo >= 8 && !player.cuffed;
+  C.flurry = (dir) => {
+    if (!['foot', 'board'].includes(player.mode) || !C.flurryReady()) return false;
+    const t = pickTarget(dir, 4, x => !x.grounded && !x.airborne && x.takeHit);
+    if (!t) return false;
+    const n = C.combo;
+    if (player.mode === 'board') player.mode = 'foot';
+    player.startAct('flurry', t, () => {
+      if (!t.alive) return;
+      const ko = t.takeHit(t.big ? 4 : 99, player.pos.x, player.pos.z, t.big ? 'heavy' : 'takedown'); if (ko) game.onKnockout?.(t);
+      for (const o of game.thugs) if (o !== t && o.alive && !o.grounded && dist(o, player) < 3.2) o.stun?.(0.9);
+      audio.punch(); camera.shake = 0.7; game.hitStop = 0.14; fx.burst(t.pos.x, t.pos.y + 1.3, t.pos.z, 0xffffff, 18, 5);
+      game.addRespect(n * 25, `ALLEY CAT FLURRY x${n}`); C.combo = 0; C.chain = 0;
+    }, { invuln: true, reach: 0.8 });
+    return true;
+  };
   // surrounded: three or more of them close enough for the Cat Sweep
   C.sweepReady = () => C.sweepCd <= 0 && game.thugs.filter(t => t.alive && !t.grounded && !t.airborne && t.engaged && dist(t, player) < 3.8).length >= 3;
   C.sweep = () => {
@@ -100,7 +118,7 @@ export function createCombat(game) {
   }
 
   // F: returns true if it did a combat move
-  C.attack = (dir) => {
+  C.attack = (dir, held = {}) => {
     if (!['foot', 'board'].includes(player.mode) || player.cuffed) return false;
     // silent takedown: creep up on someone who hasn't noticed him (behind them, or in the dark) and drop them without a sound
     const unaware = t => t.takeHit && ['idle', 'patrol', 'return'].includes(t.state) && t.variant !== 'scorpion' && t.variant !== 'chairman' && t.variant !== 'egungun' &&
@@ -114,6 +132,23 @@ export function createCombat(game) {
         game.addRespect(120, 'SILENT TAKEDOWN');
       }, { invuln: true, reach: 0.7 });
       return true;
+    }
+    // context moves: flying knee (sprinting in), axe kick (from the air), back kick (pulling away)
+    const heavyMove = (t, kind, name, pts) => player.startAct(kind, t, () => {
+      if (!t.alive || dist(t, player) > 2.8) return;
+      const ko = hitFoe(t, 2, 'heavy'); landed(t, 2, 'heavy', ko); game.addRespect(pts, name);
+    }, { invuln: true, reach: 0.9 });
+    if (held.sprint && player.onGround && player.mode === 'foot') {
+      const t = pickTarget(dir, 8.5, x => !x.grounded && !x.airborne);
+      if (t && dist(t, player) > 3.2) { heavyMove(t, 'knee', 'FLYING KNEE', 50); return true; }
+    }
+    if (!player.onGround && player.mode === 'foot') {
+      const t = pickTarget(dir, 4.5, x => !x.grounded && !x.airborne);
+      if (t) { heavyMove(t, 'flipkick', 'AXE KICK', 60); return true; }
+    }
+    if (held.moving) {
+      const close = foes().filter(t => !t.grounded && dist(t, player) < 2.6).sort((a, b) => dist(a, player) - dist(b, player))[0];
+      if (close) { const tx = (close.pos.x - player.pos.x) / (dist(close, player) || 1), tz = (close.pos.z - player.pos.z) / (dist(close, player) || 1); if (tx * dir[0] + tz * dir[1] < -0.6) { heavyMove(close, 'spin', 'BACK KICK', 45); return true; } }
     }
     // juggle an enemy in the air
     const airT = pickTarget(dir, 4.5, t => t.airborne && t.takeHit);
@@ -135,7 +170,7 @@ export function createCombat(game) {
     }
     const t = pickTarget(dir, 7.5, x => !x.grounded || !x.takeHit);
     if (!t) return false;
-    const seq = C.combo >= 5 ? COMBO2 : COMBO;
+    const seq = C.combo >= 10 ? COMBO3 : C.combo >= 5 ? COMBO2 : COMBO;
     const kind = seq[C.chain % seq.length]; C.chain++;
     const heavy = kind === 'flipkick';
     player.startAct(kind, t, () => {
