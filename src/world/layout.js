@@ -77,6 +77,10 @@ export const SPECIAL = {
   '8,2': 'tejuosho', // Tejuosho Market shopping complex, Yaba
   '-3,3': 'ladipo',  // Ladipo auto spare-parts market, Mushin
   '-2,1': 'hospital', // LUTH, Idi-Araba
+  '7,2': 'busterminal', // Yaba Bus Terminal, by the footbridge
+  '7,0': 'ecentre',  // E-Centre, Sabo
+  '-4,4': 'ojuwoye', // Ojuwoye Market, Mushin
+  '-5,4': 'empire',  // Empire, Mushin: face-me-I-face-you blocks
 };
 export const blockType = (bi, bj) => (bi < I0 || bj < 0 || bi >= I1 || bj >= N) ? 'ring' : (SPECIAL[bi + ',' + bj] || 'regular');
 

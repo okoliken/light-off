@@ -102,13 +102,13 @@ export function buildCity(scene, opt = {}) {
     // raised slab: sidewalk top + curb sides
     G.walk.box(r.x0, -0.05, r.z0, r.x1, CURB, r.z1, color('#ffffff'), { faces: 'px nx pz nz', uvScale: [3, 3] });
     const tint = color(type === 'ring' ? '#8a8478' : '#ffffff');
-    if (type === 'market' || type === 'motorpark' || type === 'pitch' || type === 'ladipo') {
+    if (type === 'market' || type === 'motorpark' || type === 'pitch' || type === 'ladipo' || type === 'ojuwoye') {
       // sidewalk band only, interior is dirt
       G.walk.flat(r.x0, r.z0, r.x1, r.z0 + WALK, CURB, tint, 3);
       G.walk.flat(r.x0, r.z1 - WALK, r.x1, r.z1, CURB, tint, 3);
       G.walk.flat(r.x0, r.z0 + WALK, r.x0 + WALK, r.z1 - WALK, CURB, tint, 3);
       G.walk.flat(r.x1 - WALK, r.z0 + WALK, r.x1, r.z1 - WALK, CURB, tint, 3);
-      G.dirt.flat(r.x0 + WALK, r.z0 + WALK, r.x1 - WALK, r.z1 - WALK, CURB + 0.005, color(type === 'pitch' ? '#b59a6a' : type === 'market' ? '#8e8577' : type === 'ladipo' ? '#4a4038' : '#7d6c58'), 6);
+      G.dirt.flat(r.x0 + WALK, r.z0 + WALK, r.x1 - WALK, r.z1 - WALK, CURB + 0.005, color(type === 'pitch' ? '#b59a6a' : type === 'market' ? '#8e8577' : type === 'ladipo' ? '#4a4038' : type === 'ojuwoye' ? '#6e6255' : '#7d6c58'), 6);
     } else G.walk.flat(r.x0, r.z0, r.x1, r.z1, CURB, tint, 3);
 
     if (type === 'market') buildMarket(r);
@@ -117,6 +117,10 @@ export function buildCity(scene, opt = {}) {
     else if (type === 'tejuosho') buildTejuosho(r);
     else if (type === 'ladipo') buildLadipo(r);
     else if (type === 'hospital') buildLUTH(r);
+    else if (type === 'busterminal') buildBusTerminal(r);
+    else if (type === 'ecentre') buildECentre(r);
+    else if (type === 'ojuwoye') buildOjuwoye(r);
+    else if (type === 'empire') buildEmpire(r);
     else buildLots(r, type, bi, bj);
   }
 
@@ -132,6 +136,7 @@ export function buildCity(scene, opt = {}) {
     ];
     // outer ring blocks only need the side that faces the playable city
     for (const sd of sides) {
+      if (bi === 8 && sd.n[0] === 1) continue; // the Red Line railway runs down this edge
       if (ring) {
         const fx = sd.axis === 'x' ? 0 : sd.front, fz = sd.axis === 'x' ? sd.front : 0;
         const faceIn = sd.axis === 'x' ? Math.abs(fz + sd.n[1] * 12) < HALF + 1 : Math.abs(fx + sd.n[0] * 12) < HALF + 1;
@@ -145,6 +150,7 @@ export function buildCity(scene, opt = {}) {
         // leave the strip under the Ojuelegba flyover open
         const [lx0, , lx1] = lotRect(sd, t, t + w, 0, sd.depth);
         if (bi === 4 && lx1 > FLY.x - FLY.clear && lx0 < FLY.x + FLY.clear) { t += w; continue; }
+        if (bi === 8 && lx1 > roadLine(9) - ROAD / 2 - WALK - 12) { t += w; continue; } // keep the railway corridor clear
         lot(sd, t, t + w, ring, bi, bj);
         t += w;
       }
@@ -776,25 +782,27 @@ export function buildCity(scene, opt = {}) {
   }
   // Tejuosho Market, Yaba: the rebuilt multi-storey shopping complex, phone kiosks out front
   function buildTejuosho(r) {
-    const i = WALK + 9, x0 = r.x0 + i, z0 = r.z0 + i, x1 = r.x1 - i, z1 = r.z1 - i;
-    addBuilding(x0, z0, x1, z1, 5, '#d9d2c3', true, [0, -1], false, 'yaba'); // 5 floors, ~1,600 shops, its own generators (always lit)
-    // ramp down to the underground car park on the east side
-    B.misc.box(4.5, 0.2, 10, { p: [x1 + 4, CURB + 0.05, (z0 + z1) / 2], r: [0.12, 0, 0] }, '#3a3a3a'); B.misc.box(0.3, 1.2, 10, { p: [x1 + 6.4, CURB + 0.6, (z0 + z1) / 2] }, '#9e9e9e');
-    board('CAR PARK ↓', '#263238', '#ffeb3b', 3, 0.7, x1 + 4, CURB + 2.6, (z0 + z1) / 2 - 5.2, 0, null, 0.6);
-    // blue canopy over the ground-floor shops, all the way round
-    for (const [cx, cz, w, d] of [[(x0 + x1) / 2, z0 - 1.3, x1 - x0 + 5, 2.6], [(x0 + x1) / 2, z1 + 1.3, x1 - x0 + 5, 2.6], [x0 - 1.3, (z0 + z1) / 2, 2.6, z1 - z0], [x1 + 1.3, (z0 + z1) / 2, 2.6, z1 - z0]])
-      B.metal.box(w, 0.12, d, { p: [cx, CURB + 3.4, cz] }, '#1565c0');
-    board('TEJUOSHO MARKET', '#0d47a1', '#ffffff', 22, 3, (x0 + x1) / 2, CURB + 11.5, z0 - 0.12, 0, 'ULTRA-MODERN SHOPPING CENTRE · OJUELEGBA-ITIRE ROAD', 0.6);
-    // phone and gadget kiosks lining the north walk, screens glowing
-    for (let x = x0 - 1; x < x1; x += 3.4) {
-      const z = z0 - 5.2;
-      B.misc.box(2.4, 1.1, 1.2, { p: [x, CURB + 0.55, z] }, pick(['#fafafa', '#eceff1', '#212121']));
-      for (let k = -1; k <= 1; k++) B.lamp.box(0.28, 0.5, 0.03, { p: [x + k * 0.6, CURB + 1.4, z + 0.62] }, pick(['#ffffff', '#b3e5fc']));
-      B.metal.box(2.6, 0.06, 1.6, { p: [x, CURB + 2.3, z] }, pick(['#e53935', '#fdd835', '#43a047', '#1e88e5']));
-      S.add(x - 1.2, 0, z - 0.6, x + 1.2, CURB + 1.2, z + 0.6, 'stall');
-      world.stalls.push({ x, z: z - 1.2 });
+    // four storeys, cream and light beige with deep grey bands along the structure; wide steps, steel gates, big glass
+    const i = WALK + 9, x0 = r.x0 + i, z0 = r.z0 + i, x1 = r.x1 - i - 6, z1 = r.z1 - i;
+    addBuilding(x0, z0, x1, z1, 4, '#e9e1cf', true, [0, -1], false, 'yaba');
+    for (let f = 1; f <= 4; f++) for (const [cx, cz, w, d] of [[(x0 + x1) / 2, z0 - 0.06, x1 - x0 + 0.3, 0.25], [(x0 + x1) / 2, z1 + 0.06, x1 - x0 + 0.3, 0.25], [x0 - 0.06, (z0 + z1) / 2, 0.25, z1 - z0], [x1 + 0.06, (z0 + z1) / 2, 0.25, z1 - z0]])
+      B.misc.box(w, 0.35, d, { p: [cx, CURB + f * 3.2 - 0.1, cz] }, '#4b4f55');
+    const ex = (x0 + x1) / 2;
+    for (let k = 0; k < 4; k++) B.misc.box(16 - k * 1.5, 0.22, 1.1, { p: [ex, CURB + 0.11 + k * 0.22, z0 - 4.3 + k * 1.05] }, '#cfc8b8'); // wide steps up to the gates
+    B.lamp.box(12, 5.5, 0.1, { p: [ex, CURB + 3.6, z0 - 0.1] }, '#9fd3ff'); // the glass front of the atrium
+    for (let k = -5; k <= 5; k++) B.metal.box(0.08, 2.8, 0.08, { p: [ex + k * 1.1, CURB + 2.2, z0 - 0.3] }, '#5f6368'); // steel security gate
+    board('TEJUOSHO MARKET', '#e9e1cf', '#3e4247', 20, 2.8, ex, CURB + 11.2, z0 - 0.14, Math.PI, 'ULTRA-MODERN SHOPPING CENTRE · OJUELEGBA-ITIRE ROAD', 0.4);
+    // ramp to the underground car park, west side
+    B.misc.box(4.5, 0.2, 10, { p: [x0 - 4, CURB + 0.05, (z0 + z1) / 2], r: [0.12, 0, 0] }, '#3a3a3a'); board('CAR PARK ↓', '#263238', '#ffeb3b', 3, 0.7, x0 - 4, CURB + 2.6, (z0 + z1) / 2 - 5.2, Math.PI, null, 0.6);
+    // the overflow outside: clothes racks, second-hand shoes on mats, roasted plantain (boli) and corn on grills
+    for (let x = x0; x < x1; x += 4.2) {
+      const z = z0 - 7.5, kind = Math.floor((x - x0) / 4.2) % 3;
+      if (kind === 0) { B.metal.box(2.4, 0.05, 0.05, { p: [x, CURB + 1.8, z] }, '#9e9e9e'); for (let c = 0; c < 6; c++) B.misc.box(0.35, 0.8, 0.05, { p: [x - 1 + c * 0.4, CURB + 1.35, z] }, pick(['#1565c0', '#fafafa', '#212121', '#c62828', '#2e7d32', '#6d4c41'])); for (const dx of [-1.2, 1.2]) B.metal.cyl(0.03, 0.03, 1.8, { p: [x + dx, CURB + 0.9, z] }, '#9e9e9e', 4); }
+      else if (kind === 1) { B.misc.box(2.2, 0.03, 1.4, { p: [x, CURB + 0.02, z] }, '#5d4037'); for (let c = 0; c < 8; c++) B.misc.box(0.28, 0.12, 0.12, { p: [x - 0.9 + (c % 4) * 0.6, CURB + 0.1, z - 0.4 + Math.floor(c / 4) * 0.7] }, pick(['#111', '#6d4c41', '#fafafa', '#8d6e63'])); }
+      else { B.metal.box(1.2, 0.7, 0.6, { p: [x, CURB + 0.35, z] }, '#3e2723'); B.lamp.box(1.0, 0.05, 0.45, { p: [x, CURB + 0.72, z] }, '#ffab40'); for (let c = 0; c < 4; c++) B.misc.box(0.14, 0.06, 0.5, { p: [x - 0.35 + c * 0.24, CURB + 0.78, z] }, '#d7a84e'); }
+      S.add(x - 1.2, 0, z - 0.7, x + 1.2, CURB + 1.0, z + 0.7, 'stall'); world.stalls.push({ x, z: z - 1.3 });
     }
-    world.tejuosho = { x: (x0 + x1) / 2, z: z0 - 7 };
+    world.tejuosho = { x: ex, z: z0 - 9 };
   }
   // Ladipo, Mushin: the auto spare-parts market. Sheds of zinc, tyres, engines, doors, stripped cars, oil
   function buildLadipo(r) {
@@ -802,7 +810,7 @@ export function buildCity(scene, opt = {}) {
     // entrance arch on the north side
     for (const dx of [-6, 6]) { B.misc.box(1.2, 6.5, 1.2, { p: [cx + dx, CURB + 3.25, iz + 0.8] }, '#8d8272'); S.add(cx + dx - 0.6, 0, iz + 0.2, cx + dx + 0.6, CURB + 6.5, iz + 1.4, 'pillar'); }
     B.misc.box(13.4, 1.4, 1.0, { p: [cx, CURB + 6.4, iz + 0.8] }, '#8d8272');
-    board('LADIPO CENTRAL AUTO SPARE PARTS MARKET', '#b71c1c', '#ffffff', 12.6, 1.3, cx, CURB + 6.4, iz + 0.25, 0, null, 0.55);
+    board('LADIPO CENTRAL AUTO SPARE PARTS MARKET', '#b71c1c', '#ffffff', 12.6, 1.3, cx, CURB + 6.4, iz + 0.25, Math.PI, null, 0.55);
     // oil stains on the dirt
     for (let k = 0; k < 18; k++) { const x = r.x0 + 8 + R() * (r.x1 - r.x0 - 16), z = r.z0 + 8 + R() * (r.z1 - r.z0 - 16), q = 1 + R() * 2; G.hole.flat(x - q, z - q * 0.7, x + q, z + q * 0.7, CURB + 0.012, white, 1, [0, 0, 1, 1]); }
     // rows of open sheds
@@ -834,14 +842,59 @@ export function buildCity(scene, opt = {}) {
     addBuilding(r.x0 + i, r.z0 + i + 8, r.x0 + i + 26, r.z1 - i, 7, '#f2f2ee', true, [0, -1], false, 'mushin');
     addBuilding(r.x0 + i + 30, r.z0 + i + 8, r.x1 - i, r.z0 + i + 26, 4, '#eceff1', true, [0, -1], false, 'mushin');
     addBuilding(r.x0 + i + 30, r.z1 - i - 16, r.x1 - i, r.z1 - i, 3, '#eceff1', true, [0, 1], false, 'mushin');
-    board('LAGOS UNIVERSITY TEACHING HOSPITAL', '#f5f5f5', '#0d47a1', 16, 1.9, r.x0 + i + 13, CURB + 23, r.z0 + i + 7.9, 0, 'LUTH · IDI-ARABA', 0.7);
-    board('+', '#ffffff', '#d32f2f', 2.2, 2.2, r.x0 + i + 27.5, CURB + 12, r.z0 + i + 7.9, 0, null, 0.8);
+    board('LAGOS UNIVERSITY TEACHING HOSPITAL', '#f5f5f5', '#0d47a1', 16, 1.9, r.x0 + i + 13, CURB + 23, r.z0 + i + 7.9, Math.PI, 'LUTH · IDI-ARABA', 0.7);
+    board('+', '#ffffff', '#d32f2f', 2.2, 2.2, r.x0 + i + 27.5, CURB + 12, r.z0 + i + 7.9, Math.PI, null, 0.8);
     // ambulance at the emergency bay
     const ax = r.x0 + i + 36, az = r.z0 + i + 3;
     B.misc.box(2.1, 2.2, 5, { p: [ax, CURB + 1.2, az], ry: Math.PI / 2 }, '#fafafa'); B.misc.box(2.12, 0.3, 5.02, { p: [ax, CURB + 1.3, az], ry: Math.PI / 2 }, '#d32f2f');
     S.add(ax - 2.5, 0, az - 1.1, ax + 2.5, CURB + 2.3, az + 1.1, 'parked');
     for (let k = 0; k < 8; k++) (world.districtHangouts ||= []).push({ x: ax - 8 + k * 1.6, z: az + 3 });
     world.hospital = { x: ax - 4, z: az + 3 }; // the clinic bench
+  }
+  // Yaba Bus Terminal: danfos and koropes lined up, callers, floor traders under the footbridge
+  function buildBusTerminal(r) {
+    G.asphalt.flat(r.x0 + WALK, r.z0 + WALK, r.x1 - WALK, r.z1 - WALK, CURB + 0.004, color('#8a8a8a'), 12);
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 6; k++) world.parked.push({ type: 'danfo', x: r.x0 + WALK + 6 + k * 7.5, z: r.z0 + WALK + 12 + row * 12, yaw: 0 });
+    B.metal.box(r.x1 - r.x0 - 12, 0.15, 5, { p: [(r.x0 + r.x1) / 2, CURB + 3.4, r.z1 - WALK - 6] }, '#546e7a');
+    for (let x = r.x0 + WALK + 4; x < r.x1 - WALK; x += 8) B.metal.cyl(0.08, 0.08, 3.4, { p: [x, CURB + 1.7, r.z1 - WALK - 6] }, '#455a64', 6);
+    board('YABA BUS TERMINAL', '#fdd835', '#111', 12, 1.4, (r.x0 + r.x1) / 2, CURB + 4.3, r.z1 - WALK - 3.5, Math.PI, null, 0.5);
+    // "bend-down-select": okrika spread on the floor along the east walk, by the footbridge
+    for (let z = r.z0 + WALK + 3; z < r.z1 - WALK; z += 3) { B.misc.box(1.6, 0.03, 1.6, { p: [r.x1 - 1.8, CURB + 0.02, z] }, pick(['#1565c0', '#c62828', '#fdd835', '#2e7d32', '#6a1b9a'])); for (let c = 0; c < 5; c++) B.misc.box(0.4, 0.06, 0.3, { p: [r.x1 - 2.3 + (c % 3) * 0.45, CURB + 0.06, z - 0.4 + Math.floor(c / 3) * 0.6] }, pick(['#fafafa', '#212121', '#1565c0', '#795548'])); (world.districtHangouts ||= []).push({ x: r.x1 - 3.2, z }); }
+    for (let k = 0; k < 14; k++) (world.districtHangouts ||= []).push({ x: r.x0 + WALK + 4 + (k % 7) * 7.5, z: r.z0 + WALK + 7 + Math.floor(k / 7) * 12 });
+    world.busTerminal = { x: (r.x0 + r.x1) / 2, z: r.z0 + WALK + 6 };
+  }
+  // E-Centre, Sabo: the tinted-glass mall and cinema where students and techies hang out
+  function buildECentre(r) {
+    const i = WALK + 6;
+    addBuilding(r.x0 + i, r.z0 + i + 6, r.x1 - i, r.z1 - i, 4, '#37474f', true, [0, 1], false, 'yaba');
+    B.lamp.box(r.x1 - r.x0 - 2 * i - 2, 9, 0.1, { p: [(r.x0 + r.x1) / 2, CURB + 6, r.z1 - i + 0.08] }, '#4f6f8a'); // tinted glass
+    board('E-CENTRE', '#111', '#ff4081', 10, 2, (r.x0 + r.x1) / 2, CURB + 11, r.z1 - i + 0.2, Math.PI, 'CINEMA · MALL · SABO', 0.7);
+    for (let k = 0; k < 16; k++) (world.districtHangouts ||= []).push({ x: r.x0 + i + 4 + (k % 8) * 5, z: r.z1 - WALK - 2 - Math.floor(k / 8) * 1.4 });
+  }
+  // Ojuwoye Market, Mushin: dense, claustrophobic, tarps shoulder to shoulder, narrow aisles
+  function buildOjuwoye(r) {
+    for (let x = r.x0 + WALK + 2.5; x < r.x1 - WALK - 2; x += 3.6) for (let z = r.z0 + WALK + 2.5; z < r.z1 - WALK - 2; z += 3.2) {
+      if (((x - r.x0) | 0) % 18 < 2) continue; // an aisle
+      B.misc.box(2.8, 0.8, 2.2, { p: [x, CURB + 0.4, z] }, pick(['#6d4c41', '#8d6e63', '#5d4037']));
+      B.misc.box(2.6, 0.3, 2.0, { p: [x, CURB + 0.95, z] }, pick(['#e53935', '#fdd835', '#43a047', '#fb8c00', '#f5f5f5', '#8e24aa', '#6d4c41']));
+      B.metal.box(3.4, 0.05, 3.0, { p: [x, CURB + 2.5, z], r: [(z % 2) * 0.1, 0, 0.05] }, pick(['#1e88e5', '#e53935', '#fdd835', '#43a047', '#9e9e9e']));
+      S.add(x - 1.4, 0, z - 1.1, x + 1.4, CURB + 1.1, z + 1.1, 'stall'); world.stalls.push({ x: x + 1.8, z });
+    }
+    board('OJUWOYE MARKET', '#1b5e20', '#ffeb3b', 10, 1.4, (r.x0 + r.x1) / 2, CURB + 4.5, r.z0 + WALK + 0.2, Math.PI, 'MUSHIN', 0.5);
+  }
+  // Empire, Mushin: packed face-me-I-face-you blocks, balconies heavy with washing
+  function buildEmpire(r) {
+    const i = WALK + 2, w = (r.x1 - r.x0 - 2 * i - 8) / 3;
+    for (let k = 0; k < 3; k++) for (const [za, zb] of [[r.z0 + i, r.z0 + i + 18], [r.z1 - i - 18, r.z1 - i]]) {
+      const x0 = r.x0 + i + k * (w + 4), x1 = x0 + w, front = za === r.z0 + i ? -1 : 1, fz = front < 0 ? za : zb;
+      addBuilding(x0, za, x1, zb, 3, pick(MUSHIN_PAINT), true, [0, front], false, 'mushin');
+      for (let f = 1; f <= 2; f++) {
+        B.misc.box(x1 - x0, 0.15, 1.2, { p: [(x0 + x1) / 2, CURB + f * 3.2, fz + front * 0.6] }, '#8d8272');
+        B.metal.box(x1 - x0, 0.9, 0.05, { p: [(x0 + x1) / 2, CURB + f * 3.2 + 0.5, fz + front * 1.18] }, '#5d5347');
+        for (let c = 0; c < (x1 - x0) / 0.7; c++) if (R() < 0.7) B.misc.box(0.45, 0.6, 0.02, { p: [x0 + 0.4 + c * 0.7, CURB + f * 3.2 + 1.9, fz + front * 0.9] }, pick(['#e53935', '#1e88e5', '#fdd835', '#fafafa', '#43a047', '#8e24aa', '#fb8c00'])); // laundry
+      }
+    }
+    board('EMPIRE', '#b71c1c', '#fff', 5, 1, (r.x0 + r.x1) / 2, CURB + 3.2, r.z0 + WALK + 0.2, Math.PI, null, 0.5);
   }
   // district landmarks placed on regular blocks
   {
@@ -860,8 +913,55 @@ export function buildCity(scene, opt = {}) {
     { const r = blockRect(9, 4), gx = (r.x0 + r.x1) / 2, gz = r.z0 + WALK + 0.2;
       for (const [a, b] of [[r.x0 + WALK, gx - 3], [gx + 3, r.x1 - WALK]]) { B.misc.box(b - a, 2.6, 0.3, { p: [(a + b) / 2, CURB + 1.3, gz] }, '#e0d6bf'); S.add(a, 0, gz - 0.2, b, CURB + 2.6, gz + 0.2, 'fence'); }
       for (const dx of [-3.4, 3.4]) B.misc.box(0.8, 4.2, 0.8, { p: [gx + dx, CURB + 2.1, gz] }, '#1b5e20');
-      board('YABA COLLEGE OF TECHNOLOGY', '#1b5e20', '#ffffff', 9, 1.1, gx, CURB + 4.6, gz - 0.2, 0, null, 0.5);
-      addBuilding(r.x0 + WALK + 8, gz + 10, r.x1 - WALK - 8, r.z1 - WALK - 8, 4, '#e8dcc0', false, [0, -1], false, 'yaba'); }
+      board('YABA COLLEGE OF TECHNOLOGY', '#1b5e20', '#ffffff', 9, 1.1, gx, CURB + 4.6, gz - 0.2, Math.PI, null, 0.5);
+      // the grand historic administrative block: white with green accents
+      const bx0 = r.x0 + WALK + 8, bz0 = gz + 10, bx1 = r.x1 - WALK - 8, bz1 = r.z1 - WALK - 8;
+      addBuilding(bx0, bz0, bx1, bz1, 3, '#f5f5f0', false, [0, -1], false, 'yaba');
+      for (let f = 1; f <= 3; f++) B.misc.box(bx1 - bx0 + 0.3, 0.3, 0.3, { p: [(bx0 + bx1) / 2, CURB + f * 3.2 - 0.15, bz0 - 0.1] }, '#1b5e20');
+      B.misc.add(wedge, { p: [(bx0 + bx1) / 2, CURB + 9.9, bz0 + 3], ry: Math.PI / 2, s: [6, 2.4, 14] }, '#1b5e20'); // pediment over the entrance
+      for (let k = -2; k <= 2; k++) B.misc.cyl(0.35, 0.35, 6.4, { p: [(bx0 + bx1) / 2 + k * 2.8, CURB + 3.2, bz0 - 1.4] }, '#fafafa', 10); }
+    // the Red Line: railway down the east edge of column 8, with Yaba Station by Tejuosho
+    { const rx = roadLine(9) - ROAD / 2 - WALK - 4.5, za = roadLine(0) - ROAD / 2, zb = roadLine(N) + ROAD / 2;
+      G.dirt.flat(rx - 3, za, rx + 3, zb, 0.03, color('#6e675c'), 4); // ballast
+      for (let z = za; z < zb; z += 1.2) B.misc.box(2.6, 0.08, 0.25, { p: [rx, 0.07, z] }, '#4e342e');
+      for (const dx of [-0.72, 0.72]) B.metal.box(0.08, 0.14, zb - za, { p: [rx + dx, 0.16, (za + zb) / 2] }, '#9e9e9e');
+      world.mapRects.push({ x0: rx - 2.5, z0: za, x1: rx + 2.5, z1: zb, color: '#8d6e63' });
+      // Yaba Station (block 8,3): a long modern platform and canopy, a train waiting
+      const sz0 = roadLine(3) + ROAD / 2 + WALK + 4, sz1 = roadLine(4) - ROAD / 2 - WALK - 4, px = rx - 4.2;
+      B.misc.box(3.2, 1.0, sz1 - sz0, { p: [px, 0.5, (sz0 + sz1) / 2] }, '#bdbdbd'); S.add(px - 1.6, 0, sz0, px + 1.6, 1.0, sz1, 'platform');
+      B.metal.box(9, 0.3, sz1 - sz0 + 4, { p: [rx - 1.5, 5.6, (sz0 + sz1) / 2] }, '#eceff1');
+      for (let z = sz0; z <= sz1; z += 8) B.metal.cyl(0.18, 0.18, 4.8, { p: [px - 1.2, 3.2, z] }, '#90a4ae', 8);
+      board('YABA STATION', '#b71c1c', '#ffffff', 10, 1.6, px - 1.3, 4.4, (sz0 + sz1) / 2, -Math.PI / 2, 'LAGOS RAIL MASS TRANSIT · RED LINE', 0.7);
+      for (let k = 0; k < 3; k++) { const z = sz0 + 3 + k * 14; B.misc.box(2.8, 3.4, 13, { p: [rx, 1.9, z + 6.5] }, '#f5f5f5'); B.misc.box(2.84, 0.6, 13, { p: [rx, 1.4, z + 6.5] }, '#c62828'); B.lamp.box(2.86, 0.8, 11, { p: [rx, 2.6, z + 6.5] }, '#9fd3ff'); }
+      S.add(rx - 1.4, 0, sz0 + 3, rx + 1.4, 3.6, sz0 + 44, 'train');
+      for (let k = 0; k < 10; k++) (world.districtHangouts ||= []).push({ x: px, z: sz0 + 4 + k * 4 });
+      world.yabaStation = { x: px, z: (sz0 + sz1) / 2 }; }
+    // Herbert Macaulay Way: a dual carriageway, with a centre median down its length through Yaba
+    { const c = roadLine(8);
+      for (let j = 0; j < N; j++) { const a = roadLine(j) + ROAD / 2 + 3, b = roadLine(j + 1) - ROAD / 2 - 3;
+        if (j === 2) continue; // under the footbridge the buses need the whole road
+        B.misc.box(0.5, 0.6, b - a, { p: [c, 0.3, (a + b) / 2] }, '#b0a999'); S.add(c - 0.25, 0, a, c + 0.25, 0.6, b, 'median'); world.rails.push({ a: [c, 0.6, a], b: [c, 0.6, b] }); } }
+    // Ikorodu Road along the north edge of Yaba: big corporate billboards overhead
+    for (const [x, t, bg] of [[300, 'MTN · EVERYWHERE YOU GO', '#fdd835'], [440, 'GLO · UNLIMITED NIGHT PLAN', '#2e7d32'], [540, 'INDOMIE · MAMA DO GOOD', '#e65100']]) {
+      const z = roadLine(0) - ROAD / 2 - 3;
+      for (const dx of [-3, 3]) B.metal.cyl(0.25, 0.3, 10, { p: [x + dx, 5, z] }, '#607d8b', 8);
+      board(t, bg, '#111', 10, 3.6, x, 11.5, z + 0.3, 0, null, 0.6);
+    }
+    // Agege Motor Road through Mushin (x = roadLine(-3)): the skyway flyover's concrete pillars overhead
+    { const c = roadLine(-3), za = roadLine(0) - 20, zb = roadLine(N) + 20, y = 9;
+      for (let z = za; z <= zb; z += 24) { B.misc.box(1.6, y, 1.6, { p: [c, y / 2, z] }, '#8a857b'); S.add(c - 0.8, 0, z - 0.8, c + 0.8, y, z + 0.8, 'pillar'); }
+      B.misc.box(11, 0.9, zb - za, { p: [c, y + 0.45, (za + zb) / 2] }, '#7d786f');
+      world.mapRects.push({ x0: c - 5.5, z0: za, x1: c + 5.5, z1: zb, color: '#6d7180' }); }
+    // Idi-Oro junction (roadLine(-1), roadLine(1)): power lines strung overhead, a keke rank loading
+    { const jx = roadLine(-1), jz = roadLine(1);
+      for (const [dx, dz] of [[-9, -9], [9, -9], [-9, 9], [9, 9]]) { B.metal.cyl(0.12, 0.15, 9, { p: [jx + dx, 4.5, jz + dz] }, '#5d4037', 6); S.add(jx + dx - 0.15, 0, jz + dz - 0.15, jx + dx + 0.15, 9, jz + dz + 0.15, 'pole'); }
+      for (let w = 0; w < 5; w++) for (const [ax, az, bx, bz] of [[-9, -9, 9, -9], [9, -9, 9, 9], [9, 9, -9, 9], [-9, 9, -9, -9], [-9, -9, 9, 9]]) {
+        const x0 = jx + ax, z0 = jz + az, x1 = jx + bx, z1 = jz + bz, L = Math.hypot(x1 - x0, z1 - z0);
+        B.metal.box(0.03, 0.03, L, { p: [(x0 + x1) / 2, 8.6 - w * 0.25 - (w % 2) * 0.3, (z0 + z1) / 2], ry: Math.atan2(x1 - x0, z1 - z0) }, '#111');
+      }
+      for (let k = 0; k < 7; k++) world.parked.push({ type: 'keke', x: jx - ROAD / 2 - 1.8, z: jz + ROAD / 2 + 6 + k * 3.2, yaw: Math.PI / 2 });
+      board('IDI-ORO', '#fdd835', '#111', 4, 0.9, jx + ROAD / 2 + 2, CURB + 3.4, jz - ROAD / 2 - 1, Math.PI, null, 0.5); }
+    // district landmarks placed on regular blocks
     // Mushin: a mosque with a green dome and a minaret
     { const r = blockRect(-4, 2), cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
       addBuilding(cx - 10, cz - 8, cx + 10, cz + 8, 2, '#f5f0e1', false, [0, -1], false, 'mushin');
@@ -883,14 +983,51 @@ export function buildCity(scene, opt = {}) {
     B.misc.box(20, 1.5, 1.3, { p: [mx, 7, GZ] }, '#e8e0cc');
     board('UNIVERSITY OF LAGOS', '#1b3a6b', '#ffd54f', 16, 2.4, mx, 7, GZ + 0.7, 0, 'AKOKA · IN DEED AND IN TRUTH', 0.55);
     world.uniGate = { x: mx, z: GZ + 4 };
-    // Senate building (the tall one), faculties, library, halls of residence
-    const bld = [[mx + 14, -432, mx + 40, -410, 15, '#ece6d8', null], [mx - 70, -300, mx - 30, -276, 4, '#d8cfb8', 'FACULTY OF SCIENCE'], [mx + 30, -300, mx + 80, -276, 4, '#d6d0c0', 'FACULTY OF ARTS'],
-      [mx - 60, -430, mx - 22, -400, 5, '#cfd8c8', 'MAIN LIBRARY'], [U.x0 + 8, -420, U.x0 + 60, -392, 4, '#e0c8a0', 'JAJA HALL'], [U.x1 - 60, -420, U.x1 - 8, -392, 4, '#e6c8c8', 'MOREMI HALL'], [U.x0 + 8, -320, U.x0 + 50, -290, 3, '#d8d0b8', null]];
-    for (const [x0, z0, x1, z1, fl, c, name] of bld) {
-      addBuilding(x0, z0, x1, z1, fl, c, R() < 0.5, [0, 1], false, 'yaba');
-      if (name) board(name, '#6d1b1b', '#fff', 9, 1.6, (x0 + x1) / 2, 4, z1 + 0.08, 0, null, 0.5);
+    // Senate building: 13 floors of 1980s brutalism, mosaic tiles and horizontal concrete sun-shades
+    { const x0 = mx + 14, z0 = -432, x1 = mx + 40, z1 = -408;
+      addBuilding(x0, z0, x1, z1, 13, '#d8cbb0', false, [0, 1], false, 'yaba');
+      for (let f = 1; f <= 13; f++) B.misc.box(x1 - x0 + 1.6, 0.25, z1 - z0 + 1.6, { p: [(x0 + x1) / 2, CURB + f * 3.2 - 0.6, (z0 + z1) / 2] }, '#b0a58c');
+      board('SENATE BUILDING', '#6d1b1b', '#fff', 9, 1.4, (x0 + x1) / 2, 4, z1 + 0.9, 0, null, 0.5);
+      world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' });
+      // the Love Garden beside it: lawn, shade trees, benches
+      G.dirt.flat(x1 + 6, -440, x1 + 44, -404, 0.009, color('#4f7a38'), 6);
+      for (let k = 0; k < 6; k++) { const tx = x1 + 12 + (k % 3) * 12, tz = -432 + Math.floor(k / 3) * 16; B.misc.cyl(0.25, 0.32, 3, { p: [tx, 1.5, tz] }, '#5b4636', 7); B.misc.sphere(3.2, { p: [tx, 4.6, tz], s: [1.2, 0.7, 1.2] }, '#2f5a2a', 9, 7); S.add(tx - 0.3, 0, tz - 0.3, tx + 0.3, 3, tz + 0.3, 'tree'); B.misc.box(2.2, 0.45, 0.6, { p: [tx, 0.45, tz + 3.5] }, '#9e9e9e'); (world.districtHangouts ||= []).push({ x: tx, z: tz + 4.6 }); }
+      board('LOVE GARDEN', '#2e7d32', '#fff', 5, 0.9, x1 + 25, 1.6, -403.5, 0, null, 0.4); }
+    // Main Library: four storeys around an open quadrangle
+    { const x0 = mx - 72, z0 = -440, x1 = mx - 22, z1 = -392, t = 11;
+      for (const [a, b, c, d] of [[x0, z0, x1, z0 + t], [x0, z1 - t, x1, z1], [x0, z0 + t, x0 + t, z1 - t], [x1 - t, z0 + t, x1, z1 - t]]) addBuilding(a, b, c, d, 4, '#d9d2bf', true, [0, 1], false, 'yaba');
+      board('MAIN LIBRARY', '#6d1b1b', '#fff', 8, 1.4, (x0 + x1) / 2, 4, z1 + 0.1, 0, null, 0.5);
+      world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' }); }
+    // Moremi Hall: a sprawling courtyard complex, laundry on every balcony rail
+    { const x0 = U.x0 + 6, z0 = -336, x1 = U.x0 + 74, z1 = -282, t = 12;
+      for (const [a, b, c, d] of [[x0, z0, x1, z0 + t], [x0, z0 + t, x0 + t, z1], [x1 - t, z0 + t, x1, z1]]) {
+        addBuilding(a, b, c, d, 3, '#e6c8c8', true, [0, 1], false, 'yaba');
+        for (let c2 = 0; c2 < (c - a) / 1.1; c2++) if (R() < 0.6) B.misc.box(0.5, 0.65, 0.02, { p: [a + 0.5 + c2 * 1.1, CURB + 5.4, d + 0.35] }, pick(['#e53935', '#f48fb1', '#fdd835', '#fafafa', '#7e57c2', '#26a69a']));
+      }
+      board('MOREMI HALL', '#6d1b1b', '#fff', 8, 1.4, (x0 + x1) / 2, 4, z0 + t + 0.1, 0, null, 0.5);
+      for (let k = 0; k < 8; k++) (world.districtHangouts ||= []).push({ x: (x0 + x1) / 2 - 7 + k * 2, z: z1 + 3 }); // suitors at the gate
+      world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' }); }
+    // Jaja Hall faces the Sports Centre: track, pitch, courts
+    { addBuilding(U.x1 - 64, -440, U.x1 - 8, -412, 4, '#d8d0b8', true, [0, 1], false, 'yaba');
+      board('JAJA HALL', '#6d1b1b', '#fff', 7, 1.4, U.x1 - 36, 4, -411.9, 0, null, 0.5);
+      const sx0 = U.x1 - 118, sz0 = -330, sx1 = U.x1 - 10, sz1 = -236;
+      G.dirt.flat(sx0, sz0, sx1, sz1, 0.01, color('#a0513a'), 6);               // the running track
+      G.dirt.flat(sx0 + 8, sz0 + 8, sx1 - 8, sz1 - 8, 0.014, color('#3f7a2e'), 6); // the pitch
+      for (const gz of [sz0 + 9, sz1 - 9]) { B.metal.box(7.3, 0.12, 0.12, { p: [(sx0 + sx1) / 2, 2.4, gz] }, '#fafafa'); for (const dx of [-3.6, 3.6]) B.metal.cyl(0.06, 0.06, 2.4, { p: [(sx0 + sx1) / 2 + dx, 1.2, gz] }, '#fafafa', 6); }
+      G.asphalt.flat(sx0 - 38, sz0 + 36, sx0 - 6, sz0 + 66, 0.012, white, 8); // basketball / tennis courts
+      board('UNILAG SPORTS CENTRE', '#1565c0', '#fff', 10, 1.5, (sx0 + sx1) / 2, 3.5, sz1 + 0.5, Math.PI, null, 0.5);
+      for (let k = 0; k < 16; k++) (world.districtHangouts ||= []).push({ x: sx0 + 12 + (k % 8) * 11, z: sz0 + 20 + Math.floor(k / 8) * 50 });
+      world.mapRects.push({ x0: sx0, z0: sz0, x1: sx1, z1: sz1, color: '#6b3a2e' }); }
+    // faculties by the gate
+    for (const [x0, z0, x1, z1, name] of [[mx - 70, -300, mx - 30, -276, 'FACULTY OF SCIENCE'], [mx + 14, -330, mx + 60, -306, 'FACULTY OF ARTS']]) {
+      addBuilding(x0, z0, x1, z1, 4, '#d6d0c0', R() < 0.5, [0, 1], false, 'yaba');
+      board(name, '#6d1b1b', '#fff', 9, 1.6, (x0 + x1) / 2, 4, z1 + 0.08, 0, null, 0.5);
       world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' });
     }
+    // the Lagoon Front: paved walk, lawns, almond and palm trees, benches facing the water and Third Mainland
+    G.walk.flat(U.x0 + 4, U.z0 + 1, U.x1 - 4, U.z0 + 7, 0.02, color('#b8b0a0'), 3);
+    for (let x = U.x0 + 14; x < U.x1 - 14; x += 22) { B.misc.cyl(0.3, 0.38, 3.2, { p: [x, 1.6, U.z0 + 10] }, '#5b4636', 7); B.misc.sphere(3.6, { p: [x, 5, U.z0 + 10], s: [1.4, 0.55, 1.4] }, '#2d5226', 9, 7); S.add(x - 0.35, 0, U.z0 + 9.65, x + 0.35, 3.2, U.z0 + 10.35, 'tree'); }
+    board('LAGOON FRONT', '#1b3a6b', '#fff', 6, 1, mx, 2, U.z0 + 8, Math.PI, null, 0.5);
     // palms along the drive, the lagoon-front wall and benches (open air after Surulere's alleys)
     for (let z = U.z1 - 20; z > U.z0 + 14; z -= 16) for (const sx of [-1, 1]) {
       const x = mx + sx * 10, h = 6 + R() * 2.5;
@@ -917,6 +1054,15 @@ export function buildCity(scene, opt = {}) {
     const bi = Math.floor((x + HALF) / CELL), bj = Math.floor((z + HALF) / CELL), t = blockType(bi, bj);
     if (z < UNI.z1 + 2 && x > UNI.x0 - 4) return 'UNILAG, Akoka';
     if (t === 'tejuosho') return 'Tejuosho Market, Yaba';
+    if (t === 'busterminal') return 'Yaba Bus Terminal';
+    if (t === 'ecentre') return 'E-Centre, Sabo';
+    if (t === 'ojuwoye') return 'Ojuwoye Market, Mushin';
+    if (t === 'empire') return 'Empire, Mushin';
+    if (bi >= N && Math.abs(z - roadLine(0)) < 9) return 'Ikorodu Road';
+    if (bi >= N && Math.abs(x - roadLine(10)) < 9) return 'Murtala Muhammed Way';
+    if (bi === 8 && x > roadLine(9) - ROAD / 2 - WALK - 9 && bj === 3) return 'Yaba Station';
+    if (bi < 0 && Math.abs(x - roadLine(-3)) < 9) return 'Agege Motor Road';
+    if (bi < 0 && Math.hypot(x - roadLine(-1), z - roadLine(1)) < 22) return 'Idi-Oro';
     if (t === 'ladipo') return 'Ladipo Spare Parts, Mushin';
     if (t === 'hospital') return 'LUTH, Idi-Araba';
     if (bi >= N) return bi === 8 && Math.abs(x - roadLine(8)) < 10 ? 'Herbert Macaulay Way, Yaba' : bj <= 1 ? 'Sabo, Yaba' : 'Yaba';

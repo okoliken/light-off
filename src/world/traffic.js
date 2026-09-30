@@ -107,10 +107,11 @@ export function createTraffic(scene, world) {
 
   // parked danfos at the motor park (static solids you can climb onto)
   for (const p of world.parked) {
-    const { g } = makeGroup('danfo', true);
-    g.position.set(p.x, CURB, p.z); g.rotation.y = p.yaw;
-    const sp = SPECS.danfo;
-    col.solids.add(p.x - sp.w / 2, 0, p.z - sp.len / 2, p.x + sp.w / 2, CURB + sp.h, p.z + sp.len / 2, 'parked');
+    const type = p.type || 'danfo', { g } = makeGroup(type, true);
+    g.position.set(p.x, p.y ?? CURB, p.z); g.rotation.y = p.yaw;
+    const sp = SPECS[type], side = Math.abs(Math.sin(p.yaw)) > 0.7; // turned sideways: swap the footprint
+    const hw = (side ? sp.len : sp.w) / 2, hl = (side ? sp.w : sp.len) / 2;
+    col.solids.add(p.x - hw, 0, p.z - hl, p.x + hw, (p.y ?? CURB) + sp.h, p.z + hl, 'parked');
   }
 
   function nextCurve(v) {
