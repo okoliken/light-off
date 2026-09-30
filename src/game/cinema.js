@@ -83,7 +83,7 @@ export function createCinema({ game, camera, hud }) {
     }
     // narration: a wide shot of the place, from whichever angle has the most room
     const f = freePoint(new THREE.Vector3(focus.x, (focus.y || 0) + 1.2, focus.z));
-    let best = null, bd = -1;
+    let best = new THREE.Vector3(0, 0.3, 1).normalize(), bd = -Infinity; // tight rooms: always end up with some angle
     const facing = focus.dir ? Math.atan2(focus.dir.x, focus.dir.z) : null; // the scene wants to be seen from this side
     for (let k = 0; k < 8; k++) {
       const a = facing !== null ? facing + (k / 7 - 0.5) * 1.6 : (k / 8) * Math.PI * 2 + i * 0.9, d = new THREE.Vector3(Math.sin(a), 0.3, Math.cos(a)).normalize();
@@ -152,6 +152,7 @@ export function createCinema({ game, camera, hud }) {
     animate(dt);
     const gu = game.env.grade.uniforms; gu.hurt.value = 0; gu.sense.value = 0; game.timeScale = 1; // no red / grey filters over a cutscene
     const sh = S.shot;
+    if (!sh) { const done = S.onDone; S = null; C.active = false; key.intensity = rim.intensity = 0; hud.cine.close(); done?.(); return; } // never leave the screen black
     // camera: blend from the last position into this shot, then drift slowly (push-in)
     S.t += dt; S.blend = Math.min(1, S.blend + dt / 1.1);
     const k = Math.min(1, S.t / S.dur), b = ease(S.blend);

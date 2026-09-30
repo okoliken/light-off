@@ -719,6 +719,8 @@ export function createGame(ctx) {
     TH.update(sdt, hitTest, onThrowHit);
     if (TH.boardOnGround && player.boardLost && dist2(TH.boardOnGround.position, player.pos) < 1.8 * 1.8) { scene.remove(TH.boardOnGround); TH.boardOnGround = null; player.boardLost = false; audio.grab(); hud.popup('GOT YOUR BOARD BACK'); }
     updateRoom(dt);
+    // evening rolls into night: once it's dark and he's home, Mama and Tobi eat and go to sleep (no need to 'wait')
+    if (L.phase === 'day' && L.inside && L.clock >= 20 * 60 && !game.story.active) game.toNight();
     combat.update(sdt);
 
     // Red Caps
@@ -791,6 +793,7 @@ export function createGame(ctx) {
     if (ao) hud.objective(ao);
     else if (so && game.story.active?.m.day) hud.objective(so);
     else if (!L.inside && game.story.reconObjective()) hud.objective(game.story.reconObjective());
+    else if (L.phase === 'day' && !L.inside && L.clock >= 20 * 60) hud.objective('It\'s dark. <b>Go home</b>: Mama is back and dinner is waiting<small>NIGHT STARTS WHEN YOU\'RE HOME</small>');
     else if (L.phase === 'day') { const e = DAY.errand, lead = game.story.next(); hud.objective(L.inside ? 'Home (daytime) · <b>read Mama\'s note</b> at the pot, go out, or wait for night<small>THE SUIT STAYS HIDDEN IN DAYLIGHT</small>' : `${e && e.step !== 'done' ? `Errand: <b>${e.step === 'go' ? e.text : 'take it home'}</b>` : 'Explore Surulere'}<small>${lead ? 'LEAD FOUND: ' + lead.title.toUpperCase() + ' TONIGHT · ' : 'LISTEN FOR NEWS (PURPLE): NEWSPAPERS, RADIO, GOSSIP · '}BUS STOPS (YELLOW) · HOME BY 6 PM</small>`); }
     else if (L.inside) hud.objective(L.suit ? 'Home · <b>go out through the door</b>, or hide the suit in the drum before you sleep<small>WALK SOFTLY: RUNNING WAKES MAMA</small>' : `Home · <b>${game.story.upcoming() && !game.story.next() ? 'turn on the radio (window sill) for news' : game.story.next() ? 'you have a lead: ' + game.story.next().title : 'rest'}</b>. The black suit is in the water drum<small>EAT FROM THE POT · REST ON THE CHAIR · SLEEP ON YOUR MAT · WALK SOFTLY</small>`);
     else if (so) hud.objective(so);

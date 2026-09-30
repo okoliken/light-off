@@ -83,8 +83,11 @@ game.onNewspaper = (heads) => openMenu(done => hud.newspaper(heads, done));
 
 // cutscenes (game/cinema.js): the camera frames whoever is talking, lines type and advance by themselves
 const cinema = createCinema({ game, camera, hud });
+const pendingScenes = [];
 game.playScene = (lines, focus, onDone, title = '') => {
   if (!lines?.length) { onDone?.(); return; }
+  // a menu or report is open: hold the scene until we're back in the game
+  if (state !== 'play' && state !== 'scene') { pendingScenes.push([lines, focus, onDone, title]); return; }
   state = 'scene';
   cinema.play(lines, focus, () => { state = 'play'; input.lock(); camera.snapBehind(player.yaw); onDone?.(); }, title);
 };
@@ -138,6 +141,8 @@ function frame() {
   if (now < nextAt - 0.004) return;
   nextAt = now - nextAt > iv ? now + iv : nextAt + iv;
   const dt = Math.min(now - last, 1 / 20); last = now;
+  if (state === 'play' && cinema.active) state = 'scene';                // never leave a scene half-open behind a menu
+  if (state === 'play' && pendingScenes.length) game.playScene(...pendingScenes.shift());
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
   const inp = input.poll();
