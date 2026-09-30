@@ -16,7 +16,7 @@ import { createActivities } from './activities.js';
 import { createRadio } from './radio.js';
 import { nightStart } from './nightreport.js';
 import { OUTFITS } from '../player/rig.js';
-import { blockRect, WALK, N, HALF } from '../world/layout.js';
+import { blockRect, WALK, N, HALF, roadLine } from '../world/layout.js';
 
 const FAMILIES = [
   ['Mama Tunde', 'her shop was locked for "unpaid levy"'], ['Baba Ade', 'the shoemaker by the gutter'],
@@ -273,6 +273,7 @@ export function createGame(ctx) {
     return null;
   }
   function doThrow(dir) {
+    if (player.cuffed) { hud.popup('HANDS CUFFED'); return; }
     if (!['foot', 'board'].includes(player.mode)) return;
     if (player.holding) {
       const to = throwTarget(dir) || new THREE.Vector3(player.pos.x + dir[0] * 12, player.pos.y, player.pos.z + dir[1] * 12);
@@ -372,6 +373,7 @@ export function createGame(ctx) {
     }
     const pk = game.thugs.find(t => t.alive && t.item && ['idle', 'patrol', 'return'].includes(t.state) && dist2(t.pos, player.pos) < 1.8 * 1.8);
     if (pk) { const tx = player.pos.x - pk.pos.x, tz = player.pos.z - pk.pos.z, tl = Math.hypot(tx, tz) || 1; if ((Math.sin(pk.yaw) * tx + Math.cos(pk.yaw) * tz) / tl < 0.1) return { kind: 'pickpocket', t: pk, text: `<span class="key">F</span>Pick his pocket (${pk.item.label})` }; }
+    const co = game.cuffOption(); if (co) return co;
     const ro = game.police.option(); if (ro) return ro;
     const so = game.story.option?.(); if (so) return so;
     const ao = game.activities.option(); if (ao) return ao;
@@ -379,6 +381,7 @@ export function createGame(ctx) {
       if (L.watched()) return { kind: 'none', text: '<b>Someone is watching you.</b> Lose them before you go in.' };
       if (player.fightingNear) return { kind: 'none', text: '<b>Deal with the Red Caps first.</b> Don\'t fight at your own gate.' };
       if (player.boardLost) return { kind: 'none', text: 'Your board is still out there. Go and get it.' };
+      if (player.cuffed) return { kind: 'none', text: 'You can\'t walk in on Mama in <b>handcuffs</b>. Get them cut at Baba Kolade\'s workshop.' };
       return { kind: 'home', text: L.phase === 'day' ? '<span class="key">F</span>Go inside (nobody is home)' : '<span class="key">F</span>Go inside quietly (Mama is asleep)' };
     }
     const v = world.vendors.find(q => dist2(q, player.pos) < 2.4 * 2.4);
@@ -394,6 +397,7 @@ export function createGame(ctx) {
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
       case 'home': game.enterHome(); return true;
+      case 'uncuff': player.cuffed = false; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Baba Kolade: "I did not see you. I did not see these. Go home."', 'green'); game.addRespect(200, 'ESCAPED CUSTODY'); return true;
       case 'roger': { game.logNight('roger'); const amt = game.police.take(opt.cp); audio.snatch(); startCarry(rogerItem(amt)); game.addRespect(200, 'ROGER SNATCHED'); game.say(opt.o, 'Thief! Na the boy in black! Catch am!', 'Police', 60); addHeat(1, 'The police want their roger back.'); return true; }
       case 'story': return game.story.doOption(opt);
       case 'activity': return game.activities.doOption(opt);
@@ -436,6 +440,7 @@ export function createGame(ctx) {
   player.inRoom = () => L.inside;
   function setOccupants(home) { R0.mama.root.visible = home; R0.tobi.root.visible = home; }
   game.startDay = () => {
+    player.cuffed = false; game.arrest = null; game.catchLabel = null;
     L.inside = true; L.suit = false; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); setOccupants(false);
     player.respawn(R0.spawn.x, R0.spawn.z, R0.spawn.yaw); player.pos.y = 0; camera.snapBehind(R0.spawn.yaw);
     const e = DAY.newErrand();
@@ -559,9 +564,9 @@ export function createGame(ctx) {
     if (seen && game.heat === 0 && L.suit && L.phase !== 'day' && game.story.progress() >= 2 && !game.story.active && game.grudgeCd <= 0) { game.grudgeCd = 90; addHeat(1, 'Police: "Na the boy in black! Oga Okafor say make we carry am!"'); }
     if (game.heat > 0) {
       if (seen) { game.heatTimer = 0; game.seenTime += dt; if (game.seenTime > 16 && game.heat < 3) { game.seenTime = 0; addHeat(1, 'More units joining the chase!'); } }
-      else { game.heatTimer += dt; game.seenTime = Math.max(0, game.seenTime - dt); if (game.heatTimer > 10) { game.heatTimer = 0; game.heat--; hud.toast(game.heat ? 'They\'re losing you…' : '<b>You lost the police.</b>', game.heat ? 'blue' : 'green'); } }
+      else { game.heatTimer += dt; game.seenTime = Math.max(0, game.seenTime - dt); if (game.heatTimer > (player.cuffed ? 16 : 10)) { game.heatTimer = 0; game.heat--; hud.toast(game.heat ? 'They\'re losing you…' : '<b>You lost the police.</b>', game.heat ? 'blue' : 'green'); } }
     }
-    for (const v of pol) { const chasing = game.heat > 0; v.police.mode = chasing ? 'chase' : 'patrol'; v.police.siren = chasing; }
+    for (const v of pol) { if (v.police.mode === 'transport') continue; const chasing = game.heat > 0; v.police.mode = chasing ? 'chase' : 'patrol'; v.police.siren = chasing; }
     for (const v of pol) {
       const P = v.police, d = Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z);
       if (!P.crew && game.heat > 0 && d < 26 && (onFoot() || player.pos.y > 2.5 || v.speed < 2) && player.mode !== 'down') {
@@ -572,25 +577,77 @@ export function createGame(ctx) {
       if (P.crew && P.crew.every(g => g.removed)) { P.crew = null; P.parked = false; }
     }
     game.policeAlertT = Math.max(0, (game.policeAlertT || 0) - dt);
-    const want = game.heat === 0 ? (game.policeAlertT > 0 ? 3 : 1) : Math.min(4, game.heat + 1); // an alert (a crashed levy car...) puts more cars on the street
+    const want = game.heat === 0 ? (game.policeAlertT > 0 ? 3 : 1) : Math.min(player.cuffed ? 5 : 4, game.heat + (player.cuffed ? 2 : 1)); // an escaped prisoner: every unit out // an alert (a crashed levy car...) puts more cars on the street
     game.spawnCd -= dt;
     if (pol.length < want && game.spawnCd <= 0) { const v = traffic.spawnPolice(player.pos.x, player.pos.z); v.police.target.copy(player.pos); game.spawnCd = 5; }
-    if (pol.length > want) for (const v of pol) { if (!v.police.crew && !v.police.sees && Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) > 95) { traffic.remove(v); break; } }
+    if (pol.length > want) for (const v of pol) { if (v.police.mode === 'transport') continue; if (!v.police.crew && !v.police.sees && Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) > 95) { traffic.remove(v); break; } }
     let grabbing = false;
     const ps = Math.hypot(player.vel.x, player.vel.z);
-    if (game.heat > 0 && player.mode !== 'skitch' && player.mode !== 'down' && ps < 4.8 && player.pos.y < 1.3) for (const v of pol) if (Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) < 4 && v.speed < 6) { grabbing = true; break; }
+    if (!game.arrest && game.heat > 0 && player.mode !== 'skitch' && player.mode !== 'down' && ps < 4.8 && player.pos.y < 1.3) for (const v of pol) if (Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) < 4 && v.speed < 6) { grabbing = true; break; }
     if (game.officerGrab) grabbing = true;
     game.officerGrab = false;
     game.catchMeter = Math.max(0, game.catchMeter + (grabbing ? dt * 0.85 : -dt * 0.7));
     if (grabbing && R() < dt * 0.8) hud.say('Police', ['Oya stop there!', 'Where you dey run go?', 'Hold am! Hold am!'][Math.floor(R() * 3)], 1.6);
     if (game.catchMeter >= 1) { game.catchMeter = 0; busted(); }
   }
-  function busted() {
-    if (game.respawnT > 0) return;
+  function busted() { arrest(); }
+  // ---------- arrested: cuffed in the back of a police car on the way to the station ----------
+  // Mash F / Space to kick the door out; the healthier he is, the harder he kicks. Break out and he runs
+  // in handcuffs (no fighting, no board, no climbing) with every unit in Surulere after him, until Baba
+  // Kolade cuts the cuffs. Fail, and it's a night in the cell.
+  game.arrest = null;
+  function arrest() {
+    if (game.arrest || game.respawnT > 0) return;
     game.stats.busted++; audio.busted();
-    hud.banner('BUSTED', 'Inspector Okafor: "Oya, bring settlement!" He took everything in your pockets and let you go.', 'red', 3.5);
-    L.wallet = 0; player.mode = 'down'; player.downT = 0; game.respawnT = 3.4;
+    player.dropHeld(); loseItem();
+    let car = traffic.police().filter(v => !v.police.crew?.length || true).sort((a, b) => dist2(a.pos, player.pos) - dist2(b.pos, player.pos))[0];
+    if (!car || dist2(car.pos, player.pos) > 60 * 60) car = traffic.spawnPolice(player.pos.x, player.pos.z);
+    for (const g of car.police.crew || []) g.remove(); car.police.crew = null; car.police.parked = false;
+    // the station: the far corner of the district
+    const corners = [[0, 0], [N, 0], [0, N], [N, N]].map(([i, j]) => ({ x: roadLine(i), z: roadLine(j) }));
+    const dest = corners.sort((a, b) => dist2(b, player.pos) - dist2(a, player.pos))[0];
+    car.police.mode = 'transport'; car.police.dest = dest; car.police.route = []; car.police.siren = true;
+    player.mode = 'foot'; player.getupT = 0; player.critical = false; player.hp = Math.max(player.hp, 8);
+    player.startRide(car, false);
+    L.wallet = 0;
+    game.arrest = { car, t: 0, struggle: 0, second: !!player.cuffed };
+    hud.banner('ARRESTED', player.cuffed ? 'Caught again. They tightened the cuffs. Kick harder.' : 'Cuffed in the back of a police car. <b>Mash F / Space to kick the door out.</b>', 'red', 3.5);
+    game.say(null, ['Oya siddon there! Station!', 'You think say you fit run? Station!', 'Okafor go like this one.'][Math.floor(R() * 3)], 'Police');
   }
+  function updateArrest(dt, input) {
+    const A = game.arrest; if (!A) return;
+    const v = A.car;
+    A.t += dt;
+    if (input.pressed.act || input.pressed.jump) { A.struggle += (A.second ? 0.05 : 0.07) * (0.35 + player.hp / 100); camera.shake = 0.25; audio.clank?.(v.pos); }
+    A.struggle = Math.max(0, A.struggle - dt * 0.1);
+    game.catchMeter = A.struggle; game.catchLabel = `IN THE BACK OF THE POLICE CAR · MASH F / SPACE TO KICK THE DOOR · ${Math.max(0, Math.ceil(50 - A.t))}s TO THE STATION`;
+    if (A.struggle >= 1) {
+      // the door gives: out onto the road, still in cuffs
+      const side = R() < 0.5 ? 1 : -1;
+      player.endRide(v.pos.x + v.rt.x * side * 2.2, v.pos.z + v.rt.z * side * 2.2);
+      player.cuffed = true; player.invuln = 1.5; game.catchMeter = 0; game.catchLabel = null;
+      v.police.mode = 'chase'; v.police.parked = true; v.police.target.copy(player.pos);
+      game.arrest = null; game.cuffT = 0;
+      game.heat = 3; game.heatTimer = 0; audio.alert(); camera.shake = 0.8;
+      hud.banner('YOU\'RE OUT', 'Still in handcuffs. No fighting, no board, no climbing. <b>Lose them, then get to Baba Kolade\'s workshop.</b>', 'red', 4);
+      game.say(null, 'E don escape! Block the road! Block am!', 'Police');
+      return;
+    }
+    if (A.t > 50) { game.arrest = null; game.catchMeter = 0; game.catchLabel = null; player.endRide(v.pos.x, v.pos.z); player.cuffed = false; v.police.mode = 'patrol'; game.heat = 0; jailed(); }
+  }
+  function jailed() {
+    game.respawnT = 999;
+    for (const t of game.thugs) if (t.state === 'tail') t.remove();
+    L.suspicion = Math.min(100, L.suspicion + 30);
+    setTimeout(() => { game.respawnT = 0; player.mode = 'foot'; L.inside = true; player.respawn(R0.mat.x, R0.mat.z, 0); player.pos.y = 0; game.onJailed?.(); }, 300);
+  }
+  // Kolade (or any mechanic with bolt cutters) takes the cuffs off
+  game.cuffOption = () => {
+    if (!player.cuffed) return null;
+    const k = DAY.pois.kolade; if (!k || dist2(k, player.pos) > 4.5 * 4.5) return null;
+    if (game.heat > 0) return { kind: 'none', text: 'Baba Kolade won\'t open the gate with sirens on the street. <b>Lose the police first.</b>' };
+    return { kind: 'uncuff', text: '<span class="key">F</span>Knock for Baba Kolade: he has bolt cutters' };
+  };
   // beaten: down for a while then back up; critical: crawl away or wake up robbed at dawn
   let crawlSafeT = 0;
   function hostilesNear() { return [...game.thugs.filter(t => t.alive && t.engaged), ...game.gunmen.filter(g => g.alive)]; }
@@ -601,6 +658,7 @@ export function createGame(ctx) {
     const close = hs.some(h => dist2(h.pos, player.pos) < 1.7 * 1.7);
     const seen = hs.some(h => dist2(h.pos, player.pos) < 14 * 14 && !col.blocked(h.pos.x, h.pos.y + 1.5, h.pos.z, player.pos.x, player.pos.y + 0.5, player.pos.z, 1.0));
     crawlSafeT = seen ? 0 : crawlSafeT + dt;
+    if (game.heat > 0 && game.gunmen.some(g => g.alive && g.role === 'police' && dist2(g.pos, player.pos) < 2.2 * 2.2)) { arrest(); return; }
     if (!hs.length || crawlSafeT > 2.5) { player.getUp(15); hud.notice('YOU GOT AWAY', 'Barely. Get somewhere safe and eat something.', 'green', 2.5); game.addRespect(100, 'SURVIVED'); return; }
     if (close || player.crawlT > 14) beatenOut();
   }
@@ -692,7 +750,8 @@ export function createGame(ctx) {
       if (v) prompt = `<span class="key">E</span>Skitch the ${v.spec.label.toLowerCase()}`;
     }
     game.prompt = prompt;
-    if (player.mode === 'ride') { TR.update(dt, input); input.pressed = {}; }
+    if (game.arrest) { updateArrest(dt, input); input.pressed = {}; }
+    else if (player.mode === 'ride') { TR.update(dt, input); input.pressed = {}; }
     if (game.respawnT <= 0 && player.mode !== 'down') {
       if ((input.pressed.fire && player.aiming) || input.pressed.throw) { if (!L.inside) doThrow(dir); }
       else if (input.pressed.act && player.mode === 'skitch' && player.skitch?.v?.kind === 'getaway') {
@@ -768,6 +827,7 @@ export function createGame(ctx) {
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
 
     updateDowned(dt);
+    if (!game.injuryTold && player.cap() < 88) { game.injuryTold = true; hud.toast('<b>Injury:</b> hits leave damage that caps your health (the striped part of the bar). Health refills up to the cap on its own; <b>food and sleep</b> heal the injury itself.', 'blue'); }
     if (game.respawnT > 0) { game.respawnT -= dt; if (game.respawnT <= 0) respawn(); }
 
     const spd = Math.hypot(player.vel.x, player.vel.z);
@@ -790,7 +850,9 @@ export function createGame(ctx) {
     buildMarkers();
     const so = game.story.objective();
     const ao = L.inside ? null : game.activities.objective();
-    if (ao) hud.objective(ao);
+    if (game.arrest) hud.objective('<b>Arrested.</b> Kick the door out before you reach the station<small>MASH F / SPACE · THE MORE HEALTH YOU HAVE, THE HARDER YOU KICK</small>');
+    else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>NO FIGHTING, NO BOARD, NO CLIMBING · ALLEYS, CORNERS, CROWDS, SKITCHING IS OFF · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
+    else if (ao) hud.objective(ao);
     else if (so && game.story.active?.m.day) hud.objective(so);
     else if (!L.inside && game.story.reconObjective()) hud.objective(game.story.reconObjective());
     else if (L.phase === 'day' && !L.inside && L.clock >= 20 * 60) hud.objective('It\'s dark. <b>Go home</b>: Mama is back and dinner is waiting<small>NIGHT STARTS WHEN YOU\'RE HOME</small>');
@@ -806,6 +868,7 @@ export function createGame(ctx) {
 
   // ---------- navigation ----------
   function navTarget() {
+    if (player.cuffed && game.heat === 0) { const k = DAY.pois.kolade; return { x: k.x, z: k.z, color: 0xff8a80, label: 'KOLADE (CUFFS)' }; }
     // a waypoint he picked from the Patrol Board beats everything automatic
     if (game.waypoint) { if (dist2(game.waypoint, player.pos) < 10 * 10) game.waypoint = null; else return { x: game.waypoint.x, z: game.waypoint.z, color: 0x80deea, label: game.waypoint.label }; }
     const at = game.activities.target();
@@ -979,7 +1042,7 @@ export function createGame(ctx) {
 
   game.hudInfo = () => ({
     respect: game.respect, holding: player.holding ? (player.holding.kind === 'sachet' ? 'PURE WATER' : player.holding.kind.toUpperCase()) : null, boardLost: player.boardLost,
-    hp: player.hp, cap: player.cap(), sweep: combat.sweepReady(), charge: player.charge, label: L.label(), inside: L.inside, noise: L.noise, suspicion: L.suspicion, suit: L.suit, critical: player.mode === 'crawl', downT: player.mode === 'down' ? player.downT : -1, aiming: player.aiming, combo: combat.combo, clock: L.timeStr(), night: L.night,
+    hp: player.hp, cap: player.cap(), cuffed: player.cuffed, sweep: combat.sweepReady(), charge: player.charge, label: L.label(), inside: L.inside, noise: L.noise, suspicion: L.suspicion, suit: L.suit, critical: player.mode === 'crawl', downT: player.mode === 'down' ? player.downT : -1, aiming: player.aiming, combo: combat.combo, clock: L.timeStr(), night: L.night,
     hunger: L.hunger, energy: L.energy, wallet: L.wallet, wanted: L.wanted, followed: L.followers().length > 0, watched: L.watched(),
   });
   return game;

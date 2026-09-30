@@ -67,7 +67,7 @@ export function createCombat(game) {
   // surrounded: three or more of them close enough for the Cat Sweep
   C.sweepReady = () => C.sweepCd <= 0 && game.thugs.filter(t => t.alive && !t.grounded && !t.airborne && t.engaged && dist(t, player) < 3.8).length >= 3;
   C.sweep = () => {
-    if (!['foot', 'board'].includes(player.mode) || !C.sweepReady()) return false;
+    if (!['foot', 'board'].includes(player.mode) || !C.sweepReady() || player.cuffed) return false;
     C.sweepCd = 8;
     if (player.mode === 'board') player.mode = 'foot';
     player.startAct('sweep', null, () => {
@@ -101,7 +101,7 @@ export function createCombat(game) {
 
   // F: returns true if it did a combat move
   C.attack = (dir) => {
-    if (!['foot', 'board'].includes(player.mode)) return false;
+    if (!['foot', 'board'].includes(player.mode) || player.cuffed) return false;
     // silent takedown: creep up on someone who hasn't noticed him (behind them, or in the dark) and drop them without a sound
     const unaware = t => t.takeHit && ['idle', 'patrol', 'return'].includes(t.state) && t.variant !== 'scorpion' && t.variant !== 'chairman' && t.variant !== 'egungun' &&
       (game.power < 0.5 || (Math.sin(t.yaw) * (player.pos.x - t.pos.x) + Math.cos(t.yaw) * (player.pos.z - t.pos.z)) / (dist(t, player) || 1) < 0.2);
@@ -149,6 +149,7 @@ export function createCombat(game) {
 
   // C: counter if someone is about to hit him; returns false if there's nothing to counter
   C.counter = () => {
+    if (player.cuffed) return false;
     const threats = game.thugs.filter(t => t.alive && t.state === 'windup' && t.t > 0.08 && dist(t, player) < 3.6);
     const counterable = threats.filter(t => !t.unblockable).sort((a, b) => dist(a, player) - dist(b, player));
     if (!counterable.length) return false;
@@ -161,6 +162,7 @@ export function createCombat(game) {
 
   // V: pounce onto someone far away (or just leap)
   C.pounce = (dir) => {
+    if (player.cuffed) return false;
     if (!['foot', 'board'].includes(player.mode) || !player.onGround || player.leapCd > 0) return false;
     let best = null, bs = Infinity;
     for (const t of foes()) {
@@ -184,6 +186,7 @@ export function createCombat(game) {
 
   // G: launcher
   C.launch = (dir) => {
+    if (player.cuffed) return false;
     if (!['foot', 'board'].includes(player.mode)) return false;
     const t = pickTarget(dir, 3.2, x => x.takeHit && !x.grounded && !x.airborne);
     if (!t) return false;

@@ -247,6 +247,10 @@ export function createTraffic(scene, world) {
   function drivePolice(v, dt, game) {
     const P = v.police, pp = game.player.pos;
     const chasing = P.mode === 'chase';
+    if (P.mode === 'transport') { // prisoner in the back: drive to the station
+      P.routeT -= dt; if (P.routeT <= 0 || !P.route.length) { P.routeT = 3; P.route = routeTo(v, P.dest.x, P.dest.z); }
+      const [tx, tz] = nextWaypoint(v, P.route); freeDrive(v, dt, tx, tz, 12); return;
+    }
     if (P.parked) { v.speed = Math.max(0, v.speed - 12 * dt); v.yawRate = 0; v.pos.x += Math.sin(v.yaw) * v.speed * dt; v.pos.z += Math.cos(v.yaw) * v.speed * dt; return; }
     const dist = Math.hypot(pp.x - v.pos.x, pp.z - v.pos.z);
     P.routeT -= dt;

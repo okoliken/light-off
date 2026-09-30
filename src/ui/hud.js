@@ -268,7 +268,7 @@ export function createHUD(root, world) {
     el.stars.forEach((s, i) => s.classList.toggle('on', game.heat > i));
     el.naira.innerHTML = `₦${game.stats.returned.toLocaleString()}<span>RETURNED</span>`;
     const spd = Math.round(Math.hypot(p.vel.x, p.vel.z) * 3.6);
-    el.mode.innerHTML = `${MODE_NAMES[p.mode] || p.mode}<small>${p.mode === 'grind' ? 'SPACE JUMP OFF · C HOP OFF' : spd + ' KM/H'}</small>`;
+    el.mode.innerHTML = `${game.arrest ? 'Arrested' : p.cuffed && p.mode === 'foot' ? 'Handcuffed' : MODE_NAMES[p.mode] || p.mode}<small>${p.mode === 'grind' ? 'SPACE JUMP OFF · C HOP OFF' : spd + ' KM/H'}</small>`;
     const sk = p.mode === 'skitch' && p.skitch;
     el.grip.classList.toggle('hidden', !sk);
     if (sk) el.gripB.style.width = Math.max(0, p.skitch.grip) + '%';
@@ -276,6 +276,7 @@ export function createHUD(root, world) {
     el.power.textContent = game.power > 0.5 ? 'GRID: ON' : 'NEPA TOOK LIGHT';
     el.power.classList.toggle('off', game.power <= 0.5);
     el.catchW.classList.toggle('hidden', game.catchMeter <= 0.01);
+    { const lbl = el.catchW.querySelector('.meterlbl'), want = game.catchLabel || 'OFFICER GRABBING YOU · MOVE!'; if (lbl.textContent !== want) lbl.textContent = want; }
     el.catchB.style.width = Math.min(100, game.catchMeter * 100) + '%';
     el.prompt.classList.toggle('hidden', !game.prompt);
     H.setPad(game.input?.usingPad ? game.input.padType || 'xbox' : null);
@@ -452,7 +453,7 @@ export function createHUD(root, world) {
     M.back = resume;
     if (opts.openBoard) boardPanel(M);
   };
-  H.help = () => { if (el.overlays.innerHTML) return false; H.toast('F strike · C counter/dodge · G launch · V web · Space jump/flip · R board · E skitch · Q Street Sense · M map', 'blue'); return true; };
+  H.help = () => { if (el.overlays.innerHTML) return false; H.toast('F strike · C counter/dodge · G launch · V pounce · N radio · J patrol board · Space jump/flip · R board · E skitch · Q Street Sense · M map', 'blue'); return true; };
   H.end = (stats, onContinue) => {
     const S = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
     el.overlays.innerHTML = `<div class="overlay"><div class="card">
@@ -499,7 +500,7 @@ export function createHUD(root, world) {
         <p class="rp-deeds">${r.deeds}</p>
         ${r.mama ? `<p class="rp-mama">${r.mama}</p>` : ''}
         ${r.next ? `<p class="rp-next">${r.next}</p>` : ''}
-        <div class="rp-foot"><button class="mm-btn hot" data-go>${r.ending === 'beaten' ? 'Wake up' : 'Sleep till morning'}</button>
+        <div class="rp-foot"><button class="mm-btn hot" data-go>${r.ending === 'beaten' || r.ending === 'arrested' ? 'Wake up' : 'Sleep till morning'}</button>
           <span class="rp-total">All time · ₦${r.totals.returned.toLocaleString()} returned · ${r.totals.down} Red Caps down · ${r.totals.respect.toLocaleString()} respect</span></div>
       </div>
       <div class="rp-paper"><div class="pm">THE LAGOS DAILY · TOMORROW</div><h2>${rest.join(':').trim()}</h2><div class="ps">${src}</div><div class="pl"></div><div class="pl"></div><div class="pl short"></div></div>

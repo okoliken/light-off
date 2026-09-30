@@ -216,7 +216,7 @@ export function createPlayer(scene, world, traffic) {
     const w = wishDir(inp, camYaw), mag = Math.min(1, w.length());
     const sprint = inp.held.sprint && mag > 0.5 && !p.aiming;
     const cond = world.roadCond?.(p.pos.x, p.pos.z);
-    const max = (cond === 'flood' && p.onGround ? 0.55 : 1) * (p.aiming ? 3.2 * mag : sprint ? 9.2 : 6.4 * Math.max(0.35, mag)) * (0.7 + 0.3 * p.eff) * (p.hp < 35 ? 0.8 : p.hp < 15 ? 0.7 : 1);
+    const max = (p.cuffed ? 0.88 : 1) * (cond === 'flood' && p.onGround ? 0.55 : 1) * (p.aiming ? 3.2 * mag : sprint ? 9.2 : 6.4 * Math.max(0.35, mag)) * (0.7 + 0.3 * p.eff) * (p.hp < 35 ? 0.8 : p.hp < 15 ? 0.7 : 1);
     const acc = p.onGround ? (p.guard > 0 ? 28 : 42) : 7;
     const tx = mag > 0.05 ? (w.x / (w.length() || 1)) * max * mag : 0, tz = mag > 0.05 ? (w.z / (w.length() || 1)) * max * mag : 0;
     if (p.onGround || mag > 0.05) { // in the air with no input he keeps his momentum (leaps carry)
@@ -270,8 +270,8 @@ export function createPlayer(scene, world, traffic) {
     }
     if (inp.pressed.roll && !p.onGround) p.rollBuf = 0;
     if (inp.pressed.roll && p.onGround) { p.mode = 'roll'; p.rollT = 0; const d = mag > 0.1 ? Math.atan2(w.x, w.z) : p.yaw; p.yaw = d; p.vel.x = Math.sin(d) * 9.5; p.vel.z = Math.cos(d) * 9.5; p.invuln = 0.45; emit('roll'); return; }
-    if (inp.pressed.board && p.onGround && !p.boardLost) { toBoard(); return; }
-    if (inp.pressed.skitch && p.onGround && !p.boardLost) { const v = traffic.nearestSkitch(p.pos); if (v) { toBoard(); startSkitch(v); return; } }
+    if (inp.pressed.board && p.onGround && !p.boardLost && !p.cuffed) { toBoard(); return; }
+    if (inp.pressed.skitch && p.onGround && !p.boardLost && !p.cuffed) { const v = traffic.nearestSkitch(p.pos); if (v) { toBoard(); startSkitch(v); return; } }
 
     const ph = physics(dt, { snap: 0.4 });
     if (ph.landed) {
@@ -456,6 +456,7 @@ export function createPlayer(scene, world, traffic) {
   }
 
   function startWallrun(wall, hs) {
+    if (p.cuffed) return;
     const nx = Math.round(wall.nx), nz = Math.round(wall.nz);
     let tx = -nz, tz = nx;
     if (p.vel.x * tx + p.vel.z * tz < 0) { tx = -tx; tz = -tz; }
@@ -487,6 +488,7 @@ export function createPlayer(scene, world, traffic) {
   }
 
   function startClimb(wall) {
+    if (p.cuffed) return; // hands cuffed behind him: no climbing
     p.mode = 'climb'; p.climb = { s: wall.s, nx: Math.round(wall.nx), nz: Math.round(wall.nz) };
     if (p.climb.nx === 0 && p.climb.nz === 0) p.climb.nx = 1;
     p.vel.set(0, 0, 0); p.onGround = false; p.yaw = Math.atan2(-p.climb.nx, -p.climb.nz);
@@ -619,6 +621,7 @@ export function createPlayer(scene, world, traffic) {
     if (p.flashT < 0.5) Pose.flash(rig, p.flashT / 0.5);
     if (rig.stripMat) rig.stripMat.emissiveIntensity = p.flashT < 0.6 ? 6 * (1 - p.flashT / 0.6) : 0.06;
     p.prevHeading = p.heading;
+    if (p.cuffed && ['foot', 'roll', 'bail'].includes(p.mode)) { rig.set('shLX', 0.55); rig.set('shRX', 0.55); rig.set('shLZ', -0.3); rig.set('shRZ', 0.3); rig.set('elLX', -1.0); rig.set('elRX', -1.0); } // wrists cuffed behind his back
     rig.update(dt, rate);
     rig.root.position.set(p.pos.x, p.pos.y + lift, p.pos.z);
     const cur = rig.root.rotation.y;

@@ -57,6 +57,12 @@ export function nightReport(game, ending) {
       'Tobi went out to fetch water at dawn and found you by the gutter. He dragged you inside and swore he would never tell Mama.',
       'The mallam who sells suya found you at dawn, poured water on your face and walked you home, muttering prayers the whole way.',
     ]) + ' Your pockets are empty. Your ribs will remember this for days.';
+  } else if (ending === 'arrested') {
+    tone = 'red'; title = 'A night in the cell'; kicker = `Night ${L.night} · Surulere Division`;
+    story = pick([
+      'They held you in the cell until 6 AM with nine other boys and one bucket. Nobody asked your name twice. At dawn Mama came with ₦20,000 she did not have, and said nothing the whole walk home.',
+      'An officer wrote "suspected cultist" on a sheet and forgot about you. At six they let you out through the back because the morning shift wanted the space. Mama was waiting at the gate. She had been crying.',
+    ]);
   } else if (ending === 'dawn') {
     tone = 'red'; title = 'Caught at dawn'; kicker = `Night ${L.night} · Mama was already up`;
     story = pick([
@@ -77,6 +83,7 @@ export function nightReport(game, ending) {
   let headline;
   const top = missions[missions.length - 1];
   if (top && MISSION_HEADLINES[top.id]) headline = MISSION_HEADLINES[top.id];
+  else if (ending === 'arrested') headline = 'THE SUN: Police round up "suspected cultists" in overnight Surulere raid';
   else if (ending === 'beaten') headline = 'VANGUARD: Young man found beaten near Aguda gutter, police say "no report"';
   else if (tonight.returned >= 10000) headline = `PUNCH: "Boy in black" returns ${money(tonight.returned)} to Surulere families`;
   else if (tonight.down >= 3) headline = `THE SUN: ${tonight.down} cult boys beaten in overnight street fights, residents say`;

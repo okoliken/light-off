@@ -104,6 +104,7 @@ function endNight(ending) {
 }
 game.onSleep = () => endNight(L.caught ? 'dawn' : 'sleep');
 game.onBeaten = () => endNight('beaten');
+game.onJailed = () => endNight('arrested');
 game.onChapterComplete = () => { state = 'overlay'; document.exitPointerLock?.(); hud.setHudVisible(false); hud.chapter(() => { state = 'play'; hud.setHudVisible(true); input.lock(); }); };
 
 document.addEventListener('pointerlockchange', () => {
