@@ -3,7 +3,7 @@
 // brake for the vehicle ahead and for Bolaji standing in the road. Police drive freely along an L-shaped
 // route over the grid, then straight at the player once they have line of sight.
 import * as THREE from 'three';
-import { N, LANE, INT, HALF, CELL, roadLine, nearestNode, rng, CURB } from './layout.js';
+import { N, LANE, INT, HALF, CELL, roadLine, nearestNode, rng, CURB, I0, I1 } from './layout.js';
 import { buildTemplate, vehicleMats, SPECS } from './vehicles.js';
 import { glowTexture } from '../core/textures.js';
 
@@ -31,7 +31,7 @@ function curve(p0, p1, p2, info) {
 }
 function bez(p0, p1, p2, t) { const a = (1 - t) * (1 - t), b = 2 * (1 - t) * t, c = t * t; return [a * p0[0] + b * p1[0] + c * p2[0], a * p0[1] + b * p1[1] + c * p2[1]]; }
 function bezD(p0, p1, p2, t) { return [2 * (1 - t) * (p1[0] - p0[0]) + 2 * t * (p2[0] - p1[0]), 2 * (1 - t) * (p1[1] - p0[1]) + 2 * t * (p2[1] - p1[1])]; }
-const valid = (i, j) => i >= 0 && j >= 0 && i <= N && j <= N;
+const valid = (i, j) => i >= I0 && j >= 0 && i <= I1 && j <= N;
 
 export function createTraffic(scene, world) {
   const R = rng(99);
@@ -93,11 +93,11 @@ export function createTraffic(scene, world) {
   }
 
   // spawn lane traffic
-  const MIX = [['danfo', 13], ['okada', 9], ['keke', 6], ['car', 11], ['tanker', 3]];
+  const MIX = [['danfo', 20], ['okada', 14], ['keke', 9], ['car', 16], ['tanker', 4]]; // Surulere plus Yaba and Mushin
   for (const [type, n] of MIX) for (let k = 0; k < n; k++) {
     const v = makeVehicle(type);
     let A, d;
-    do { A = [Math.floor(R() * (N + 1)), Math.floor(R() * (N + 1))]; d = DIRS[Math.floor(R() * 4)]; } while (!valid(A[0] + d[0], A[1] + d[1]));
+    do { A = [I0 + Math.floor(R() * (I1 - I0 + 1)), Math.floor(R() * (N + 1))]; d = DIRS[Math.floor(R() * 4)]; } while (!valid(A[0] + d[0], A[1] + d[1]));
     v.cur = straight(A, d); v.s = R() * v.cur.len; v.speed = v.cruise * 0.6;
     place(v);
   }
@@ -177,7 +177,7 @@ export function createTraffic(scene, world) {
     spawnPolice(px, pz) {
       // a road node 70-120 m away, ideally out of sight
       let best = null, bestScore = -1e9;
-      for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+      for (let i = I0; i <= I1; i++) for (let j = 0; j <= N; j++) {
         const x = roadLine(i), z = roadLine(j), d = Math.hypot(x - px, z - pz);
         if (d < 60 || d > 150) continue;
         const hidden = col.blocked(x, 1.5, z, px, 1.5, pz, 2);
@@ -259,7 +259,7 @@ export function createTraffic(scene, world) {
       if (P.sees && dist < 34) { P.route = []; tx = pp.x; tz = pp.z; }
       else if (P.routeT <= 0 || !P.route.length) { P.routeT = 1.2; P.route = routeTo(v, P.target.x, P.target.z); }
     } else if (P.routeT <= 0 || !P.route.length) {
-      P.routeT = 12; P.route = routeTo(v, roadLine(Math.floor(R() * (N + 1))), roadLine(Math.floor(R() * (N + 1))));
+      P.routeT = 12; P.route = routeTo(v, roadLine(I0 + Math.floor(R() * (I1 - I0 + 1))), roadLine(Math.floor(R() * (N + 1))));
     }
     if (tx === undefined) [tx, tz] = nextWaypoint(v, P.route);
     let target = chasing ? (game.heat >= 3 ? 19 : 16.5) : 9;
@@ -284,7 +284,7 @@ export function createTraffic(scene, world) {
       A.routeT = 4;
       // flee to a junction far from Bolaji
       let best = null, bs = -1e9;
-      for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+      for (let i = I0; i <= I1; i++) for (let j = 0; j <= N; j++) {
         const x = roadLine(i), z = roadLine(j);
         const dp = Math.hypot(x - pp.x, z - pp.z), dv = Math.hypot(x - v.pos.x, z - v.pos.z);
         if (dv < 50) continue;

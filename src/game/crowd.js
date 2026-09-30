@@ -36,7 +36,7 @@ export function createCrowd(scene, world, count = 230) {
     m.castShadow = k !== 'hair' && k !== 'fila'; m.frustumCulled = false; scene.add(m); mesh[k] = m;
   }
   const c = new THREE.Color();
-  const blocks = world.blocks.filter(b => b.bi >= 0 && b.bj >= 0 && b.bi < N && b.bj < N);
+  const blocks = world.blocks.filter(b => b.bj >= 0 && b.bj < N && b.type !== 'ring'); // Surulere, Yaba and Mushin
   const peds = [];
   // where people gather and stand: bus stops, food stalls, news stands, the market, the motor park
   const hangouts = [];
@@ -46,6 +46,7 @@ export function createCrowd(scene, world, count = 230) {
   { const m = world.motorparkSpot; for (let k = 0; k < 10; k++) hangouts.push({ x: m.x - 18 + R() * 30, z: m.z - 4 - R() * 16 }); }
   for (const h of world.stadium?.hangouts || []) hangouts.push(h);
   for (const h of world.island?.hangouts || []) hangouts.push(h);
+  for (const h of world.districtHangouts || []) hangouts.push(h);
 
   for (let i = 0; i < count; i++) {
     const female = R() < 0.5, age = R(), child = age < 0.08, elder = age > 0.88;

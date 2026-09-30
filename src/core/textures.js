@@ -124,7 +124,7 @@ export function beamTexture() {
   return tex(c, { repeat: false, srgb: false });
 }
 
-// shop signs atlas: 2 columns x 8 rows, each 512 x 128
+// shop signs atlas: 2 columns x 16 rows, each 512 x 128. 0-15 Surulere, 16-23 Yaba, 24-31 Mushin / Idi-Araba
 export const SIGNS = [
   ['MAMA NKECHI PROVISIONS', '#c62828', '#fff'],
   ["GOD'S GRACE PHONE REPAIRS", '#1565c0', '#fff'],
@@ -142,9 +142,27 @@ export const SIGNS = [
   ['BIG BOY CYBER CAFE', '#0d47a1', '#80d8ff'],
   ['FAITH HAIR & NAILS', '#ad1457', '#fff'],
   ['POS  CASH OUT HERE', '#1b5e20', '#ffee58'],
+  // Yaba: students, gadgets, photocopies
+  ['SABO BUSINESS CENTRE · PHOTOCOPY', '#1565c0', '#fff'],
+  ['YABATECH TEXTBOOKS & HANDOUTS', '#f5f5f5', '#0d47a1'],
+  ['GADGET HUB · LAPTOP REPAIRS', '#111', '#40c4ff'],
+  ['TEJUOSHO FABRICS & LACE', '#6a1b9a', '#ffd54f'],
+  ['CAMPUS JOLLOF SPOT', '#e65100', '#fff'],
+  ['NIGHT READING HALL  ₦200', '#263238', '#ffeb3b'],
+  ['EXAM PRINTING · SPIRAL BINDING', '#00838f', '#fff'],
+  ['HOSTEL SPACE AVAILABLE', '#fafafa', '#c62828'],
+  // Mushin / Idi-Araba: spare parts, workshops, music
+  ['LADIPO GENUINE PARTS', '#b71c1c', '#fff'],
+  ['AUTO ELECTRICIAN · AC REPAIRS', '#fdd835', '#111'],
+  ['MUSHIN MUSIC & CD PLAZA', '#111', '#ff4081'],
+  ['ALHAJI BUKKA · MUSHIN', '#1b5e20', '#fff'],
+  ['IDI-ARABA PHARMACY', '#00897b', '#fff'],
+  ['PANEL BEATER & SPRAYER', '#37474f', '#ff9800'],
+  ['GOD WILL DO IT VULCANIZER', '#4e342e', '#ffeb3b'],
+  ['USED TOKUNBO ENGINES', '#e0e0e0', '#b71c1c'],
 ];
 export function signAtlas() {
-  const [c, x] = canvas(1024, 1024);
+  const [c, x] = canvas(1024, 2048);
   SIGNS.forEach(([text, bg, fg], i) => {
     const col = i % 2, row = Math.floor(i / 2), X = col * 512, Y = row * 128;
     x.fillStyle = bg; x.fillRect(X, Y, 512, 128);
@@ -158,7 +176,7 @@ export function signAtlas() {
   const t = tex(c, { repeat: false }); t.flipY = true;
   return t;
 }
-export const signUV = i => { const col = i % 2, row = Math.floor(i / 2); return [col * 0.5, 1 - (row + 1) / 8, col * 0.5 + 0.5, 1 - row / 8]; };
+export const signUV = i => { const col = i % 2, row = Math.floor(i / 2); return [col * 0.5, 1 - (row + 1) / 16, col * 0.5 + 0.5, 1 - row / 16]; };
 
 export function starsTexture() {
   const [c, x] = canvas(64, 64);

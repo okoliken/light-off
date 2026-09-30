@@ -119,6 +119,10 @@ Pick **Patrol** on the main menu. It has its own save and never touches the stor
 
 - **Day / night:** day errands from Mama (10 kinds: market, NEPA bill, tailor, filling station, school, borehole, recharge card, bakery, pharmacy, Kolade's workshop); delivery jobs from Mama Nkechi; newspapers, radio kiosks and street gossip.
 - **Transport:** bus stops with danfo, keke and okada rides for a fare; skitching any vehicle; the Third Mainland Bridge to UNILAG is open (skate or skitch).
+- **New districts (v0.10):**
+  - **Yaba** (east of Surulere): taller, paler blocks, student and gadget shop signs, the **Tejuosho Market** shopping complex with phone kiosks, the **Yaba bus stop footbridge** on Herbert Macaulay Way, a glass **tech hub**, and the **Yaba College of Technology** gate. Sabo is the north-west corner.
+  - **UNILAG, Akoka** (north of Yaba, on the lagoon): gate, Senate tower, faculties, main library, Jaja and Moremi halls, a palm-lined drive, and the lagoon-front wall with benches.
+  - **Mushin / Idi-Araba** (west): low, rust-coloured and tight, with zinc lean-to workshops and mechanic/music/bukka signs, the **Ladipo spare-parts market** (arch, sheds, tyres, engines, stripped cars, oil stains), **LUTH** (lit white at night, with an ambulance bay), and a mosque with a green dome.
 - **Third Mainland Bridge (researched):**
   - The real bridge runs 11.8 km from Oworonshoki to the Adeniji Adele Interchange on Lagos Island, opened 1990, and it's known for go-slow robbers who pose as hawkers.
   - In the game it now lands at **Lagos Island (Adeniji Adele)**: dense Island blocks, an Idumota and Balogun market road, a danfo park, and a "Welcome to Lagos Island" gantry.

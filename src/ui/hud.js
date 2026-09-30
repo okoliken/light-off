@@ -1,7 +1,7 @@
 // HUD: status (health, heat, naira returned), objective, heading-up minimap, mode + meters,
 // context prompts, subtitles, toasts, banners, on-screen markers, and the title / pause / end screens.
 import * as THREE from 'three';
-import { N, HALF, CELL, ROAD, CAMPUS } from '../world/layout.js';
+import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.js';
 
 const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting' };
 
@@ -85,7 +85,7 @@ export function createHUD(root, world) {
 
 
   // ---- pre-rendered map (1 px = 1 m): the district, the bridge, UNILAG ----
-  const EXT = HALF + CELL * 0.8, NZ = -CAMPUS.z0 + 20, W0 = Math.ceil(EXT * 2), H0 = Math.ceil(NZ + 460); // south to the stadium grounds
+  const EXT = -roadLine(I0) + CELL * 1.2, NZ = -CAMPUS.z0 + 20, W0 = Math.ceil(EXT + roadLine(I1) + CELL * 1.2), H0 = Math.ceil(NZ + 460); // Mushin to Yaba, Lagos Island to the stadium
   const mapC = document.createElement('canvas'); mapC.width = W0; mapC.height = H0;
   const MX = x => x + EXT, MZ = z => z + NZ; // world -> map pixels
   {
@@ -93,16 +93,17 @@ export function createHUD(root, world) {
     x.fillStyle = '#0d1a2a'; x.fillRect(0, 0, W0, H0); // lagoon
     x.fillStyle = '#1a1c22'; x.fillRect(0, MZ(-HALF - CELL - 4), W0, H0);
     for (const b of world.blocks) {
-      x.fillStyle = b.type === 'market' ? '#5a4a2a' : b.type === 'motorpark' ? '#4a3a2a' : b.type === 'pitch' ? '#3d5a2e' : b.type === 'ring' ? '#1f2128' : '#2b2e38';
+      x.fillStyle = b.type === 'market' || b.type === 'tejuosho' ? '#5a4a2a' : b.type === 'ladipo' ? '#3e3530' : b.type === 'hospital' ? '#46505c' : b.type === 'motorpark' ? '#4a3a2a' : b.type === 'pitch' ? '#3d5a2e' : b.type === 'ring' ? '#1f2128' : b.bi >= N ? '#2e3140' : b.bi < 0 ? '#302b28' : '#2b2e38';
       x.fillRect(MX(b.x0), MZ(b.z0), b.x1 - b.x0, b.z1 - b.z0);
     }
     x.fillStyle = '#5d6170';
-    for (let i = 0; i <= N; i++) { const c = -HALF + i * CELL; x.fillRect(MX(c - ROAD / 2), MZ(-HALF - ROAD / 2), ROAD, N * CELL + ROAD); x.fillRect(MX(-HALF - ROAD / 2), MZ(c - ROAD / 2), N * CELL + ROAD, ROAD); }
+    for (let i = I0; i <= I1; i++) { const c = roadLine(i); x.fillRect(MX(c - ROAD / 2), MZ(-HALF - ROAD / 2), ROAD, N * CELL + ROAD); }
+    for (let j = 0; j <= N; j++) { const c = roadLine(j); x.fillRect(MX(roadLine(I0) - ROAD / 2), MZ(c - ROAD / 2), roadLine(I1) - roadLine(I0) + ROAD, ROAD); }
     for (const r of world.mapRects || []) { x.fillStyle = r.color; x.fillRect(MX(r.x0), MZ(r.z0), r.x1 - r.x0, r.z1 - r.z0); }
     x.fillStyle = '#f2b705';
     for (const t of world.transformers) x.fillRect(MX(t.x) - 2, MZ(t.z) - 2, 4, 4);
     x.fillStyle = 'rgba(255,255,255,0.55)'; x.font = 'bold 16px Inter, sans-serif'; x.textAlign = 'center';
-    x.fillText('THIRD MAINLAND BRIDGE', MX(60), MZ(-700)); x.fillText('NATIONAL STADIUM', MX(170), MZ(420)); x.fillText('LAGOS ISLAND', MX(0), MZ(-1360)); x.fillText('MAKOKO', MX(-95), MZ(-560)); x.fillText('UNILAG', MX(-240), MZ(-720)); x.fillText('LAGOS LAGOON', MX(190), MZ(-640));
+    x.fillText('THIRD MAINLAND BRIDGE', MX(60), MZ(-700)); x.fillText('NATIONAL STADIUM', MX(170), MZ(420)); x.fillText('LAGOS ISLAND', MX(0), MZ(-1360)); x.fillText('MAKOKO', MX(-95), MZ(-560)); x.fillText('UNILAG · AKOKA', MX(420), MZ(-380)); x.fillText('YABA', MX(400), MZ(-20)); x.fillText('MUSHIN', MX(-450), MZ(40)); x.fillText('IDI-ARABA', MX(-300), MZ(-130)); x.fillText('LAGOS LAGOON', MX(190), MZ(-640));
   }
   const mctx = el.map.getContext('2d');
 
@@ -286,7 +287,7 @@ export function createHUD(root, world) {
       cx2.beginPath(); cx2.moveTo(0, -a * 1.3); cx2.lineTo(a * 0.8, a); cx2.lineTo(0, a * 0.45); cx2.lineTo(-a * 0.8, a); cx2.closePath(); cx2.fillStyle = '#ffd54f'; cx2.fill(); cx2.lineWidth = 2 / v.zoom; cx2.strokeStyle = '#000'; cx2.stroke(); cx2.restore();
       // area names
       cx2.fillStyle = 'rgba(255,255,255,0.85)'; cx2.font = `bold ${13 / v.zoom}px Inter, sans-serif`; cx2.textAlign = 'center';
-      for (const [n, x, z] of [['AGUDA', -110, -110], ['OJUELEGBA', 60, -130], ['ADELABU', -110, 110], ['NATIONAL STADIUM', 170, 250]]) cx2.fillText(n, x, z);
+      for (const [n, x, z] of [['AGUDA', -110, -110], ['OJUELEGBA', 60, -130], ['ADELABU', -110, 110], ['NATIONAL STADIUM', 170, 250], ['YABA', 400, -40], ['SABO', 330, -170], ['TEJUOSHO', 420, 10], ['UNILAG', 420, -350], ['MUSHIN', -470, 40], ['IDI-ARABA', -300, -150], ['LADIPO', -400, 60], ['SURULERE', 0, 30]]) cx2.fillText(n, x, z);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);

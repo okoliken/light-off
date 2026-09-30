@@ -14,6 +14,11 @@ export const INT = ROAD / 2 + 2; // how far from a node an intersection "box" ex
 export const BOUND = HALF + ROAD / 2 + WALK - 0.4; // playable limit: the outer roads and their far sidewalks
 
 export const roadLine = i => -HALF + i * CELL;
+// the grid runs on past Surulere: Mushin / Idi-Araba to the west (columns I0..-1), Yaba to the east (N..I1-1)
+export const I0 = -5, I1 = N + 5;
+export const district = (bi) => bi < 0 ? 'mushin' : bi >= N ? 'yaba' : 'surulere';
+// UNILAG (Akoka) sits north of Yaba on the lagoon shore
+export const UNI = { x0: N * CELL / 2 + ROAD / 2, x1: -N * CELL / 2 + (N + 5) * CELL - ROAD / 2, z0: -452, z1: -(N * CELL) / 2 - ROAD / 2 };
 
 // local coordinate inside a cell, 0..CELL, where 0 is a road centreline
 const cellLocal = v => (((v + HALF) % CELL) + CELL) % CELL;
@@ -29,7 +34,8 @@ export const CAMPUS = { x0: -170, x1: 170, z0: -1420, z1: BRIDGE.z1 };
 
 // playable regions (axis-aligned); anything outside gets pushed back to the nearest one
 export const REGIONS = [
-  { x0: -BOUND, x1: BOUND, z0: -BOUND, z1: BOUND },                                     // the district
+  { x0: -HALF + I0 * CELL - ROAD / 2 - WALK + 0.4, x1: -HALF + I1 * CELL + ROAD / 2 + WALK - 0.4, z0: -BOUND, z1: BOUND }, // Mushin, Surulere, Yaba
+  { x0: N * CELL / 2 + 2, x1: -N * CELL / 2 + (N + 5) * CELL - 2, z0: -448, z1: -BOUND + 1 },                                 // UNILAG, Akoka
   { x0: -ROAD / 2 + 0.4, x1: ROAD / 2 - 0.4, z0: BRIDGE.z0 - 1, z1: -BOUND + 1 },        // approach road through the ring
   { x0: -BRIDGE.half + 0.9, x1: BRIDGE.half - 0.9, z0: BRIDGE.z1 - 1, z1: BRIDGE.z0 + 1 }, // the bridge
   { x0: CAMPUS.x0 + 4, x1: CAMPUS.x1 - 4, z0: CAMPUS.z0 + 4, z1: CAMPUS.z1 },             // UNILAG
@@ -57,8 +63,8 @@ export function blockRect(bi, bj) {
 
 // nearest road node (intersection) indices
 export function nearestNode(x, z) {
-  const c = v => Math.max(0, Math.min(N, Math.round((v + HALF) / CELL)));
-  return [c(x), c(z)];
+  const c = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round((v + HALF) / CELL)));
+  return [c(x, I0, I1), c(z, 0, N)];
 }
 export const nodePos = (i, j) => [roadLine(i), roadLine(j)];
 
@@ -68,8 +74,11 @@ export const SPECIAL = {
   '3,2': 'motorpark',
   '4,4': 'pitch',
   '1,1': 'home',
+  '8,2': 'tejuosho', // Tejuosho Market shopping complex, Yaba
+  '-3,3': 'ladipo',  // Ladipo auto spare-parts market, Mushin
+  '-2,1': 'hospital', // LUTH, Idi-Araba
 };
-export const blockType = (bi, bj) => (bi < 0 || bj < 0 || bi >= N || bj >= N) ? 'ring' : (SPECIAL[bi + ',' + bj] || 'regular');
+export const blockType = (bi, bj) => (bi < I0 || bj < 0 || bi >= I1 || bj >= N) ? 'ring' : (SPECIAL[bi + ',' + bj] || 'regular');
 
 // seeded RNG so the city is the same every run
 export function rng(seed) {
