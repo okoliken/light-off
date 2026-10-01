@@ -26,6 +26,7 @@ export const OUTFITS = {
   brute: { skin: '#352016', top: '#1b1b1b', bottom: '#263238', sock: '#2b2b2b', sole: '#1a1a1a', glove: null, hood: false, shorts: false, singlet: true, beret: '#b71c1c', scale: 1.28, sheen: '#443333' },
   scorpion: { skin: '#3a2317', top: '#b71c1c', bottom: '#111111', sock: '#111', sole: '#0a0a0a', glove: '#111', hood: false, shorts: false, beret: '#111111', mask: 'bandana', scale: 1.12, sheen: '#884444' },
   hawker: { skin: '#3f2618', top: '#00897b', bottom: '#37474f', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, tray: true, scale: 1.02, sheen: '#557766' },
+  blade: { skin: '#3a2317', top: '#1c1d22', bottom: '#15161a', sock: '#111', sole: '#0a0a0a', glove: '#111', hood: false, shorts: false, mask: 'bandana', sash: true, scale: 1.0, sheen: '#444a58' },
   egungun: { skin: '#2a1a12', top: '#7b1fa2', bottom: '#1b1b1b', sock: '#111', sole: '#0a0a0a', glove: '#3e2723', hood: false, shorts: false, egungun: true, scale: 1.02, sheen: '#664477' },
   chairman: { skin: '#3a2317', top: '#ddd6c8', bottom: '#d6cfc0', sock: '#222', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#b71c1c', scale: 1.14, sheen: '#aaaaaa' },
   elder: { skin: '#4a2e1f', top: '#d7ccc8', bottom: '#5d4037', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, cap: '#5d4037', sheen: '#888877' },
@@ -99,6 +100,10 @@ export class Rig {
       M(new THREE.SphereGeometry(0.135, 16, 12), top, b.head, 0, 0.12, -0.025, 1.02, 1.1, 1.1);
       M(new THREE.TorusGeometry(0.096, 0.026, 8, 18), top, b.head, 0, 0.105, 0.075, 0.97, 1.16, 1.2);
       M(cap(0.125, 0.05), top, b.neck, 0, 0.0, -0.05, 1.3, 0.8, 1); // hood gathered at the neck
+    }
+    if (o.sash) { // the Patron's Blades: a red sash across the chest, a knife holster on the thigh
+      M(new THREE.BoxGeometry(0.07, 0.62, 0.3), new THREE.MeshStandardMaterial({ color: '#b71c1c', roughness: 0.8 }), b.chest, 0, 0.08, 0.0, 1, 1, 1.2, 0, 0, 0.75);
+      M(new THREE.BoxGeometry(0.06, 0.16, 0.05), new THREE.MeshStandardMaterial({ color: '#2b2b2b' }), b.thR, 0.07, -0.12, 0.02);
     }
     if (o.tray) { // a hawker's tray on the head: pure water sachets and plantain chips (and a knife under it)
       M(new THREE.CylinderGeometry(0.28, 0.24, 0.05, 14), new THREE.MeshStandardMaterial({ color: '#b0bec5', roughness: 0.4, metalness: 0.5 }), b.head, 0, 0.25, 0);

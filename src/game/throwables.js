@@ -62,6 +62,10 @@ export function createThrowables(scene, world) {
       flying.push({ kind, mesh, v, owner, life: 3, spin: new THREE.Vector3(R() * 12, R() * 12, R() * 12) });
     },
     enemyBottle(from, to) { const m = meshFor('bottle'); T.launch('bottle', m, from, to, 'enemy', 15); },
+    enemyKnife(from, to) { // a thrown blade: flat, fast, almost no arc
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.32), new THREE.MeshStandardMaterial({ color: '#cfd8dc', metalness: 0.9, roughness: 0.2 }));
+      T.launch('knife', m, from, to, 'enemy', 30);
+    },
     // hitTest(a, b, owner) -> { t, target } ; onHit(kind, target|null, pos, owner)
     update(dt, hitTest, onHit) {
       for (let i = flying.length - 1; i >= 0; i--) {

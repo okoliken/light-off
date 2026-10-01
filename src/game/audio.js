@@ -53,6 +53,7 @@ export function createAudio() {
   const now = () => ctx.currentTime;
   const vol = (pos, range = 70) => pos ? Math.max(0, 1 - Math.hypot(pos.x - listener.x, pos.z - listener.z) / range) : 1;
   function tone(type, f0, f1, dur, gain, delay = 0) {
+    if ([...arguments].some(v => typeof v === 'number' && !Number.isFinite(v))) return;
     const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type;
     const t = now() + delay;
     o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -60,6 +61,7 @@ export function createAudio() {
     o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05);
   }
   function burst(type, freq, dur, gain, q = 1, delay = 0) {
+    if (!Number.isFinite(gain) || !Number.isFinite(freq)) return; // never let a bad value crash the game
     const src = ctx.createBufferSource(); src.buffer = L.white;
     const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
     const g = ctx.createGain(); const t = now() + delay;

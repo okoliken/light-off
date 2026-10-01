@@ -310,7 +310,7 @@ export function createGame(ctx) {
   function onThrowHit(kind, target, pos, owner) {
     fx.burst(pos.x, pos.y, pos.z, KIND_FX[kind] || 0xffffff, kind === 'bottle' || kind === 'sachet' ? 16 : 7, 3);
     if (kind === 'bottle') audio.glass(); else if (kind === 'sachet') audio.splash?.(); else audio.clank?.(pos);
-    if (owner === 'enemy') { if (target === player && player.hurt(10, pos.x, pos.z, 2)) { combat.hit(); env.grade.uniforms.hurt.value = 1; camera.shake = 0.35; } return; }
+    if (owner === 'enemy') { if (target === player && player.hurt(kind === 'knife' ? 15 : 10, pos.x, pos.z, 2)) { combat.hit(); env.grade.uniforms.hurt.value = 1; camera.shake = 0.35; } return; }
     if (!target) return;
     const eff = { stone: ['light', 1, 'stun', 1.0], brick: ['light', 2, 'stun', 1.4], bottle: ['light', 1, 'stun', 1.8], sachet: [null, 0, 'blind', 2.4], bucket: [null, 0, 'blind', 3.4], tyre: ['heavy', 2, null], board: ['heavy', 2, null] }[kind];
     let ko = false;
@@ -789,7 +789,7 @@ export function createGame(ctx) {
       const r = t.update(sdt, game);
       if (r?.hit) { if (player.hurt(r.hit, t.pos.x, t.pos.z, 3.5)) { combat.hit(); audio.hurt(); env.grade.uniforms.hurt.value = 1; camera.shake = 0.4; } }
       if (r?.slam) { for (const o of game.thugs) if (o !== t && o.alive && !o.grounded && dist2(o.pos, t.pos) < 3.5 * 3.5) o.takeHit(0, t.pos.x, t.pos.z, 'light'); camera.shake = 0.6; }
-      if (r?.throwBottle) TH.enemyBottle(r.throwBottle.from, r.throwBottle.to);
+      if (r?.throwBottle) (t.variant === 'blade' ? TH.enemyKnife : TH.enemyBottle)(r.throwBottle.from, r.throwBottle.to);
       if (t.state === 'ko' && !t.koCounted) { t.koCounted = true; game.onKnockout(t); }
     }
     for (let i = game.thugs.length - 1; i >= 0; i--) if (game.thugs[i].removed) game.thugs.splice(i, 1);
@@ -856,6 +856,7 @@ export function createGame(ctx) {
     const ao = L.inside ? null : game.activities.objective();
     if (game.arrest) hud.objective('<b>Arrested.</b> Kick the door out before you reach the station<small>MASH F / SPACE · THE MORE HEALTH YOU HAVE, THE HARDER YOU KICK</small>');
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>NO FIGHTING, NO BOARD, NO CLIMBING · ALLEYS, CORNERS, CROWDS, SKITCHING IS OFF · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
+    else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
     else if (so && game.story.active?.m.day) hud.objective(so);
     else if (!L.inside && game.story.reconObjective()) hud.objective(game.story.reconObjective());
@@ -863,7 +864,7 @@ export function createGame(ctx) {
     else if (L.phase === 'day') { const e = DAY.errand, lead = game.story.next(); hud.objective(L.inside ? 'Home (daytime) · <b>read Mama\'s note</b> at the pot, go out, or wait for night<small>THE SUIT STAYS HIDDEN IN DAYLIGHT</small>' : `${e && e.step !== 'done' ? `Errand: <b>${e.step === 'go' ? e.text : 'take it home'}</b>` : 'Explore Surulere'}<small>${lead ? 'LEAD FOUND: ' + lead.title.toUpperCase() + ' TONIGHT · ' : 'LISTEN FOR NEWS (PURPLE): NEWSPAPERS, RADIO, GOSSIP · '}BUS STOPS (YELLOW) · HOME BY 6 PM</small>`); }
     else if (L.inside) hud.objective(L.suit ? 'Home · <b>go out through the door</b>, or hide the suit in the drum before you sleep<small>WALK SOFTLY: RUNNING WAKES MAMA</small>' : `Home · <b>${game.story.upcoming() && !game.story.next() ? 'turn on the radio (window sill) for news' : game.story.next() ? 'you have a lead: ' + game.story.next().title : 'rest'}</b>. The black suit is in the water drum<small>EAT FROM THE POT · REST ON THE CHAIR · SLEEP ON YOUR MAT · WALK SOFTLY</small>`);
     else if (so) hud.objective(so);
-    else if (game.carrying && game.delivery) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()}</small>`);
+    else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()}</small>`);
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
     else if (game.mode === 'patrol') hud.objective(`Patrol · Night ${L.night} · <b>${game.rank().name}</b><small>J: PATROL BOARD · N: RADIO · THIRD MAINLAND IS NORTH</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
@@ -873,7 +874,12 @@ export function createGame(ctx) {
   // ---------- navigation ----------
   function navTarget() {
     if (player.cuffed) { const k = DAY.pois.kolade; return { x: k.x, z: k.z, color: 0xff8a80, label: 'BABA KOLADE · BOLT CUTTERS' }; } // in cuffs only one place matters
-    // a waypoint he picked from the Patrol Board beats everything automatic
+    // what he's in the middle of always owns the arrow: the story mission, then whatever he's carrying back
+    const sm = game.story.active && game.story.target(); if (sm) return { x: sm.x, z: sm.z, color: 0xffd54f, label: 'STORY', moving: true };
+    if (game.dropped) { const m = game.dropped.mesh.position; return { x: m.x, z: m.z, color: 0xf2b705, label: 'PICK IT UP' }; }
+    if (game.carrying && game.delivery) return { x: game.delivery.x, z: game.delivery.z, color: 0x43e04a, label: `RETURN TO ${game.delivery.name.toUpperCase()}`, moving: true };
+    const aa = game.activities.activeTarget(); if (aa) return { x: aa.x, z: aa.z, color: 0x80deea, label: aa.label, moving: aa.moving };
+    // then a waypoint he picked; only then new trouble that popped up
     if (game.waypoint) { if (dist2(game.waypoint, player.pos) < 10 * 10) game.waypoint = null; else return { x: game.waypoint.x, z: game.waypoint.z, color: 0x80deea, label: game.waypoint.label }; }
     const at = game.activities.target();
     if (at) return { x: at.x, z: at.z, color: 0x80deea, label: at.label, moving: at.moving };

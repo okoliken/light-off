@@ -10,7 +10,7 @@ const G = 22;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const _c = [];
-const HP = { redcap: 4, redcap2: 4, brute: 8, scorpion: 14, egungun: 12, chairman: 10 };
+const HP = { redcap: 4, redcap2: 4, brute: 8, scorpion: 14, egungun: 12, chairman: 10, blade: 7 };
 
 let webGeo = null, webMat = null;
 function webBlob() {
@@ -33,10 +33,10 @@ export class Thug {
     this.state = 'idle'; this.t = 0; this.anim = Math.random() * 9; this.cd = 0;
     this.ringR = 2.8 + Math.random() * 1.6; this.strafe = Math.random() < 0.5 ? 1 : -1;
     this.group = group; this.big = variant === 'brute' || variant === 'scorpion' || variant === 'chairman';
-    this.acro = variant === 'egungun';
+    this.acro = variant === 'egungun' || variant === 'blade'; // trained: they flip away from plain strikes
     this.hasBag = false; this.bag = null; this.victim = null; this.patrol = null; this.pi = 0;
     this.kickT = Math.random(); this.removed = false; this.koT = 0; this.web = null; this.lost = 0;
-    this.thrower = weapon === 'bottles';
+    this.thrower = weapon === 'bottles' || variant === 'blade'; // the Patron's Blades throw knives from range
     if (this.thrower) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.24, 8), new THREE.MeshStandardMaterial({ color: '#2e7d32', transparent: true, opacity: 0.85, roughness: 0.2 })); b.position.set(0, -0.12, 0.03); this.rig.b.haR.add(b); }
   }
   get alive() { return this.state !== 'ko' && this.state !== 'fled' && !this.removed && !this.hidden; }
@@ -45,7 +45,7 @@ export class Thug {
   get airborne() { return this.state === 'air'; }
   get grounded() { return this.state === 'down' || this.state === 'webbed'; }
   get unblockable() { return this.weapon === 'machete' || this.weapon === 'axe' || this.state === 'throwWind'; }
-  get damage() { return this.variant === 'scorpion' ? 24 : this.weapon === 'axe' ? 22 : this.weapon === 'machete' ? 20 : this.variant === 'egungun' ? 14 : this.weapon === 'stick' ? 12 : this.weapon === 'knife' ? 10 : this.big ? 14 : 8; }
+  get damage() { return this.variant === 'blade' ? 15 : this.variant === 'scorpion' ? 24 : this.weapon === 'axe' ? 22 : this.weapon === 'machete' ? 20 : this.variant === 'egungun' ? 14 : this.weapon === 'stick' ? 12 : this.weapon === 'knife' ? 10 : this.big ? 14 : 8; }
   stun(dur) { if (this.alive && !['air', 'down', 'ko'].includes(this.state)) { this.state = 'stagger'; this.t = 0; this.stagDur = dur; } }
   blind(dur) { if (this.alive && !['air', 'down', 'ko'].includes(this.state)) { this.state = 'blinded'; this.t = 0; this.blindDur = dur; } }
   flee() { this.state = 'fled'; this.t = 0; this.fleeYaw = this.yaw + Math.PI; }
@@ -56,7 +56,7 @@ export class Thug {
     if (!this.alive) return;
     if (['idle', 'return', 'tail', 'patrol'].includes(this.state)) { this.state = 'alert'; this.t = -delay; if (this.group) for (const o of this.group) if (o !== this && o.alive && ['idle', 'return', 'patrol'].includes(o.state)) { o.state = 'alert'; o.t = -delay - Math.random() * 0.4; } }
   }
-  telegraph() { this.state = 'windup'; this.t = 0; this.windDur = this.weapon === 'axe' ? 1.0 : this.weapon === 'machete' ? 0.85 : this.weapon === 'knife' ? 0.45 : this.big ? 0.8 : 0.62; }
+  telegraph() { this.state = 'windup'; this.t = 0; this.windDur = this.variant === 'blade' ? 0.42 : this.weapon === 'axe' ? 1.0 : this.weapon === 'machete' ? 0.85 : this.weapon === 'knife' ? 0.45 : this.big ? 0.8 : 0.62; }
 
   // kind: light | heavy | launch | air | slam | counter | takedown
   takeHit(dmg, fx, fz, kind = 'light') {
@@ -141,7 +141,7 @@ export class Thug {
         }
         if (p.mode === 'crawl') { speed = 1.9; Pose.idle(r, game.time, true); break; } // closing in on him
         if (this.thrower && this.cd <= 0 && dist > 6 && dist < 17 && game.combat?.rangedOk?.() && !col.blocked(this.pos.x, this.pos.y + 1.6, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2)) { this.state = 'throwWind'; this.t = 0; game.audio?.danger?.(true); break; }
-        if (this.thrower) this.ringR = 9;
+        if (this.thrower) this.ringR = this.variant === 'blade' ? 4.5 : 9; // blades close in, throwing when you back off
         if (!reachable) { Pose.idle(r, game.time, true); r.set('shRX', -1.3); r.set('headX', -0.4); if (this.t > 8 && dist > 12) { this.state = 'return'; } break; }
         if (dist > 30) { this.lost += dt; if (this.lost > 6) { this.state = 'return'; this.lost = 0; } } else this.lost = 0;
         Pose.idle(r, game.time, true);

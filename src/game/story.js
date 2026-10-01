@@ -941,7 +941,7 @@ export function createStory(game, api) {
     }
     // side events: a beating in progress somewhere nearby
     if (game.life.phase === 'night' && !S.complete) S.nextSide -= dt;
-    if (!S.side && S.nextSide <= 0 && !game.player.fightingNear && !S.active) {
+    if (!S.side && S.nextSide <= 0 && !game.player.fightingNear && !S.active && !game.carrying && !game.dropped) {
       const spot = api.spot(70, 170);
       if (spot) {
         const outfit = TRADERS[Math.floor(Math.random() * TRADERS.length)], name = VICTIM_NAMES[Math.floor(Math.random() * VICTIM_NAMES.length)];

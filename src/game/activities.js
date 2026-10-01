@@ -114,7 +114,7 @@ export function createActivities(game, h) {
   function updateRobbery(dt) {
     const r = A.robbery;
     if (!r) {
-      if (!L.inside && !game.story.active && L.phase !== 'day' && !player.fightingNear && player.mode !== 'ride') A.nextRobbery -= dt * (game.mode === 'patrol' ? 1.6 : 1);
+      if (!L.inside && !game.story.active && L.phase !== 'day' && !player.fightingNear && player.mode !== 'ride' && !game.carrying && !game.dropped) A.nextRobbery -= dt * (game.mode === 'patrol' ? 1.6 : 1);
       if (A.nextRobbery <= 0) { A.nextRobbery = 200 + Math.random() * 120; startRobbery(); }
       return;
     }
@@ -245,7 +245,40 @@ export function createActivities(game, h) {
     } else if (A.sprint.t > 240) A.sprint = null;
   }
 
-  A.update = (dt) => { updateSnatch(dt); updateJob(dt); updateSkate(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); updateSprint(dt); };
+  // ---- the Patron's hit squads: once he's known, a powerful man starts paying to have him removed ----
+  A.hit = null; A.hitCd = 240 + Math.random() * 120;
+  function startHit() {
+    const p = player.pos, squad = [];
+    const n = game.respect > 15000 ? 4 : 3;
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * Math.PI * 2;
+      let x = p.x + Math.sin(a) * 14, z = p.z + Math.cos(a) * 14;
+      if (col.solids.query(x - 0.5, z - 0.5, x + 0.5, z + 0.5, []).some(q => q.maxy > 1)) { x = p.x + Math.sin(a) * 6; z = p.z + Math.cos(a) * 6; }
+      const t = h.thug({ x, z, variant: 'blade', weapon: 'knife', role: 'guard' }); t.engage(0.6 + k * 0.3); squad.push(t);
+    }
+    // the dirty part: a plainclothes policeman who shoots whatever the heat
+    const gun = game.respect > 6000 ? h.gunman({ x: p.x + 18, z: p.z - 10, role: 'hitman' }) : null; if (gun) gun.name = 'Plainclothes';
+    A.hit = { squad, gun, t: 0 };
+    hud.banner('THE BLADES', 'Somebody with a lot of money wants you gone.', 'red', 3);
+    game.radio?.say('...'); audio.alert();
+    game.say(squad[0], 'Boy in black. The man sends his greetings.', 'Blade', 60);
+  }
+  function updateHit(dt) {
+    A.hitCd -= dt;
+    if (!A.hit) {
+      if (A.hitCd <= 0 && game.respect >= 4000 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !player.fightingNear && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 360 + Math.random() * 240; startHit(); }
+      return;
+    }
+    const H = A.hit; H.t += dt;
+    if (H.squad.every(t => !t.alive) && (!H.gun || !H.gun.alive)) {
+      game.addRespect(800, 'SURVIVED THE BLADES');
+      hud.notice('A CALLING CARD', 'One of them had a card in his pocket: no name, no number. Just a gold crest of a lion holding a key.', 'blue');
+      game.story.flags.patronCards = (game.story.flags.patronCards || 0) + 1;
+      A.hit = null;
+    } else if (H.t > 120 && H.squad.every(t => !t.alive || Math.hypot(t.pos.x - player.pos.x, t.pos.z - player.pos.z) > 60)) { for (const t of H.squad) t.remove(); A.hit = null; }
+  }
+  A.update = (dt) => {
+    updateHit(dt); updateSnatch(dt); updateJob(dt); updateSkate(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); updateSprint(dt); };
   A.option = () => {
     if (L.inside || !['foot', 'board'].includes(player.mode)) return null;
     if (!A.job && L.phase === 'day' && d2(stall, player.pos) < 3.2 * 3.2) return { kind: 'activity', what: 'job', text: '<span class="key">F</span>Take a delivery job from Mama Nkechi (paid, timed)' };
@@ -256,6 +289,14 @@ export function createActivities(game, h) {
     if (opt.what === 'job') { startJob(); return true; }
     if (opt.what === 'skate') { A.skate = { t: 45, start: game.respect }; hud.notice('SKATE CHALLENGE', '45 seconds. 800 points pays, 1,500 pays well. Go!', 'blue'); audio.pickup(); return true; }
     return false;
+  };
+  // what he started himself (job, challenge, run, sprint, the go-slow he walked into) vs trouble that just popped up
+  A.activeTarget = () => {
+    if (A.sprint) return { x: SPRINT.end.x, z: SPRINT.end.z, label: 'ADENIJI ADELE' };
+    if (A.goslow) { const t = A.goslow.robbers.filter(q => !q.done).sort((a, b) => d2(a.pos, player.pos) - d2(b.pos, player.pos))[0]; if (t) return { x: t.pos.x, z: t.pos.z, label: 'ROBBER', moving: true }; }
+    if (A.run && A.course) { const r = A.course.rings[A.run.i]; return { x: r.x, z: r.z, label: 'RING' }; }
+    if (A.job) return { x: A.job.to.x, z: A.job.to.z, label: A.job.name };
+    return null;
   };
   A.target = () => {
     if (A.sprint) return { x: SPRINT.end.x, z: SPRINT.end.z, label: 'ADENIJI ADELE' };

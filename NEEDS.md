@@ -155,6 +155,11 @@ Pick **Patrol** on the main menu. It has its own save and never touches the stor
 | Run | The getaway |
 | Morning after | The city and Mama react |
 
+> **Owner direction (2026-10-01):**
+> - The core loop is **take it back from the corrupt, return it to the owners, dodge the police**. It grows into fighting the system.
+> - The main villain is **the Patron**, an influential man with trained blade assassins and paid police killers.
+> - Story-bible "Heart of the game" has the details.
+
 ## Build order and status
 
 1. **The mission template on all 10 missions** (in progress).

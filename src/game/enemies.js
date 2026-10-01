@@ -15,7 +15,7 @@ export class Gunman {
     scene.add(this.rig.root);
     this.pos = new THREE.Vector3(x, y, z); this.vel = new THREE.Vector3(); this.yaw = yaw;
     this.maxHp = role === 'police' ? 3 : 2; this.hp = this.maxHp;
-    this.state = post ? 'post' : role === 'police' ? 'chase' : 'flee'; this.t = 0; this.anim = Math.random() * 9;
+    this.state = post ? 'post' : role === 'thief' ? 'flee' : 'chase'; /* a 'hitman' hunts like police but shoots whatever the heat */ this.t = 0; this.anim = Math.random() * 9;
     this.shootCd = 1.2 + Math.random() * 1.5; this.aimT = 0; this.losT = 0; this.bark = 0;
     this.fleeYaw = yaw; this.stuck = 0; this.removed = false;
     this.muzzleW = new THREE.Vector3();
@@ -42,7 +42,7 @@ export class Gunman {
     this.t += dt; this.shootCd -= dt; this.bark -= dt;
     const dx = p.pos.x - this.pos.x, dz = p.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
     const reachable = p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
-    const canShoot = this.role === 'thief' || game.heat >= 2;
+    const canShoot = this.role === 'thief' || this.role === 'hitman' || game.heat >= 2;
     let face = this.yaw, speed = 0, out = null;
     const eye = () => !col.blocked(this.pos.x, this.pos.y + 1.5, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2);
 
@@ -80,23 +80,23 @@ export class Gunman {
         r.set('shRX', -1.55); r.set('elRX', 0); r.set('shRZ', 0.1); r.set('chestY', -0.2); r.set('shLX', -1.2); r.set('elLX', -0.9); r.set('shLZ', -0.3);
         this.aimT += dt;
         if (!eye()) this.losT += dt; else this.losT = 0;
-        if (this.losT > 0.35) { this.state = this.role === 'police' ? 'chase' : 'flee'; this.shootCd = 0.8; break; }
+        if (this.losT > 0.35) { this.state = this.role === 'thief' ? 'flee' : 'chase'; this.shootCd = 0.8; break; }
         if (this.aimT >= (this.role === 'police' ? 1.05 : 0.95)) { out = { shoot: true, dist }; this.state = 'recover'; this.t = 0; this.shootCd = 2.3 + Math.random() * 1.6; }
         break;
       }
       case 'recover': {
         face = toP; Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('elRX', -0.4);
-        if (this.t > 0.45) this.state = this.role === 'police' ? 'chase' : 'flee';
+        if (this.t > 0.45) this.state = this.role === 'thief' ? 'flee' : 'chase';
         break;
       }
       case 'stunned': {
         Pose.idle(r, game.time, false); Pose.stagger(r, this.t / (this.stunDur || 0.6));
-        if (this.t > (this.stunDur || 0.6)) this.state = this.role === 'police' ? 'chase' : 'flee';
+        if (this.t > (this.stunDur || 0.6)) this.state = this.role === 'thief' ? 'flee' : 'chase';
         break;
       }
       case 'blinded': {
         Pose.cough(r, game.time);
-        if (this.t > this.blindDur) this.state = this.role === 'police' ? 'chase' : 'flee';
+        if (this.t > this.blindDur) this.state = this.role === 'thief' ? 'flee' : 'chase';
         break;
       }
       case 'down': {

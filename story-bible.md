@@ -17,6 +17,19 @@
 - **Lagos texture:** not every road is good. Broken asphalt, dirt roads, potholes, flooding.
 - **Living:** hunger, energy, injuries, rest at home (built).
 
+## The heart of the game (owner, 2026-10-01) ✅
+- **The core loop:** Bolaji is a street kid who takes back what the corrupt and the powerful have taken from ordinary people, and **returns it to the owners**, while avoiding the police. Taking things back and returning them is the centre of everything. Whatever the player is in the middle of (carrying money back) owns their attention.
+- **The expansion:** he slowly sees that the **whole system** is damaged. Returning money isn't enough, and he has to start fighting the people and structures behind it.
+- **Lagos is bigger than him.** People keep finding ways to dampen his efforts. The police are everywhere, and some of them are **paid assassins**. The Red Caps are only one layer of oppressors; more diverse antagonists come in over time.
+- **The main villain:** one very influential man, **"the Patron"** (working name). He sits above the Chairman, Okafor and the rest, and controls them through money.
+  - **His Blades:** trained assassins who flip, use knives and throw blades. In-game they wear charcoal with a red sash.
+  - **His calling card:** a gold crest of a lion holding a key. Every Blades squad Bolaji beats leaves one.
+  - **How it maps onto Part B:** this is the "quiet patron" from the Part B decisions, promoted to the main villain across the chapters. Okafor is his police face; the Chairman is his street arm.
+- **Built so far (v0.11):**
+  - Once Bolaji's respect passes 4,000, Blades hit squads (3–4, plus a plainclothes police gunman who shoots whatever the heat) start ambushing him at night.
+  - Each squad leaves a calling card, counted in the story flags.
+  - The story hasn't revealed the Patron yet.
+
 ## Locked decisions (2026-09-30, see PART-B-DECISIONS.md)
 - **Backstory:** one room in Aguda; the father is gone (never explained in Ch.1); he was Mama's extra pair of hands; he learned walls escaping older boys. The real mystery: why he keeps going out when the smart move is sleep and JAMB.
 - **Skills:** natural talent + street life. Never explained; every in-world explanation is wrong (cult, spirit, "my son who does not sleep").
