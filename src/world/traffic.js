@@ -267,6 +267,13 @@ export function createTraffic(scene, world) {
     if (chasing && P.sees && dist < 12) target = Math.min(target, 2.5 + dist * 0.75); // shadow the player instead of ramming
     if (!chasing && Math.hypot(tx - v.pos.x, tz - v.pos.z) < 6 && P.route.length <= 1) target = 0;
     freeDrive(v, dt, tx, tz, target);
+    // stuck against a building or kerb for 3 s: back onto the nearest junction, facing the target
+    P.slowT = v.speed < 1.2 && target > 3 ? (P.slowT || 0) + dt : 0;
+    if (P.slowT > 3) {
+      const [i, j] = nearestNode(v.pos.x, v.pos.z), nx = roadLine(i) + LANE, nz = roadLine(j);
+      if (Math.hypot(nx - pp.x, nz - pp.z) > 12) { v.pos.set(nx, 0, nz); v.yaw = Math.atan2(tx - nx, tz - nz); v.speed = 4; }
+      P.slowT = 0; P.route = []; P.routeT = 0;
+    }
   }
   function driveGetaway(v, dt, game) {
     const A = v.ai, pp = game.player.pos;

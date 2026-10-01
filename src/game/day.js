@@ -6,7 +6,9 @@ import { Civilian } from './npcs.js';
 import { textSign } from '../core/textures.js';
 import { FLY } from '../world/city.js';
 
+import { rng, N } from '../world/layout.js';
 const pick = a => a[Math.floor(Math.random() * a.length)];
+const SR = rng(7131); const spick = a => a[Math.floor(SR() * a.length)]; // places stay put between sessions
 
 // what the street is saying about each story mission (index = mission number - 1)
 const LEADS = {
@@ -86,12 +88,12 @@ const ERRANDS = [
 
 export function createDay(game) {
   const { scene, world, hud, audio, player } = game;
-  const L = game.life, spots = world.spots.filter(s => !(s.bi === 1 && s.bj === 1) && s.bi !== 4);
+  const L = game.life, spots = world.spots.filter(s => !(s.bi === 1 && s.bj === 1) && s.bi !== 4 && s.bi >= 0 && s.bi < N); // Mama's errands and Kolade stay in Surulere
   const used = [];
   const near = (a, b, r) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2 < r * r;
   const takeSpot = (minSep = 45, avoid = []) => {
-    for (let t = 0; t < 300; t++) { const s = pick(spots); if ([...used, ...avoid].every(u => !near(u, s, minSep)) && game.sites.every(q => !near(q.spot, s, 25)) && world.vendors.every(v => !near(v, s, 12))) { used.push(s); return s; } }
-    return pick(spots);
+    for (let t = 0; t < 300; t++) { const s = spick(spots); if ([...used, ...avoid].every(u => !near(u, s, minSep)) && game.sites.every(q => !near(q.spot, s, 25)) && world.vendors.every(v => !near(v, s, 12))) { used.push(s); return s; } }
+    return spick(spots);
   };
   const sign = (s, text, bg, fg = '#fff', w = 3.6) => {
     const t = textSign(text, bg, fg, 768, 128);
@@ -119,6 +121,10 @@ export function createDay(game) {
   { const s = takeSpot(); poi('recharge', 'Recharge Card Kiosk', s.x, s.z); sign(s, 'MTN · AIRTEL · GLO · RECHARGE', '#f9a825', '#111'); }
   { const s = takeSpot(); poi('bakery', 'Agege Bread Bakery', s.x, s.z); sign(s, 'GOD IS GOOD BAKERY', '#6d4c41'); }
   { const s = takeSpot(); poi('pharmacy', 'Pharmacy', s.x, s.z); sign(s, 'GOODHEALTH PHARMACY', '#2e7d32'); }
+  { // Baba Kolade himself, at his workshop: grey overalls, standing by the tyres
+    const k = P.kolade, c = new Civilian(scene, world, { x: k.x + 1.2, z: k.z, yaw: 0, outfit: { skin: '#4a2e1f', top: '#37474f', bottom: '#263238', sock: '#3e2723', sole: '#2b2b2b', cap: null, sheen: '#556070' } });
+    c.name = 'Baba Kolade'; c.mood = 'idle'; game.civilians.push(c); world.kolade = c;
+  }
   world.pois = Object.values(P);
 
   // ---- news sources ----

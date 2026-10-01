@@ -10,7 +10,8 @@ const MODES = {
   keke: { label: 'Keke', base: 100, per100: 30, lines: ['Hold your bag well.', 'This road bad o, hold tight.', 'Na drop you pay? We dey go.'] },
   okada: { label: 'Okada', base: 300, per100: 60, lines: ['Hold me well o!', 'No fear, I sabi road!', 'Police dey front? We go pass back road.'] },
 };
-const STOP_AREAS = [['Aguda', 'Aguda'], ['Ojuelegba', 'Ojuelegba'], ['Adelabu', 'Adelabu'], ['Stadium', 'National Stadium']];
+const STOP_AREAS = [['Aguda', 'Aguda'], ['Ojuelegba', 'Ojuelegba'], ['Adelabu', 'Adelabu'], ['Stadium', 'National Stadium'],
+  ['Yaba', 'Yaba'], ['Sabo (for UNILAG)', 'Sabo, Yaba'], ['Mushin', 'Mushin'], ['Idi-Araba (LUTH)', 'Idi-Araba']];
 
 export function createTransport(game) {
   const { scene, world, hud, audio, player, traffic } = game;

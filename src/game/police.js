@@ -19,7 +19,7 @@ export function createCheckpoints(game) {
     { name: 'Ojuelegba checkpoint', x: -HALF + 4 * CELL, z: -HALF + 1.5 * CELL, axis: 'z' },
     { name: 'Adeniran Ogunsanya checkpoint', x: -HALF + 2.5 * CELL, z: -HALF + 4 * CELL, axis: 'x' },
     { name: 'Bode Thomas checkpoint', x: -HALF + 1 * CELL, z: -HALF + 4.5 * CELL, axis: 'z' },
-    { name: 'Third Mainland approach', x: -HALF + 3 * CELL, z: -HALF + 0.5 * CELL, axis: 'z' },
+    { name: 'Aguda Road checkpoint', x: -HALF + 2 * CELL, z: -HALF + 0.5 * CELL, axis: 'z' },
     { name: 'Herbert Macaulay checkpoint', x: -HALF + 8 * CELL, z: -HALF + 4.5 * CELL, axis: 'z' },
     { name: 'Sabo checkpoint', x: -HALF + 7.5 * CELL, z: -HALF + 1 * CELL, axis: 'x' },
     { name: 'Agege Motor Road checkpoint', x: -HALF - 3 * CELL, z: -HALF + 2.5 * CELL, axis: 'z' },

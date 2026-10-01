@@ -50,7 +50,8 @@ export class Gunman {
       case 'post': { // manning a checkpoint: face the traffic, wave cars down, collect "roger"
         const P = this.post;
         const hx = P.x - this.pos.x, hz = P.z - this.pos.z;
-        if (Math.hypot(hx, hz) > 0.6) { face = Math.atan2(hx, hz); speed = 2.2; break; }
+        if (Math.hypot(hx, hz) > 0.6) { this.postT = (this.postT || 0) + dt; if (this.postT > 5) { this.pos.set(P.x, this.pos.y, P.z); this.postT = 0; } face = Math.atan2(hx, hz); speed = 2.2; break; }
+        this.postT = 0;
         Pose.idle(r, game.time + this.anim, false);
         const v = P.cp.stopped;
         if (v && this.collector) { face = Math.atan2(v.pos.x - this.pos.x, v.pos.z - this.pos.z); r.set('shRX', -1.4); r.set('elRX', -0.2); r.set('shRZ', -0.2); }
@@ -65,6 +66,7 @@ export class Gunman {
         if (canShoot && this.shootCd <= 0 && dist > 5 && dist < 32 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; if (this.bark <= 0) { this.bark = 5; game.say(this, pick(this.role === 'police' ? ['Stop or I shoot!', 'Freeze there!', 'Hands up!'] : ['Back off!', 'You wan die?!', 'Commot for road!']), this.role === 'police' ? 'Police' : 'Robber'); } break; }
         if (dist < 1.3 && reachable && this.role === 'police') { out = { grab: true }; Pose.idle(r, game.time, false); r.set('shLX', -1.3); r.set('shRX', -1.3); r.set('elLX', -0.3); r.set('elRX', -0.3); break; }
         speed = reachable ? 6.7 : 0;
+        if (!reachable && dist < 6) { face = toP + Math.PI; speed = 2; } // back off the wall so they can see up
         if (!reachable) { Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('headX', -0.5); } // shouting up at the roof
         break;
       }
