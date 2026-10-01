@@ -31,23 +31,38 @@ function person(b, x, y, z, shirt, skin, ry = 0, seated = true) {
 }
 
 function danfo(R) {
+  // the classic Lagos danfo: a VW T3 bus, boxy, yellow with two black stripes, black grille band with round lamps
   const b = new PrimBatch(), l = new PrimBatch();
-  const Y = '#f2b705', K = '#161616', G = '#1b2330';
-  b.box(2.0, 0.85, 4.9, { p: [0, 0.87, 0] }, Y);                 // lower body
-  b.box(1.96, 0.82, 4.6, { p: [0, 1.7, -0.1] }, Y);               // upper cabin
-  b.box(2.02, 0.52, 4.3, { p: [0, 1.7, -0.15] }, G);              // side windows band
-  b.box(1.7, 0.55, 0.05, { p: [0, 1.68, 2.18], r: [-0.25, 0, 0] }, G); // windscreen
-  b.box(2.03, 0.1, 4.92, { p: [0, 1.3, 0] }, K);                  // black stripes
-  b.box(2.03, 0.08, 4.92, { p: [0, 0.78, 0] }, K);
-  b.box(2.05, 0.2, 0.2, { p: [0, 0.5, 2.46] }, '#2a2a2a');       // bumpers
-  b.box(2.05, 0.2, 0.2, { p: [0, 0.5, -2.46] }, '#2a2a2a');
-  b.box(1.7, 0.06, 3.6, { p: [0, 2.16, -0.2] }, '#3a3a3a');       // roof rack
-  for (const z of [-1.9, -0.6, 0.7]) b.box(1.72, 0.14, 0.05, { p: [0, 2.24, z] }, '#3a3a3a');
-  b.box(0.05, 0.95, 1.1, { p: [-1.02, 1.3, 0.4] }, '#0c0c0c');    // open side door
-  person(b, -1.18, 0.55, 0.45, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[0], Math.PI / 2, false); // conductor hanging on
-  wheels(b, 4.9, 2.0, 0.4, [1.55, -1.55]);
-  l.box(0.3, 0.2, 0.05, { p: [-0.7, 0.9, 2.47] }, '#fff4d6'); l.box(0.3, 0.2, 0.05, { p: [0.7, 0.9, 2.47] }, '#fff4d6');
-  l.box(0.22, 0.28, 0.05, { p: [-0.82, 0.95, -2.47] }, '#ff2a1a'); l.box(0.22, 0.28, 0.05, { p: [0.82, 0.95, -2.47] }, '#ff2a1a');
+  const Y = ['#f2b705', '#f0b000', '#e9ad0c'][Math.floor(R() * 3)], K = '#161616', G = '#1b2330', RUST = '#7a4a22';
+  b.box(1.98, 1.02, 4.7, { p: [0, 0.98, -0.05] }, Y);                   // lower body
+  b.box(1.94, 0.82, 4.55, { p: [0, 1.88, -0.1] }, Y);                   // upper body
+  b.box(1.9, 0.08, 4.5, { p: [0, 2.32, -0.1] }, Y);                     // roof
+  b.box(1.94, 1.6, 0.22, { p: [0, 1.25, 2.27], r: [-0.08, 0, 0] }, Y);  // flat, slightly raked nose
+  b.box(1.66, 0.62, 0.05, { p: [0, 1.95, 2.24], r: [-0.12, 0, 0] }, G); // big windscreen
+  b.box(1.9, 0.34, 0.06, { p: [0, 0.98, 2.4] }, K);                     // black grille band
+  b.box(2.02, 0.22, 0.24, { p: [0, 0.52, 2.42] }, K);                   // bumpers
+  b.box(2.02, 0.22, 0.24, { p: [0, 0.52, -2.4] }, K);
+  // side windows: front door, then three panes, on both sides
+  for (const sx of [-1, 1]) {
+    for (const [z, w] of [[1.55, 0.8], [0.45, 1.05], [-0.7, 1.05], [-1.75, 0.8]]) b.box(0.03, 0.56, w, { p: [sx * 0.985, 1.92, z] }, G);
+    b.box(0.03, 0.07, 4.6, { p: [sx * 1.0, 1.36, -0.05] }, K);         // the two black stripes
+    b.box(0.03, 0.07, 4.6, { p: [sx * 1.0, 1.22, -0.05] }, K);
+    b.box(0.08, 0.16, 0.1, { p: [sx * 1.08, 1.9, 1.95] }, K);          // mirror
+    for (let k = 0; k < 4; k++) if (R() < 0.6) b.box(0.03, 0.12 + R() * 0.2, 0.15 + R() * 0.3, { p: [sx * 1.0, 0.6 + R() * 0.8, -2 + R() * 4] }, RUST); // rust and dents
+  }
+  b.box(0.04, 1.6, 1.05, { p: [1.0, 1.35, 0.25] }, '#0c0c0c');          // the sliding door, open (passenger side)
+  b.box(1.82, 0.5, 0.04, { p: [0, 1.95, -2.38] }, G);                   // rear window
+  b.box(0.3, 0.1, 0.4, { p: [-0.6, 0.52, -2.6] }, '#2a2a2a');           // step where boys stand
+  // roof rack with bags
+  b.box(1.75, 0.05, 3.4, { p: [0, 2.45, -0.3] }, '#3a3a3a');
+  for (const z of [-1.8, -0.3, 1.2]) b.box(1.78, 0.12, 0.05, { p: [0, 2.52, z] }, '#3a3a3a');
+  if (R() < 0.6) b.box(0.9, 0.35, 0.8, { p: [(R() - 0.5) * 0.6, 2.66, -0.5] }, ['#6d4c41', '#1565c0', '#c62828'][Math.floor(R() * 3)]);
+  person(b, 1.18, 0.55, 0.3, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[0], -Math.PI / 2, false); // conductor in the door
+  if (R() < 0.4) person(b, -0.5, 0.95, -2.75, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[1], 0, false); // a boy hanging off the back
+  wheels(b, 4.9, 1.98, 0.38, [1.5, -1.5], 0.24);
+  l.sphere(0.13, { p: [-0.68, 0.98, 2.44], s: [1, 1, 0.4] }, '#fff4d6', 10, 6); l.sphere(0.13, { p: [0.68, 0.98, 2.44], s: [1, 1, 0.4] }, '#fff4d6', 10, 6);
+  l.box(0.12, 0.08, 0.04, { p: [-0.92, 0.72, 2.45] }, '#ffa000'); l.box(0.12, 0.08, 0.04, { p: [0.92, 0.72, 2.45] }, '#ffa000');
+  l.box(0.16, 0.3, 0.05, { p: [-0.84, 1.0, -2.43] }, '#ff2a1a'); l.box(0.16, 0.3, 0.05, { p: [0.84, 1.0, -2.43] }, '#ff2a1a');
   return { b, l };
 }
 function okada(R) {
@@ -67,20 +82,43 @@ function okada(R) {
   return { b, l };
 }
 function keke(R) {
+  // keke NAPEP (Bajaj RE): narrow rounded yellow nose, black face with two round lamps, one front wheel under a
+  // yellow mudguard, open sides, a wider rear tub with fenders over the back wheels, and a black canvas hood
   const b = new PrimBatch(), l = new PrimBatch();
-  const Y = '#f6c21c', Gn = '#2e7d32';
-  b.box(1.3, 0.7, 2.3, { p: [0, 0.75, -0.15] }, Y);
-  b.box(1.32, 0.12, 2.32, { p: [0, 0.95, -0.15] }, Gn);
-  b.box(1.2, 0.5, 0.3, { p: [0, 1.1, 1.0] }, Y);
-  b.box(1.15, 0.45, 0.04, { p: [0, 1.45, 1.05], r: [-0.2, 0, 0] }, '#1b2330');
-  for (const [x, z] of [[-0.62, 1.05], [0.62, 1.05], [-0.62, -1.25], [0.62, -1.25]]) b.box(0.05, 0.75, 0.05, { p: [x, 1.45, z] }, '#222');
-  b.box(1.4, 0.06, 2.5, { p: [0, 1.84, -0.1] }, '#1d1d1d');       // canopy
-  b.box(1.42, 0.14, 2.52, { p: [0, 1.76, -0.1] }, Gn);
-  b.cyl(0.25, 0.25, 0.14, { p: [0, 0.25, 1.1], r: [0, 0, Math.PI / 2] }, '#111', 10);
-  for (const s of [-1, 1]) b.cyl(0.26, 0.26, 0.16, { p: [s * 0.62, 0.26, -0.95], r: [0, 0, Math.PI / 2] }, '#111', 10);
-  person(b, 0, 0.9, 0.55, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
-  l.box(0.2, 0.16, 0.05, { p: [0, 1.0, 1.17] }, '#fff4d6');
-  l.box(0.16, 0.12, 0.04, { p: [-0.5, 0.7, -1.32] }, '#ff2a1a'); l.box(0.16, 0.12, 0.04, { p: [0.5, 0.7, -1.32] }, '#ff2a1a');
+  const Y = '#f6b81c', K = '#151515', C = '#2a2a2a';
+  // nose and cockpit
+  b.box(0.95, 1.0, 0.55, { p: [0, 1.0, 1.05] }, Y);
+  b.sphere(0.5, { p: [0, 0.95, 1.2], s: [0.95, 0.8, 0.6] }, Y, 12, 8);
+  b.box(0.98, 0.32, 0.06, { p: [0, 0.98, 1.5] }, K);                   // black face band
+  b.box(0.12, 0.08, 0.04, { p: [0.36, 0.8, 1.5] }, '#ff9800');
+  b.box(0.95, 0.62, 0.04, { p: [0, 1.6, 1.25], r: [-0.18, 0, 0] }, '#1b2330'); // windscreen
+  b.box(0.02, 0.04, 0.55, { p: [0, 1.6, 1.25], r: [-0.18, 0.5, 0] }, '#111'); // wiper
+  b.box(1.0, 0.08, 0.6, { p: [0, 1.93, 1.05] }, Y);                    // roof over the driver
+  for (const sx of [-1, 1]) b.box(0.08, 0.16, 0.1, { p: [sx * 0.6, 1.7, 1.3] }, K); // mirrors
+  // front wheel and mudguard
+  b.cyl(0.24, 0.24, 0.12, { p: [0, 0.24, 1.25], r: [0, 0, Math.PI / 2] }, '#111', 12);
+  b.cyl(0.29, 0.29, 0.16, { p: [0, 0.32, 1.25], r: [0, 0, Math.PI / 2], s: [1, 1, 0.55] }, Y, 12);
+  // floor, the driver's bench and the rear tub
+  b.box(1.0, 0.1, 1.3, { p: [0, 0.42, 0.25] }, C);
+  b.box(1.38, 0.75, 1.15, { p: [0, 0.78, -0.75] }, Y);                 // rear body
+  b.box(1.36, 0.12, 0.9, { p: [0, 1.18, -0.75] }, '#222');             // passenger bench
+  b.box(1.36, 0.55, 0.12, { p: [0, 1.45, -1.25] }, '#222');            // backrest
+  for (const sx of [-1, 1]) {
+    b.cyl(0.3, 0.3, 0.16, { p: [sx * 0.64, 0.42, -0.85], r: [0, 0, Math.PI / 2], s: [1, 1, 0.6] }, Y, 12); // rear fenders
+    b.cyl(0.25, 0.25, 0.14, { p: [sx * 0.64, 0.25, -0.85], r: [0, 0, Math.PI / 2] }, '#111', 12);
+    b.box(0.04, 0.25, 0.8, { p: [sx * 0.68, 0.95, -0.15] }, Y);        // half-door sill
+    b.box(0.05, 0.05, 2.1, { p: [sx * 0.66, 1.95, -0.2] }, '#1d1d1d'); // canopy rail
+    b.box(0.05, 1.1, 0.05, { p: [sx * 0.66, 1.4, 0.5] }, '#1d1d1d');   // pillar
+  }
+  // black canvas hood, rounded at the back
+  b.box(1.42, 0.06, 1.9, { p: [0, 2.0, -0.35] }, K);
+  b.cyl(0.6, 0.6, 1.42, { p: [0, 1.5, -1.25], r: [0, 0, Math.PI / 2], s: [1, 1, 0.55] }, K, 12);
+  b.box(1.42, 0.05, 0.05, { p: [0, 1.96, -0.35] }, Y);                 // yellow piping
+  person(b, 0, 0.85, 0.45, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+  if (R() < 0.6) person(b, 0.35, 1.0, -0.75, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+  if (R() < 0.4) person(b, -0.35, 1.0, -0.75, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+  l.sphere(0.09, { p: [-0.3, 0.98, 1.53], s: [1, 1, 0.4] }, '#fff4d6', 10, 6); l.sphere(0.09, { p: [0.3, 0.98, 1.53], s: [1, 1, 0.4] }, '#fff4d6', 10, 6);
+  l.box(0.12, 0.14, 0.04, { p: [-0.6, 0.85, -1.34] }, '#ff2a1a'); l.box(0.12, 0.14, 0.04, { p: [0.6, 0.85, -1.34] }, '#ff2a1a');
   return { b, l };
 }
 function car(R) {
