@@ -71,7 +71,8 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
     game.mode = 'patrol';
     if (patrolSaved && !fresh) game.applySave(patrolSaved); else game.clearSave('patrol');
     game.startPatrol();
-  } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); }
+    if (patrolSaved && !fresh) game.restoreSnap(patrolSaved.snap);
+  } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); game.restoreSnap(saved.snap); }
   else { game.clearSave(); game.startDay(); }
   state = 'play'; input.lock();
 }, { quality: settings.quality, presets: PRESETS, patrol: patrolSaved ? { night: patrolSaved.night, respect: patrolSaved.respect } : null });
@@ -112,6 +113,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 function pause(openBoard = false) {
   state = 'paused';
+  game.save(); // pausing is a save point
   hud.setHudVisible(false);
   const S = game.story, list = S.missions.map((m, i) => ({ title: m.title, done: i < S.progress(), current: i === S.progress(), unlocked: i < S.unlocked }));
   const resume = () => { state = 'play'; hud.setHudVisible(true); input.lock(); audio.start(); };
@@ -178,6 +180,9 @@ function frame() {
   env.composer.render();
 }
 frame();
+
+// leaving the tab (or the laptop going to sleep) saves too
+document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'play' || state === 'paused')) game.save(); });
 
 // debug hooks (used by the automated smoke test)
 import('./game/thugs.js').then(m => { window.__ThugClass = m.Thug; });

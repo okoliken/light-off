@@ -839,6 +839,7 @@ export function createGame(ctx) {
     if (player.mode === 'grind') { game.grindLen += spd * sdt; game.stats.longestGrind = Math.max(game.stats.longestGrind, game.grindLen); }
     game.stats.bestCombo = Math.max(game.stats.bestCombo, combat.best);
     if (!L.inside) game.outT = (game.outT || 0) + dt;
+    game.autoT = (game.autoT || 0) + dt; if (game.autoT > 20 && !game.arrest && player.mode !== 'ride') { game.autoT = 0; game.save(); }
     if (!L.inside && game.tipI < TIPS.length && game.outT > TIPS[game.tipI][0]) hud.toast(TIPS[game.tipI++][1], 'blue');
     const area = world.areaAt(player.pos.x, player.pos.z);
     if (area !== game.areaName) { if (game.areaName) hud.area?.(area); game.areaName = area; }
@@ -866,12 +867,12 @@ export function createGame(ctx) {
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
     else if (game.mode === 'patrol') hud.objective(`Patrol · Night ${L.night} · <b>${game.rank().name}</b><small>J: PATROL BOARD · N: RADIO · THIRD MAINLAND IS NORTH</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
-    hud.tracker(game.activities?.tracker() || (game.mode === 'patrol' && !L.inside ? game.patrolTracker() : game.story.tracker()));
+    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' && !L.inside ? game.patrolTracker() : game.story.tracker()));
   };
 
   // ---------- navigation ----------
   function navTarget() {
-    if (player.cuffed && game.heat === 0) { const k = DAY.pois.kolade; return { x: k.x, z: k.z, color: 0xff8a80, label: 'KOLADE (CUFFS)' }; }
+    if (player.cuffed) { const k = DAY.pois.kolade; return { x: k.x, z: k.z, color: 0xff8a80, label: 'BABA KOLADE · BOLT CUTTERS' }; } // in cuffs only one place matters
     // a waypoint he picked from the Patrol Board beats everything automatic
     if (game.waypoint) { if (dist2(game.waypoint, player.pos) < 10 * 10) game.waypoint = null; else return { x: game.waypoint.x, z: game.waypoint.z, color: 0x80deea, label: game.waypoint.label }; }
     const at = game.activities.target();
@@ -916,6 +917,12 @@ export function createGame(ctx) {
   function buildMarkers() {
     const M = game.markers; M.length = 0; const MM = game.mapMarkers; MM.length = 0;
     if (L.inside) return;
+    if (player.cuffed) { // nothing else matters: just Kolade and the police on your tail
+      const dstr = (x, z) => Math.round(Math.hypot(x - player.pos.x, z - player.pos.z)) + 'm', k = DAY.pois.kolade;
+      M.push({ x: k.x, y: 3.2, z: k.z, kind: 'deliver', label: `BABA KOLADE · BOLT CUTTERS · ${dstr(k.x, k.z)}` }); MM.push({ x: k.x, z: k.z, color: '#ff8a80' });
+      for (const g of game.gunmen) if (g.alive && g.role === 'police') M.push({ x: g.pos.x, y: g.pos.y + 2.2, z: g.pos.z, kind: 'cop', label: '', edge: false });
+      return;
+    }
     const dstr = (x, z) => Math.round(Math.hypot(x - player.pos.x, z - player.pos.z)) + 'm';
     DAY.markers(M, MM, dstr);
     game.police.markers(M, MM, dstr);
@@ -1030,9 +1037,19 @@ export function createGame(ctx) {
         life: { wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy },
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois).filter(q => q.found).map(q => q.id),
+        // where he is right now, so a reload puts him back on the street (not at home)
+        snap: { x: player.pos.x, z: player.pos.z, yaw: player.yaw, inside: L.inside, clock: L.clock, suit: L.suit, cuffed: !!player.cuffed, heat: game.heat },
       };
       localStorage.setItem(saveKey(), JSON.stringify(data));
     } catch { /* storage unavailable (private window): the game still plays, it just won't remember */ }
+  };
+  game.restoreSnap = (sn) => {
+    if (!sn || sn.inside || game.story.active) return;
+    L.clock = sn.clock; L.suit = sn.suit; player.setOutfit(sn.suit ? OUTFITS.bolaji : OUTFITS.bolajiDay); reattachBag();
+    L.inside = false; player.respawn(sn.x, sn.z, sn.yaw || 0); camera.snapBehind(sn.yaw || 0);
+    player.cuffed = !!sn.cuffed; game.heat = sn.cuffed ? Math.max(1, sn.heat || 0) : 0;
+    env.setDaylight(L.daylight()); applyLights(true);
+    hud.notice(L.timeStr(), 'Back where you left off.', 'white');
   };
   game.loadSave = (m) => { try { return JSON.parse(localStorage.getItem(saveKey(m)) || 'null'); } catch { return null; } };
   game.clearSave = (m) => { try { localStorage.removeItem(saveKey(m)); } catch { /* ignore */ } };
