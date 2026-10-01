@@ -44,6 +44,7 @@ export function createStory(game, api) {
   };
   // a knot of Red Caps beating someone on the ground; one of them holds what they took
   function beatingScene(spot, n, victimOutfit, victimName, loot, extra = {}, keep = false) {
+    const gang = extra.gang === 'agbero' ? ['agbero', 'agbero2'] : ['redcap', 'redcap2'];
     const vx = spot.x, vz = spot.z;
     const mk = keep ? T : api.thug, mv = keep ? V : api.victim;
     const victim = mv({ x: vx, z: vz, yaw: Math.atan2(spot.nx, spot.nz), outfit: victimOutfit, mood: 'cower' });
@@ -52,7 +53,7 @@ export function createStory(game, api) {
     const W = extra.weapons || [];
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + 0.4, x = vx + Math.sin(a) * 1.5, z = vz + Math.cos(a) * 1.5;
-      const t = mk({ x, z, yaw: a + Math.PI, variant: k === 0 && extra.brute ? 'brute' : k % 2 ? 'redcap2' : 'redcap', weapon: W[k] ?? (k === 1 && extra.stick ? 'stick' : null), role: 'beater', group });
+      const t = mk({ x, z, yaw: a + Math.PI, variant: k === 0 && extra.brute ? 'brute' : gang[k % 2], weapon: W[k] ?? (k === 1 && extra.stick ? 'stick' : null), role: 'beater', group });
       t.victim = victim; group.push(t);
     }
     if (loot) api.giveItem(group[0], { ...loot, owner: victim });
@@ -947,9 +948,9 @@ export function createStory(game, api) {
         const outfit = TRADERS[Math.floor(Math.random() * TRADERS.length)], name = VICTIM_NAMES[Math.floor(Math.random() * VICTIM_NAMES.length)];
         api.scatter(spot.x, spot.z, 3);
         const W = [null, 'stick', 'knife', null, 'knife'].sort(() => Math.random() - 0.5);
-        const sc = beatingScene(spot, 2 + Math.floor(Math.random() * 3), outfit, name, Math.random() < 0.6 ? { label: `${name}'s money`, amount: 5000 + Math.floor(Math.random() * 6) * 2500 } : null, { weapons: W, brute: Math.random() < 0.25 });
+        const sc = beatingScene(spot, 2 + Math.floor(Math.random() * 3), outfit, name, Math.random() < 0.6 ? { label: `${name}'s money`, amount: 5000 + Math.floor(Math.random() * 6) * 2500 } : null, { weapons: W, brute: Math.random() < 0.25, gang: 'agbero' });
         S.side = { ...sc, t: 0 };
-        game.radio.say(`Caller for ${game.world.areaAt(spot.x, spot.z)}: "Red Caps dey beat ${name} for my street right now! Somebody help!"`); api.notice('TROUBLE', `${game.world.areaAt(spot.x, spot.z)}: follow the red marker.`, 'red');
+        game.radio.say(`Caller for ${game.world.areaAt(spot.x, spot.z)}: "Agberos dey beat ${name} for my street right now! Somebody help!"`); api.notice('TROUBLE', `${game.world.areaAt(spot.x, spot.z)}: follow the red marker.`, 'red');
         game.audio.alert();
       }
       S.nextSide = game.mode === 'patrol' ? 55 + Math.random() * 40 : 110 + Math.random() * 70;

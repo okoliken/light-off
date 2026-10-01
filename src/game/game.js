@@ -93,11 +93,11 @@ export function createGame(ctx) {
   // ---------- levy collection points (side missions) ----------
   function makeSite(spot, name, { guards = 1, amount }) {
     const nx = spot.nx, nz = spot.nz, ax = -nz, az = nx, group = [];
-    const collector = spawnThug({ x: spot.x, z: spot.z, yaw: Math.atan2(-nx, -nz), variant: 'redcap', role: 'collector', group });
+    const collector = spawnThug({ x: spot.x, z: spot.z, yaw: Math.atan2(-nx, -nz), variant: 'agbero', role: 'collector', group });
     collector.giveBag(); group.push(collector);
     const site = { name, spot, amount, collector, group, state: 'active', alarmT: -1, respawn: 0 };
     collector.site = site;
-    for (let k = 0; k < guards; k++) { const off = k ? -2.2 : 2.2; group.push(spawnThug({ x: spot.x + ax * off + nx * 0.8, z: spot.z + az * off + nz * 0.8, yaw: Math.atan2(nx, nz), variant: 'redcap2', weapon: k ? 'stick' : null, role: 'guard', group })); }
+    for (let k = 0; k < guards; k++) { const off = k ? -2.2 : 2.2; group.push(spawnThug({ x: spot.x + ax * off + nx * 0.8, z: spot.z + az * off + nz * 0.8, yaw: Math.atan2(nx, nz), variant: 'agbero2', weapon: k ? 'stick' : null, role: 'guard', group })); }
     site.trader = spawnVictim({ x: spot.x - nx * 1.5, z: spot.z - nz * 1.5, yaw: Math.atan2(nx, nz), mood: 'scared' });
     return site;
   }
@@ -231,7 +231,7 @@ export function createGame(ctx) {
     const route = [[r.x0 + i, r.z0 + i], [r.x1 - i, r.z0 + i], [r.x1 - i, r.z1 - i], [r.x0 + i, r.z1 - i]];
     if (route.some(([x, z]) => Math.hypot(x - player.pos.x, z - player.pos.z) < 50)) return;
     const group = [];
-    for (let k = 0; k < 2; k++) { const t = spawnThug({ x: route[0][0] + k * 1.2, z: route[0][1], variant: k ? 'redcap2' : 'redcap', weapon: R() < 0.3 ? 'stick' : null, role: 'patrol', group }); t.patrol = route; t.state = 'patrol'; group.push(t); }
+    for (let k = 0; k < 2; k++) { const t = spawnThug({ x: route[0][0] + k * 1.2, z: route[0][1], variant: k ? 'agbero2' : 'agbero', weapon: R() < 0.3 ? 'stick' : null, role: 'patrol', group }); t.patrol = route; t.state = 'patrol'; group.push(t); }
   }
 
   // ---------- shooting at Bolaji (police officers) ----------
@@ -559,9 +559,15 @@ export function createGame(ctx) {
     }
     const offSee = game.gunmen.some(o => o.alive && o.role === 'police' && Math.hypot(o.pos.x - player.pos.x, o.pos.z - player.pos.z) < game.policeRange * 0.7 && !col.blocked(o.pos.x, o.pos.y + 1.5, o.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2));
     const seen = pol.some(v => v.police.sees) || offSee;
-    if (seen && game.heat === 0 && game.carrying?.site) addHeat(1, 'Police spotted you with the levy bag. (The Red Caps pay them well.)');
+    if (seen && game.heat === 0 && game.carrying?.site) addHeat(1, 'Police spotted you with the levy bag. (The agberos pay them their cut.)');
     game.grudgeCd = (game.grudgeCd || 0) - dt;
     if (seen && game.heat === 0 && L.suit && L.phase !== 'day' && game.story.progress() >= 2 && !game.story.active && game.grudgeCd <= 0) { game.grudgeCd = 90; addHeat(1, 'Police: "Na the boy in black! Oga Okafor say make we carry am!"'); }
+    if (game.heat >= 2) game.wasHot = true;
+    if (game.heat === 0 && game.wasHot) { // he shook off a serious chase: the man paying the police is losing patience
+      game.wasHot = false; const F = game.story.flags; F.policeFails = (F.policeFails || 0) + 1;
+      if (F.policeFails === 3) hud.banner('THE PATRON', 'His police keep failing. He is done using police.', 'red', 3.5);
+      else hud.notice('SOMEWHERE, A PHONE RINGS', `Somebody important just heard the police lost you again (${F.policeFails}).`, 'blue');
+    }
     if (game.heat > 0) {
       if (seen) { game.heatTimer = 0; game.seenTime += dt; if (game.seenTime > 16 && game.heat < 3) { game.seenTime = 0; addHeat(1, 'More units joining the chase!'); } }
       else { game.heatTimer += dt; game.seenTime = Math.max(0, game.seenTime - dt); if (game.heatTimer > (player.cuffed ? 16 : 10)) { game.heatTimer = 0; game.heat--; hud.toast(game.heat ? 'They\'re losing you…' : '<b>You lost the police.</b>', game.heat ? 'blue' : 'green'); } }

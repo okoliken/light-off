@@ -25,6 +25,12 @@
   - **His Blades:** trained assassins who flip, use knives and throw blades. In-game they wear charcoal with a red sash.
   - **His calling card:** a gold crest of a lion holding a key. Every Blades squad Bolaji beats leaves one.
   - **How it maps onto Part B:** this is the "quiet patron" from the Part B decisions, promoted to the main villain across the chapters. Okafor is his police face; the Chairman is his street arm.
+- **The escalation (owner, 2026-10-01):**
+  - **Police first.** Checkpoints all over Lagos; most of them are on the Patron's payroll. Once you've escaped a serious chase, **paid police set-ups** begin: no siren, no arrest, they shoot.
+  - **Then the Blades.** After the police have failed three times, the Patron stops trusting them and sends his trained Blades.
+- **Who's who:**
+  - **Agberos and area boys** do the everyday extortion: levy points, beatings, patrols.
+  - **The Red Caps** are a real **cult**. They cause harm for its own sake: cutlass **blockades** that seal a whole junction (in Yaba, Mushin or Surulere), stop all traffic and hold people hostage.
 - **Built so far (v0.11):**
   - Once Bolaji's respect passes 4,000, Blades hit squads (3–4, plus a plainclothes police gunman who shoots whatever the heat) start ambushing him at night.
   - Each squad leaves a calling card, counted in the story flags.

@@ -247,6 +247,13 @@ export function createActivities(game, h) {
 
   // ---- the Patron's hit squads: once he's known, a powerful man starts paying to have him removed ----
   A.hit = null; A.hitCd = 240 + Math.random() * 120;
+  function startPoliceHit() { // stage 1: the Patron's police do his dirty work. No siren, no arrest: they shoot
+    const p = player.pos, squad = [];
+    for (let k = 0; k < 3; k++) { const a = k * 2.1; const g = h.gunman({ x: p.x + Math.sin(a) * 22, z: p.z + Math.cos(a) * 22, role: 'hitman' }); g.name = 'Police'; squad.push(g); }
+    A.hit = { squad: [], gun: null, cops: squad, t: 0, police: true };
+    hud.banner('SET UP', 'Police with no siren, no warrant, no questions. Somebody paid them to finish you.', 'red', 3.5);
+    game.say(squad[0], 'Na him! Oga say make we no carry am go station.', 'Police', 60); audio.alert();
+  }
   function startHit() {
     const p = player.pos, squad = [];
     const n = game.respect > 15000 ? 4 : 3;
@@ -266,10 +273,17 @@ export function createActivities(game, h) {
   function updateHit(dt) {
     A.hitCd -= dt;
     if (!A.hit) {
-      if (A.hitCd <= 0 && game.respect >= 4000 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !player.fightingNear && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 360 + Math.random() * 240; startHit(); }
+      const fails = game.story.flags.policeFails || 0;
+      if (A.hitCd <= 0 && fails >= 1 && fails < 3 && game.respect >= 2000 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 300 + Math.random() * 200; startPoliceHit(); return; }
+      if (A.hitCd <= 0 && fails >= 3 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !player.fightingNear && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 360 + Math.random() * 240; startHit(); }
       return;
     }
     const H = A.hit; H.t += dt;
+    if (H.police) {
+      if (H.cops.every(g => !g.alive || g.removed)) { game.addRespect(500, 'SURVIVED THE SETUP'); hud.notice('PAID POLICE', 'One of them had a fat envelope in his shirt, sealed with a gold crest: a lion holding a key.', 'blue'); A.hit = null; }
+      else if (H.t > 90 && H.cops.every(g => Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) > 70)) { for (const g of H.cops) g.remove(); A.hit = null; }
+      return;
+    }
     if (H.squad.every(t => !t.alive) && (!H.gun || !H.gun.alive)) {
       game.addRespect(800, 'SURVIVED THE BLADES');
       hud.notice('A CALLING CARD', 'One of them had a card in his pocket: no name, no number. Just a gold crest of a lion holding a key.', 'blue');
@@ -277,7 +291,40 @@ export function createActivities(game, h) {
       A.hit = null;
     } else if (H.t > 120 && H.squad.every(t => !t.alive || Math.hypot(t.pos.x - player.pos.x, t.pos.z - player.pos.z) > 60)) { for (const t of H.squad) t.remove(); A.hit = null; }
   }
+  // ---- Red Caps cult blockade: they seal a whole junction, stop every vehicle, hold people ----
+  A.block = null; A.blockCd = 200 + Math.random() * 150;
+  function startBlockade() {
+    const cands = [];
+    for (let i = -4; i <= 10; i++) for (let j = 1; j <= 5; j++) { const x = -216 + i * 72, z = -216 + j * 72, d = Math.hypot(x - player.pos.x, z - player.pos.z); if (d > 90 && d < 260) cands.push({ x, z }); }
+    const c = pick(cands); if (!c) return;
+    const blocker = { x: c.x, z: c.z, active: true, hold: Infinity, cash: 0, stopped: null, cult: true };
+    game.traffic.blockers.push(blocker);
+    const cult = [], hostages = [], props = [];
+    const W = ['machete', 'machete', 'axe', 'machete', 'knife', 'machete', 'axe'];
+    W.forEach((w, k) => { const a = k / W.length * 6.28; cult.push(h.thug({ x: c.x + Math.sin(a) * 7, z: c.z + Math.cos(a) * 7, variant: k === 2 ? 'brute' : k % 2 ? 'redcap2' : 'redcap', weapon: w, role: 'guard', group: cult })); });
+    for (let k = 0; k < 3; k++) { const v = h.victim({ x: c.x - 2 + k * 2, z: c.z + 1, yaw: 0, mood: 'captive' }); v.name = ['a danfo driver', 'a trader', 'a student'][k]; hostages.push(v); }
+    for (const [dx, dz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) { // burning tyres at the corners
+      const m = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.16, 6, 12), new THREE.MeshStandardMaterial({ color: '#111', emissive: '#ff6d00', emissiveIntensity: 0.6 })); m.rotation.x = Math.PI / 2; m.position.set(c.x + dx, 0.2, c.z + dz); scene.add(m); props.push(m);
+    }
+    A.block = { c, blocker, cult, hostages, props, area: world.areaAt(c.x, c.z) };
+    hud.banner('RED CAPS BLOCKADE', `${A.block.area} is sealed. Cutlasses, burning tyres, people held. Nobody passes.`, 'red', 4);
+    game.radio?.say(`Red Caps don block ${A.block.area}! No motor fit pass, dem dey hold people. Police? Police dey watch from far.`); audio.alert();
+  }
+  function updateBlockade(dt) {
+    A.blockCd -= dt;
+    if (!A.block) { if (A.blockCd <= 0 && !game.story.active && !game.carrying && !player.cuffed && !L.inside) { A.blockCd = 420 + Math.random() * 300; startBlockade(); } return; }
+    const B2 = A.block;
+    for (const m of B2.props) game.fx && Math.random() < dt * 4 && game.fx.burst(m.position.x, 0.8, m.position.z, 0x333333, 2, 1);
+    if (B2.cult.every(t => !t.alive) && B2.hostages.every(v => v.mood !== 'captive')) {
+      const i = game.traffic.blockers.indexOf(B2.blocker); if (i >= 0) game.traffic.blockers.splice(i, 1);
+      for (const m of B2.props) scene.remove(m);
+      game.addRespect(1200, 'BLOCKADE BROKEN'); game.life.wallet += 2000;
+      hud.notice('ROAD OPEN', `${B2.area} is moving again. The horns start up like a celebration.`, 'green');
+      A.block = null;
+    }
+  }
   A.update = (dt) => {
+    updateBlockade(dt);
     updateHit(dt); updateSnatch(dt); updateJob(dt); updateSkate(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); updateSprint(dt); };
   A.option = () => {
     if (L.inside || !['foot', 'board'].includes(player.mode)) return null;
@@ -299,6 +346,7 @@ export function createActivities(game, h) {
     return null;
   };
   A.target = () => {
+    if (A.block) { const t = A.block.cult.find(q => q.alive) || A.block.hostages.find(v => v.mood === 'captive'); if (t) return { x: t.pos.x, z: t.pos.z, label: 'BLOCKADE' }; }
     if (A.sprint) return { x: SPRINT.end.x, z: SPRINT.end.z, label: 'ADENIJI ADELE' };
     if (A.goslow) { const t = A.goslow.robbers.filter(q => !q.done).sort((a, b) => d2(a.pos, player.pos) - d2(b.pos, player.pos))[0]; if (t) return { x: t.pos.x, z: t.pos.z, label: 'ROBBER', moving: true }; }
     if (A.run && A.course) { const r = A.course.rings[A.run.i]; return { x: r.x, z: r.z, label: 'RING', moving: false }; }
@@ -308,6 +356,7 @@ export function createActivities(game, h) {
     return null;
   };
   A.objective = () => {
+    if (A.block && Math.hypot(A.block.c.x - player.pos.x, A.block.c.z - player.pos.z) < 60) { const n = A.block.cult.filter(t => t.alive).length, hs = A.block.hostages.filter(v => v.mood === 'captive').length; return `<b>Red Caps blockade</b> at ${A.block.area}: ${n} cultists, ${hs} people held<small>CUTLASSES AND AXES: DODGE THE RED "!" · FREE THE HOSTAGES (F)</small>`; }
     if (A.sprint) return `Third Mainland sprint · <b>${A.sprint.t.toFixed(1)}s</b> <small>TO THE ADENIJI ADELE INTERCHANGE · GOLD ${SPRINT.gold}s · SKITCH THE TRAFFIC</small>`;
     if (A.goslow) { const left = A.goslow.robbers.filter(q => !q.done).length; return `<b>Go-slow robbers</b> on Third Mainland · <b>${left} left</b><small>THE "HAWKERS" ROB THE STUCK CARS, THEN RUN FOR THE RAILING TO DROP INTO CANOES · CATCH THEM FIRST</small>`; }
     if (A.run && A.course) return `Rooftop run: ring <b>${A.run.i} of ${A.course.rings.length - 1}</b> · <b>${Math.ceil(A.run.t)}s</b><small>LEAP (HOLD SPACE), WALL-RUN, POUNCE (V) BETWEEN ROOFS</small>`;
@@ -338,6 +387,7 @@ export function createActivities(game, h) {
   // entries for the Patrol Board
   A.board = (dist) => {
     const out = [];
+    if (A.block) out.push({ kind: 'crime', title: `Red Caps blockade · ${A.block.area}`, desc: 'The cult has sealed the junction with cutlasses and burning tyres, and is holding people.', x: A.block.c.x, z: A.block.c.z, reward: '₦2,000 · huge respect', urgent: true });
     if (A.robbery) { const v = A.robbery.stage === 'chase' ? A.robbery.car : A.robbery.crew.find(g => g.alive) || A.robbery.car; out.push({ kind: 'crime', title: 'Armed robbery', desc: `Robbers hit ${A.robbery.shop}. Stop the car and take the money back.`, x: v.pos.x, z: v.pos.z, reward: 'Cash tip · big respect', urgent: true }); }
     if (A.snatch && A.snatch.thief.alive) out.push({ kind: 'crime', title: 'Phone snatcher', desc: `Catch the thief who grabbed ${A.snatch.victim.name}'s phone.`, x: A.snatch.thief.pos.x, z: A.snatch.thief.pos.z, reward: 'Tip · respect', urgent: true });
     if (A.course) { const r = A.course.rings[0]; out.push({ kind: 'run', title: 'Rooftop run', desc: `${A.course.rings.length - 1} rings across the roofs in ${A.course.par}s.`, x: r.x, z: r.z, reward: '₦800+ · respect' }); }

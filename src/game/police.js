@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { Gunman } from './enemies.js';
 import { textSign } from '../core/textures.js';
-import { HALF, CELL } from '../world/layout.js';
+import { HALF, CELL, ROAD } from '../world/layout.js';
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const FARE = { danfo: 200, keke: 100, okada: 100, car: 500, tanker: 1000, brt: 0 };
@@ -18,6 +18,12 @@ export function createCheckpoints(game) {
   const DEFS = [
     { name: 'Ojuelegba checkpoint', x: -HALF + 4 * CELL, z: -HALF + 1.5 * CELL, axis: 'z' },
     { name: 'Adeniran Ogunsanya checkpoint', x: -HALF + 2.5 * CELL, z: -HALF + 4 * CELL, axis: 'x' },
+    { name: 'Bode Thomas checkpoint', x: -HALF + 1 * CELL, z: -HALF + 4.5 * CELL, axis: 'z' },
+    { name: 'Third Mainland approach', x: -HALF + 3 * CELL, z: -HALF + 0.5 * CELL, axis: 'z' },
+    { name: 'Herbert Macaulay checkpoint', x: -HALF + 8 * CELL, z: -HALF + 4.5 * CELL, axis: 'z' },
+    { name: 'Sabo checkpoint', x: -HALF + 7.5 * CELL, z: -HALF + 1 * CELL, axis: 'x' },
+    { name: 'Agege Motor Road checkpoint', x: -HALF - 3 * CELL, z: -HALF + 2.5 * CELL, axis: 'z' },
+    { name: 'Idi-Araba checkpoint', x: -HALF - 1.5 * CELL, z: -HALF + 5 * CELL, axis: 'x' },
   ];
   const drumMat = new THREE.MeshStandardMaterial({ color: '#c62828', roughness: 0.7 }), plankMat = new THREE.MeshStandardMaterial({ color: '#6d4c41', roughness: 0.95 });
   const nailMat = new THREE.MeshStandardMaterial({ color: '#9e9e9e', metalness: 0.8, roughness: 0.4 });

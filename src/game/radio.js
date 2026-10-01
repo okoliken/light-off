@@ -38,7 +38,7 @@ export function createRadio(game) {
     if (L.phase === 'day' && dm && !S.dayUnlocked) return { text: dm.radio, lead: () => S.unlockDay() };
     if (game.mode === 'patrol' && Math.random() < 0.7) { const e = game.patrolBoard().find(q => q.kind === 'crime' || q.kind === 'police'); if (e) return { text: `Callers from ${game.world.areaAt(e.x, e.z)}: ${e.desc} (${e.dist} m from you. Check your Patrol Board: J.)` }; }
     const side = S.side && !S.side.cleared ? S.side : null;
-    if (side) return { text: `Callers dey report trouble for ${game.world.areaAt(side.victim.pos.x, side.victim.pos.z)}: Red Caps dey beat ${side.victim.name}. Police never show.` };
+    if (side) return { text: `Callers dey report trouble for ${game.world.areaAt(side.victim.pos.x, side.victim.pos.z)}: Agberos dey beat ${side.victim.name}. Police never show.` };
     if (game.respect > 1500 && Math.random() < 0.35) return { text: pick(BOY) };
     return { text: pick(L.phase === 'day' ? FLAVOUR_DAY : FLAVOUR_NIGHT) };
   }
