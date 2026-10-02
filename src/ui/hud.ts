@@ -374,7 +374,7 @@ export function createHUD(root, world) {
       ['Sprint', 'Shift', 'RT'], ['Board: unclip / strap on', 'R', 'Y'], ['Skitch: grab a vehicle', 'E', 'RB'], ['Board trick (in the air)', 'F', 'X']]],
     ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
       ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
-    ['The street', [['Interact · pick up · talk', 'F', 'X'], ['Pocket radio: news and leads', 'N', 'D-Pad →'], ['Street Sense (hold)', 'Q', 'LB'], ['Big map', 'M', 'Back'], ['Pause', 'Esc · P', 'Start']]],
+    ['The street', [['Interact · pick up · talk', 'F', 'X'], ['Change into / out of the suit (if you carry it, and nobody sees)', 'U', '—'], ['Pocket radio: news and leads', 'N', 'D-Pad →'], ['Street Sense (hold)', 'Q', 'LB'], ['Big map', 'M', 'Back'], ['Pause', 'Esc · P', 'Start']]],
   ];
   const keycaps = (k) => k.split(' · ').map(x => `<kbd>${x}</kbd>`).join('<i>or</i>');
   const PSN = { A: '✕', B: '○', X: '□', Y: '△', RB: 'R1', LB: 'L1', RT: 'R2', LT: 'L2', Back: 'Share', Start: 'Options' };

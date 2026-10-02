@@ -53,7 +53,7 @@ export function createInput(canvas) {
     };
     const pressed: any = {
       jump: t('Space'), board: t('KeyR'), skitch: t('KeyE'), act: t('KeyF') || mouse.clicked, roll: t('KeyC'),
-      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'),
+      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'), change: t('KeyU'),
     };
     let lx = mouse.dx, ly = mouse.dy;
     mouse.dx = mouse.dy = 0; mouse.clicked = false; tapped.clear();

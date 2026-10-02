@@ -47,7 +47,8 @@ const env = createEnv(scene, renderer, camera.cam, { shadows: Q.shadows, shadowS
 const fx = createFX(scene, world);
 const nav = createNav(scene, world);
 const game = createGame({ scene, world, traffic, player, camera, hud, audio, env, input, fx });
-const crowd = createCrowd(scene, world, Q.crowd); // after the game, so bus stops exist for people to wait at
+const crowd = createCrowd(scene, world, Q.crowd);
+game.crowdPeople = () => { const night = game.life.phase === 'night'; return crowd.peds.filter((p: any) => !(night && p.dayOnly)).map((p: any) => p.pos); }; // pedestrians count as witnesses // after the game, so bus stops exist for people to wait at
 world.setPower(1); env.setPower(1);
 console.log(`[light-off] world built in ${Math.round(performance.now() - t0)} ms · quality ${settings.quality}`);
 

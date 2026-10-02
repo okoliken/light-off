@@ -330,13 +330,13 @@ export function createGame(ctx) {
     if (isDay) {
       if (near(R0.door, 1.2)) return { kind: 'out', story: false, text: '<span class="key">F</span>Go out into Surulere (daytime, your own clothes)' };
       if (near(R0.radio, 0.8)) return { kind: 'radio', text: '<span class="key">F</span>Turn on the radio' };
-      if (near(R0.drum, 1.2)) return { kind: 'none', text: 'Not in daylight. Too many eyes. The suit stays in the drum until night.' };
+      if (near(R0.drum, 1.2)) return { kind: 'bag', text: L.bag ? '<span class="key">F</span>Put the suit back in the drum' : '<span class="key">F</span>Roll the suit into your backpack (change anywhere nobody can see you: <span class="key">U</span>)' };
       if (near(R0.pot, 1.1)) return { kind: 'note', text: `<span class="key">F</span>Read Mama's note${L.meals ? ' · eat what she left' : ''}` };
       if (near(R0.mat, 1.0) || near(R0.chair, 1.0)) return { kind: 'wait', text: '<span class="key">F</span>Wait for night (dinner with Mama and Tobi, then they sleep)' };
       return null;
     }
     if (near(R0.door, 1.2)) {
-      if (!L.suit) return { kind: 'none', text: 'Put on the black suit first (it\'s hidden in the <b>water drum</b>)' };
+      if (!L.suit && !L.bag) return { kind: 'none', text: 'Put on the black suit first, or pack it in your backpack (it\'s hidden in the <b>water drum</b>)' };
       const m = game.story.next();
       if (m && L.clock > 27 * 60) return { kind: 'out', story: false, text: `<span class="key">F</span>Go out and patrol <small style="opacity:.8">(too close to dawn for ${m.title}: go tomorrow night)</small>` };
       if (!m && game.story.upcoming()) return { kind: 'out', story: false, text: '<span class="key">F</span>Go out and patrol <small style="opacity:.8">(no lead yet: listen to the radio, N)</small>' };
@@ -405,6 +405,7 @@ export function createGame(ctx) {
       case 'fuse': opt.tf.cool = 120; startBlackout(38, true); return true;
       // at home
       case 'out': game.leaveHome(opt.story); return true;
+      case 'bag': L.bag = !L.bag; updateBackpack(); audio.grab(); hud.popup(L.bag ? 'SUIT PACKED' : 'SUIT IN THE DRUM'); return true;
       case 'suit': L.suit = !L.suit; player.setOutfit(L.suit ? OUTFITS.bolaji : OUTFITS.bolajiDay); reattachBag(); audio.grab(); hud.popup(L.suit ? 'SUITED UP' : 'SUIT HIDDEN'); return true;
       case 'eat': L.meals--; L.eat(45, "MAMA'S JOLLOF"); return true;
       case 'rest': L.clock += 30; L.energy = Math.min(100, L.energy + 22); player.hp = Math.min(player.cap(), player.hp + 12); hud.notice(L.timeStr(), 'You sit in the dark and let your body settle.', 'white', 1.8); return true;
@@ -425,6 +426,39 @@ export function createGame(ctx) {
     }
     return false;
   }
+  // ---------- the backpack: change anywhere nobody can see you ----------
+  let backpack = null;
+  function updateBackpack() {
+    if (!backpack) { backpack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.18), new THREE.MeshStandardMaterial({ color: '#2b2f36', roughness: 0.9 })); backpack.position.set(0, 0.0, -0.17); }
+    backpack.parent?.remove(backpack);
+    if (L.bag && !L.suit) player.rig.b.chest.add(backpack); // the suit is on him, so the bag hangs empty out of sight
+  }
+  function witnesses() { // anyone within 16 m with a clear line of sight
+    const P = player.pos, see = (q) => q && !q.gone && !q.removed && dist2(q.pos, P) < 16 * 16 && !col.blocked(q.pos.x, q.pos.y + 1.5, q.pos.z, P.x, P.y + 1.2, P.z, 1.2);
+    let n = game.civilians.filter(see).length + game.thugs.filter(t => t.alive && see(t)).length + game.gunmen.filter(g => g.alive && see(g)).length;
+    for (const c of game.crowdPeople?.() || []) if (dist2(c, P) < 14 * 14 && !col.blocked(c.x, 1.5, c.z, P.x, P.y + 1.2, P.z, 1.2)) n++;
+    return n;
+  }
+  function changeClothes() {
+    if (L.inside || !(L.bag || L.suit) || !['foot'].includes(player.mode) || player.cuffed) { if (!L.inside && !L.bag && !L.suit) hud.popup('NO SUIT WITH YOU'); return; }
+    const n = witnesses();
+    if (L.suit) { L.suit = false; L.bag = true; player.setOutfit(OUTFITS.bolajiDay); } else { L.suit = true; player.setOutfit(OUTFITS.bolaji); }
+    reattachBag(); updateBackpack(); audio.grab(); fx.dust(player.pos.x, player.pos.y + 0.1, player.pos.z, 6);
+    if (n > 0) {
+      // somebody saw Bolaji from Aguda turn into the boy in black (or back)
+      game.exposure = 0; L.suspicion = Math.min(100, L.suspicion + 12); game.recognisedAt = game.time;
+      hud.banner('SEEN CHANGING', `${n === 1 ? 'Somebody' : n + ' people'} saw you change. Your face and the boy in black, in the same moment.`, 'red', 3.5);
+      addHeat(1, 'Somebody is on the phone to the police.');
+    } else hud.popup(L.suit ? 'SUITED UP · NOBODY SAW' : 'CHANGED BACK · NOBODY SAW');
+  }
+  game.changeClothes = changeClothes;
+  let dayAttT = 0, dayToldT = -999;
+  function updateDaySuit(dt) { // the boy in black in broad daylight draws a crowd and the police
+    if (!(L.suit && !L.inside && L.daylight() > 0.5)) { dayAttT = 0; return; }
+    dayAttT += dt;
+    if (game.time - dayToldT > 120) { dayToldT = game.time; hud.notice('BROAD DAYLIGHT', 'People are stopping to point their phones at the boy in black.', 'red'); game.radio?.say('Una see am? The boy in black, for afternoon! Na film o. Police dey come.'); }
+    if (dayAttT > 12 && game.heat === 0) { dayAttT = 0; addHeat(1, 'A crowd is following you, and somebody called the police.'); }
+  }
   function reattachBag() { bagOnHip.parent?.remove(bagOnHip); player.rig.b.hips.add(bagOnHip); }
   game.inRoom = () => L.inside;
   // pause menu: jump straight into any story mission (night, suited up, outside the gate)
@@ -441,7 +475,7 @@ export function createGame(ctx) {
   function setOccupants(home) { R0.mama.root.visible = home; R0.tobi.root.visible = home; }
   game.startDay = () => {
     player.cuffed = false; game.arrest = null; game.catchLabel = null;
-    L.inside = true; L.suit = false; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); setOccupants(false);
+    L.inside = true; L.suit = false; L.bag = false; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack(); setOccupants(false);
     player.respawn(R0.spawn.x, R0.spawn.z, R0.spawn.yaw); player.pos.y = 0; camera.snapBehind(R0.spawn.yaw);
     const e = DAY.newErrand();
     hud.notice(L.timeStr(), `Day ${L.night} · Mama is at the market, Tobi is at school`, 'white', 3);
@@ -776,6 +810,7 @@ export function createGame(ctx) {
       if (input.pressed.gadget) { if (opt?.kind === 'out' && opt.story) game.leaveHome(false); else if (!L.inside && !combat.flurry(dir) && !combat.sweep()) combat.launch(dir); }
       if (input.pressed.flash && !L.inside) combat.pounce(dir);
       if (input.pressed.radio) game.radio.listen();
+      if (input.pressed.change) changeClothes();
     }
 
     player.update(sdt, input, camera.yaw, game.time);
@@ -828,6 +863,7 @@ export function createGame(ctx) {
     game.police.update(sdt);
     game.radio.update(dt);
     updateExposure(dt);
+    updateDaySuit(dt);
     game.activities?.update(sdt);
     game.story.update(sdt);
     L.update(sdt);
@@ -1050,14 +1086,14 @@ export function createGame(ctx) {
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois as Record<string, any>).filter(q => q.found).map(q => q.id),
         // where he is right now, so a reload puts him back on the street (not at home)
-        snap: { x: player.pos.x, z: player.pos.z, yaw: player.yaw, inside: L.inside, clock: L.clock, suit: L.suit, cuffed: !!player.cuffed, heat: game.heat },
+        snap: { x: player.pos.x, z: player.pos.z, yaw: player.yaw, inside: L.inside, clock: L.clock, suit: L.suit, bag: L.bag, cuffed: !!player.cuffed, heat: game.heat },
       };
       localStorage.setItem(saveKey(), JSON.stringify(data));
     } catch { /* storage unavailable (private window): the game still plays, it just won't remember */ }
   };
   game.restoreSnap = (sn) => {
     if (!sn || sn.inside || game.story.active) return;
-    L.clock = sn.clock; L.suit = sn.suit; player.setOutfit(sn.suit ? OUTFITS.bolaji : OUTFITS.bolajiDay); reattachBag();
+    L.clock = sn.clock; L.suit = sn.suit; L.bag = !!sn.bag; player.setOutfit(sn.suit ? OUTFITS.bolaji : OUTFITS.bolajiDay); reattachBag(); updateBackpack();
     L.inside = false; player.respawn(sn.x, sn.z, sn.yaw || 0); camera.snapBehind(sn.yaw || 0);
     player.cuffed = !!sn.cuffed; game.heat = sn.cuffed ? Math.max(1, sn.heat || 0) : 0;
     env.setDaylight(L.daylight()); applyLights(true);
