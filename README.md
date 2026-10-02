@@ -95,5 +95,5 @@ See [`src/README.md`](src/README.md) for how the code fits together, and [`docs/
 
 ## Credits
 
-Created by [your name or handle] · Surulere / Lagos.
+Created by [@okoliken](https://github.com/okoliken) · Surulere / Lagos.
 Built with help from Claude (Anthropic).
