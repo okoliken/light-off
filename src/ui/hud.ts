@@ -21,7 +21,7 @@ const CONTROLS: any[] = [
   ['Counter when "!" flashes · Dodge', 'C  /  B'], ['Launch kick (then F to juggle)', 'G  /  D-pad up'],
   ['Pounce onto an enemy · Cat leap', 'V  /  D-pad down'], ['Pick up · Throw (junk, or your board)', 'T  /  D-pad left'],
   ['Aim a throw · Throw', 'Right mouse · Left click  /  LT · RT'],
-  ['Pocket radio: news, leads, trouble nearby', 'N  /  D-pad right'], ['Board trick (in the air)', 'F  /  X'], ['Street Sense (hold)', 'Q  /  LB'], ['Big map · Pause', 'M · Esc'],
+  ['Pocket radio: news, leads, trouble nearby', 'N  /  D-pad right'], ['Board trick (in the air)', 'F  /  X'], ['Big map · Pause', 'M · Esc'],
 ];
 
 export function createHUD(root, world) {
@@ -374,7 +374,7 @@ export function createHUD(root, world) {
       ['Sprint', 'Shift', 'RT'], ['Board: unclip / strap on', 'R', 'Y'], ['Skitch: grab a vehicle', 'E', 'RB'], ['Board trick (in the air)', 'F', 'X']]],
     ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
       ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
-    ['The street', [['Interact · pick up · talk', 'F', 'X'], ['Change into / out of the suit (if you carry it, and nobody sees)', 'U', '—'], ['Pocket radio: news and leads', 'N', 'D-Pad →'], ['Street Sense (hold)', 'Q', 'LB'], ['Big map', 'M', 'Back'], ['Pause', 'Esc · P', 'Start']]],
+    ['The street', [['Interact · pick up · talk', 'F', 'X'], ['Change into / out of the suit (if you carry it, and nobody sees)', 'U', '—'], ['Pocket radio: news and leads', 'N', 'D-Pad →'], ['Street Sense', 'automatic', '—'], ['Big map', 'M', 'Back'], ['Pause', 'Esc · P', 'Start']]],
   ];
   const keycaps = (k) => k.split(' · ').map(x => `<kbd>${x}</kbd>`).join('<i>or</i>');
   const PSN = { A: '✕', B: '○', X: '□', Y: '△', RB: 'R1', LB: 'L1', RT: 'R2', LT: 'L2', Back: 'Share', Start: 'Options' };
@@ -506,7 +506,7 @@ export function createHUD(root, world) {
     M.back = resume;
     if (opts.openBoard) boardPanel(M);
   };
-  H.help = () => { if (el.overlays.innerHTML) return false; H.toast('F strike · C counter/dodge · G launch · V pounce · N radio · J patrol board · Space jump/flip · R board · E skitch · Q Street Sense · M map', 'blue'); return true; };
+  H.help = () => { if (el.overlays.innerHTML) return false; H.toast('F strike · C counter/dodge · G launch · V pounce · N radio · J patrol board · Space jump/flip · R board · E skitch · M map', 'blue'); return true; };
   H.end = (stats, onContinue) => {
     const S = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
     el.overlays.innerHTML = `<div class="overlay"><div class="card">

@@ -30,7 +30,7 @@ const TIPS: any[] = [
   [30, '<span class="key">V</span> <b>pounces</b> onto an enemy up to 15 m away, like a cat on a rat. With no target it\'s a huge leap.'],
   [40, '<span class="key">T</span> picks up street junk (stones, bottles, pure water, buckets, tyres) and throws it. With nothing in reach, T throws your <b>board</b> (then go and get it).'],
   [46, 'Watch your <b>hunger</b> and <b>energy</b>. Low means slower, weaker, no flips. Eat at suya / akara / mama-put stands, or Mama\'s pot at home.'],
-  [62, 'Hold <span class="key">Q</span> for Street Sense: time slows and a trail leads to where help is needed.'],
+  [62, '<b>Street Sense</b> wakes up by itself when danger starts: time slows and a green trail shows the way out.'],
   [80, 'Get home before <b>5:30 AM</b>. And never lead anyone to your gate.'],
 ];
 
@@ -732,9 +732,39 @@ export function createGame(ctx) {
 
   // ---------- Street Sense: escape route ----------
   const _cand: any[] = [];
+  // ---------- Street Sense: automatic, at the moment danger first starts ----------
+  // Not on every punch: when police first spot him, a gun is first raised, an ambush or blockade closes in,
+  // he's surrounded, or a lookout starts tailing him. Time slows for a breath and a trail shows the way out.
+  // Then it rests for a while before it can fire again.
+  const SS = { t: 0, cd: 0, hold: 0, prevHeat: 0, prevRing: 0, prevTails: 0, seen: new WeakSet() };
+  function senseFire(reason) {
+    if (SS.cd > 0 || L.inside || game.respawnT > 0 || ['down', 'crawl', 'ride'].includes(player.mode)) return;
+    SS.t = 2.4; SS.cd = 22; SS.hold = 6; game.escapeT = 0;
+    audio.sense(true); setTimeout(() => audio.sense(false), 2400);
+    hud.popup(`STREET SENSE · <b>${reason}</b>`);
+    if (!game.senseTaught) { game.senseTaught = true; hud.toast('<b>Street Sense</b> kicks in by itself when danger starts: time slows and a green trail shows you where to go.', 'blue'); }
+  }
+  function updateStreetSense(dt) {
+    SS.cd = Math.max(0, SS.cd - dt); SS.t = Math.max(0, SS.t - dt); SS.hold = Math.max(0, SS.hold - dt);
+    game.sense = SS.t > 0;
+    game.senseMeter = 100 - (SS.cd / 22) * 100; // the HUD bar now shows when it's ready again
+    if (!L.inside) {
+      if (game.heat > SS.prevHeat && SS.prevHeat === 0) senseFire('POLICE');
+      const ring = game.thugs.filter(t => t.alive && t.engaged && dist2(t.pos, player.pos) < 15 * 15).length;
+      if (ring >= 3 && SS.prevRing < 3) senseFire('SURROUNDED');
+      for (const g of game.gunmen) if (g.alive && g.state === 'aim' && !SS.seen.has(g) && dist2(g.pos, player.pos) < 35 * 35) { SS.seen.add(g); senseFire('GUN'); }
+      const A = game.activities;
+      if (A.hit && !SS.seen.has(A.hit)) { SS.seen.add(A.hit); senseFire('AMBUSH'); }
+      if (A.block && !SS.seen.has(A.block) && dist2(A.block.c, player.pos) < 70 * 70) { SS.seen.add(A.block); senseFire('BLOCKADE AHEAD'); }
+      const tails = L.followers().length; if (tails > 0 && SS.prevTails === 0) senseFire('BEING FOLLOWED');
+      SS.prevRing = ring; SS.prevTails = tails;
+    }
+    SS.prevHeat = game.heat;
+    if (SS.hold > 0) { game.escapeT -= dt; if (game.escapeT <= 0) { game.escapeT = 0.4; computeEscape(); } } else game.escape = null;
+  }
   function computeEscape() {
     game.escape = null;
-    const hunters = [...traffic.police().filter(v => v.police.siren).map(v => v.pos), ...game.thugs.filter(t => t.alive && (t.state === 'tail' || t.engaged)).map(t => t.pos)];
+    const hunters = [...traffic.police().filter(v => v.police.siren).map(v => v.pos), ...game.thugs.filter(t => t.alive && (t.state === 'tail' || t.engaged)).map(t => t.pos), ...game.gunmen.filter(g => g.alive && g.state !== 'post').map(g => g.pos)];
     if (!hunters.length) return;
     game.escape = findHide(hunters);
   }
@@ -768,14 +798,8 @@ export function createGame(ctx) {
   // ---------- main update ----------
   game.update = (dt, input) => {
     game.time += dt; game.stats.time += dt;
-    const wantSense = input.held.sense && game.senseMeter > 4 && player.mode !== 'down';
-    if (wantSense && !game.sense) { audio.sense(true); if (!game.senseTaught) { game.senseTaught = true; hud.toast('<b>Street Sense</b>: time slows, a glowing trail leads to where help is needed, and threats show through walls. If you\'re being hunted, the trail leads to a rooftop to escape.', 'blue'); } }
-    if (!wantSense && game.sense) { audio.sense(false); game.senseCd = 1; }
-    game.sense = wantSense;
-    const senseDrain = 18 * (2 - player.eff);
-    if (game.sense) { game.senseMeter = Math.max(0, game.senseMeter - dt * senseDrain); game.escapeT -= dt; if (game.escapeT <= 0) { game.escapeT = 0.4; computeEscape(); } }
-    else { game.escape = null; game.senseCd -= dt; if (game.senseCd <= 0) game.senseMeter = Math.min(100, game.senseMeter + dt * 11 * player.eff); }
-    game.timeScale += ((game.sense ? 0.35 : TR.hurry(input) ? 3 : 1) - game.timeScale) * Math.min(1, dt * 8);
+    updateStreetSense(dt);
+    game.timeScale += ((game.sense ? 0.45 : TR.hurry(input) ? 3 : 1) - game.timeScale) * Math.min(1, dt * 8);
     env.grade.uniforms.sense.value += ((game.sense ? 1 : 0) - env.grade.uniforms.sense.value) * Math.min(1, dt * 6);
     const lowHp = player.hp < 35 ? 0.35 : player.hp < 15 ? 0.55 : 0;
     env.grade.uniforms.hurt.value = Math.max(lowHp, env.grade.uniforms.hurt.value - dt * 1.5);
@@ -931,7 +955,7 @@ export function createGame(ctx) {
       const rc = game.story.reconTarget(); if (rc) return { x: rc.x, z: rc.z, color: 0xffd54f, label: 'LOOK' };
       const t = DAY.target(); return t ? { x: t.x, z: t.z, color: 0x80deea, label: t.label } : null;
     }
-    if (game.sense && game.escape) return { x: game.escape.x, z: game.escape.z, color: 0x69f0ae, label: 'ESCAPE' };
+    if (game.escape) return { x: game.escape.x, z: game.escape.z, color: 0x69f0ae, label: 'ESCAPE' };
     if (game.hide) return { x: game.hide.x, z: game.hide.z, color: 0x69f0ae, label: 'HIDE' };
     if (game.dropped) { const m = game.dropped.mesh.position; return { x: m.x, z: m.z, color: 0xf2b705, label: 'ITEM' }; }
     if (game.carrying && game.delivery) return { x: game.delivery.x, z: game.delivery.z, color: 0x43e04a, label: game.delivery.name, moving: true };
@@ -1001,9 +1025,9 @@ export function createGame(ctx) {
       for (const t of game.thugs) if (t.alive && t.state !== 'tail' && dist2(t.pos, player.pos) < 70 * 70) M.push({ x: t.pos.x, y: t.pos.y + 2.2, z: t.pos.z, kind: 'enemy', label: '', edge: false });
       for (const g of game.gunmen) if (g.alive) M.push({ x: g.pos.x, y: g.pos.y + 2.2, z: g.pos.z, kind: 'cop', label: '', edge: false });
       for (const v of traffic.police()) M.push({ x: v.pos.x, y: v.pos.y + 2.6, z: v.pos.z, kind: 'cop', label: v.police.sees ? 'SEES YOU' : '', edge: false });
-      if (game.escape) { const e = game.escape; M.push({ x: e.x, y: 1.6, z: e.z, kind: 'escape', label: 'CLIMB HERE · ESCAPE' }); MM.push({ x: e.x, z: e.z, color: '#69f0ae' }); }
     }
-    if (game.hide && !game.sense) { const e = game.hide; M.push({ x: e.x, y: 1.6, z: e.z, kind: 'escape', label: `CLIMB · BREAK THEIR SIGHT · ${dstr(e.x, e.z)}` }); MM.push({ x: e.x, z: e.z, color: '#69f0ae' }); }
+    if (game.escape) { const e = game.escape; M.push({ x: e.x, y: 1.6, z: e.z, kind: 'escape', label: `STREET SENSE · GO HERE · ${dstr(e.x, e.z)}` }); MM.push({ x: e.x, z: e.z, color: '#69f0ae' }); }
+    if (game.hide && !game.escape) { const e = game.hide; M.push({ x: e.x, y: 1.6, z: e.z, kind: 'escape', label: `CLIMB · BREAK THEIR SIGHT · ${dstr(e.x, e.z)}` }); MM.push({ x: e.x, z: e.z, color: '#69f0ae' }); }
     MM.push({ x: world.homeDoor.x, z: world.homeDoor.z, color: '#ffffff' });
     if (L.clock > 28 * 60 || (game.story.active && !L.followers().length && game.story.homeStep()) || dist2(world.homeDoor, player.pos) < 60 * 60) M.push({ x: world.homeDoor.x, y: 2.8, z: world.homeDoor.z, kind: 'home', label: `HOME · ${dstr(world.homeDoor.x, world.homeDoor.z)}` });
   }
