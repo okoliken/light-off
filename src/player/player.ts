@@ -23,7 +23,7 @@ export function createPlayer(scene, world, traffic) {
     pos: new THREE.Vector3(home.x, 0.15, home.z), vel: new THREE.Vector3(),
     yaw: home.yaw, heading: home.yaw, speed: 0,
     mode: 'foot', onGround: true, t: 0, anim: 0,
-    hp: 100, maxHp: 100, injury: 0, hurtT: 99, invuln: 0, downs: 0, lastDownT: -99, critical: false, crawlT: 0, getupT: 0, leapCd: 0,
+    hp: 100, maxHp: 100, nineLives: 1, injury: 0, hurtT: 99, invuln: 0, downs: 0, lastDownT: -99, critical: false, crawlT: 0, getupT: 0, leapCd: 0,
     holding: null, boardLost: false,
     riding: null, grind: null, skitch: null, climb: null,
     punch: { t: 9, side: 'R', combo: 0, cd: 0, kick: false },
@@ -54,6 +54,9 @@ export function createPlayer(scene, world, traffic) {
     emit('hurt', { dmg });
     const dx = p.pos.x - fx, dz = p.pos.z - fz, d = Math.hypot(dx, dz) || 1;
     p.vel.x += (dx / d) * knock; p.vel.z += (dz / d) * knock;
+    if (p.hp <= 0 && p.nineLives > 0 && !p.cuffed) { // once a night, a cat twists out of it and lands on his feet
+      p.nineLives--; p.hp = 14; p.mode = 'roll'; p.rollT = 0; p.invuln = 1.6; emit('nineLives'); return true;
+    }
     if (p.hp <= 0) { p.hp = 0; startDown(); return true; }
     if (p.mode === 'board' || p.mode === 'grind' || p.mode === 'skitch') startBail(0.5);
     return true;
@@ -100,7 +103,7 @@ export function createPlayer(scene, world, traffic) {
   const ACT = {
     jab: [0.26, 0.11], hook: [0.3, 0.13], knee: [0.32, 0.14], spin: [0.42, 0.22], flipkick: [0.55, 0.24],
     launch: [0.42, 0.16], air: [0.3, 0.1], slam: [0.45, 0.18], counter: [0.42, 0.14], takedown: [0.62, 0.34], web: [0.22, 0.05],
-    pounce: [0.62, 0.5], throw: [0.32, 0.14], sweep: [0.55, 0.2], flurry: [1.0, 0.82],
+    pounce: [0.62, 0.5], throw: [0.32, 0.14], sweep: [0.55, 0.2], flurry: [1.0, 0.82], catdrop: [0.6, 0.06],
   };
   p.startAct = (kind, target, onHit, { invuln = false, reach = 1.15 } = {}) => {
     const [dur, hitAt] = ACT[kind];
@@ -280,6 +283,7 @@ export function createPlayer(scene, world, traffic) {
       if (p.landVy < -10 && p.rollBuf < 0.35) { p.mode = 'roll'; p.rollT = 0; p.invuln = 0.4; emit('landRoll'); return; }
       // like a cat, he lands on his feet: only a really big drop hurts, and less than it would
       if (p.landVy < -30) { p.hurt(Math.min(25, (-p.landVy - 28) * 4), p.pos.x, p.pos.z, 0); emit('hardland'); }
+      else if (p.landVy < -15 && !p.cuffed) { emit('catDrop', { vy: p.landVy }); return; } // a big drop: the cat landing
     }
     // auto-vault low obstacles when running into them
     if (p.onGround && mag > 0.5 && Math.hypot(p.vel.x, p.vel.z) > 1.5) {
@@ -443,11 +447,11 @@ export function createPlayer(scene, world, traffic) {
     const w = wishDir(inp, camYaw);
     s.t += dt;
     s.lat = clamp(s.lat + (w.x * v.rt.x + w.z * v.rt.z) * 2.2 * dt, -0.95, 0.95);
-    s.grip -= v.spec.grip * dt;
+    // no grip limit: he holds on as long as he likes (E or Space to let go)
     if (s.t > s.swatAt && !s.warned) { s.warned = true; emit('conductor'); }
     const letGo = inp.pressed.skitch || inp.pressed.jump;
-    const lost = !traffic.vehicles.includes(v) || s.grip <= 0 || (v.speed < 1 && s.t > 1);
-    if (s.warned && s.t > s.swatAt + 1.3) { p.mode = 'board'; p.skitch = null; p.riding = null; p.speed = v.speed; startBail(2); emit('swatted'); return; }
+    const lost = !traffic.vehicles.includes(v) || (v.speed < 1 && s.t > 4);
+    // the conductor shouts, but he can't shake you off
     if (letGo || lost) {
       p.mode = 'board'; p.skitch = null; p.riding = null;
       p.heading = v.yaw; p.speed = v.speed + (letGo ? 2.5 : 0);

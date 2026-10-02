@@ -530,7 +530,7 @@ export function createGame(ctx) {
   };
   game.toNight = () => {
     if (DAY.errand?.step === 'return') DAY.errandHome();
-    L.toNight(); nightStart(game); setOccupants(true); game.save();
+    L.toNight(); nightStart(game); player.nineLives = 1; setOccupants(true); game.save();
     player.respawn(R0.spawn.x, R0.spawn.z, R0.spawn.yaw); player.pos.y = 0; camera.snapBehind(R0.spawn.yaw);
     hud.notice(L.timeStr(), 'Dinner is done. Mama and Tobi are asleep. The suit is in the drum.', 'white', 3.5);
     applyLights(true);
@@ -1116,6 +1116,21 @@ export function createGame(ctx) {
       case 'splash': fx.burst(player.pos.x, player.pos.y + 0.1, player.pos.z, 0x8d7b62, 6, 3); audio.splash?.(); break;
       case 'down': camera.shake = 0.7; if (ev.critical) hud.banner('CRITICAL', 'You can barely move. <b>Crawl away</b> and get out of their sight!', 'red', 3); else hud.notice('DOWN', 'stay down a moment, then get back up', 'red'); break;
       case 'getup': audio.grab(); break;
+      case 'catDrop': {
+        // the cat landing: a low three-point crouch, a ring of dust, everyone near flinches; land on someone and he's down
+        player.startAct('catdrop', null, () => {}, { invuln: true });
+        fx.dust(player.pos.x, player.pos.y + 0.05, player.pos.z, 22); camera.shake = 0.55; game.hitStop = 0.15; audio.land(1);
+        let n = 0;
+        for (const t of game.thugs) {
+          if (!t.alive || t.grounded) continue;
+          const d = Math.hypot(t.pos.x - player.pos.x, t.pos.z - player.pos.z);
+          if (d < 1.6 && t.takeHit) { t.takeHit(99, player.pos.x, player.pos.z, 'takedown'); game.onKnockout(t); n += 2; }
+          else if (d < 5) { t.stun?.(0.9); n++; }
+        }
+        game.addRespect(n ? 80 + n * 40 : 40, n ? 'CAT DROP' : 'CAT LANDING');
+        break;
+      }
+      case 'nineLives': camera.shake = 0.6; game.hitStop = 0.2; audio.alert(); hud.banner('NINE LIVES', 'He twists out of it and lands on his feet. That was the one for tonight.', 'green', 2.6); break;
       case 'proneOn': audio.grab(); hud.popup('BELLY BOARD · <b>LOW AND HARD TO SPOT</b>'); break;
       case 'proneOff': audio.grab(); break;
       case 'proneSlow': hud.popup('GO FASTER FIRST, THEN X'); break;

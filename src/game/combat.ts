@@ -120,6 +120,17 @@ export function createCombat(game) {
   // F: returns true if it did a combat move
   C.attack = (dir, held: any = {}) => {
     if (!['foot', 'board'].includes(player.mode) || player.cuffed) return false;
+    // Wall Spring: F into a wall right in front of him kicks off it, flipping back onto the nearest enemy behind
+    if (player.mode === 'foot' && player.onGround) {
+      const wt = game.world.collision.raycast(player.pos.x, player.pos.y + 1, player.pos.z, dir[0], 0, dir[1], 1.4);
+      if (wt < 1.3) {
+        const back = foes().filter(t => !t.grounded && dist(t, player) < 7.5 && ((t.pos.x - player.pos.x) * dir[0] + (t.pos.z - player.pos.z) * dir[1]) < 0).sort((a, b) => dist(a, player) - dist(b, player))[0];
+        if (back) {
+          player.startAct('flipkick', back, () => { if (!back.alive || dist(back, player) > 2.8) return; const ko = hitFoe(back, 3, 'heavy'); landed(back, 3, 'heavy', ko); game.hitStop = 0.12; game.addRespect(150, 'WALL SPRING'); }, { invuln: true, reach: 0.9 });
+          return true;
+        }
+      }
+    }
     // silent takedown: creep up on someone who hasn't noticed him (behind them, or in the dark) and drop them without a sound
     const unaware = t => t.takeHit && ['idle', 'patrol', 'return'].includes(t.state) && t.variant !== 'scorpion' && t.variant !== 'chairman' && t.variant !== 'egungun' &&
       (game.power < 0.5 || (Math.sin(t.yaw) * (player.pos.x - t.pos.x) + Math.cos(t.yaw) * (player.pos.z - t.pos.z)) / (dist(t, player) || 1) < 0.2);
@@ -198,23 +209,29 @@ export function createCombat(game) {
   // V: pounce onto someone far away (or just leap)
   C.pounce = (dir) => {
     if (player.cuffed) return false;
-    if (!['foot', 'board'].includes(player.mode) || !player.onGround || player.leapCd > 0) return false;
+    const chaining = game.time < (C.chainUntil || 0); // Cat Chain: pounce again straight after a pounce lands
+    if (!['foot', 'board'].includes(player.mode) || (!player.onGround && !chaining) || (player.leapCd > 0 && !chaining)) return false;
     let best = null, bs = Infinity;
     for (const t of foes()) {
       if (t.grounded || t.airborne || t.state === 'tail' && false) continue;
-      const d = dist(t, player); if (d < 3 || d > 16 || Math.abs(t.pos.y - player.pos.y) > 4) continue;
+      const dy = player.pos.y - t.pos.y, d = dist(t, player); if (d < 2.2 || d > 16 || dy < -4 || dy > 12) continue; // from a roof he can drop on them
       const tx = (t.pos.x - player.pos.x) / d, tz = (t.pos.z - player.pos.z) / d, ang = Math.acos(Math.max(-1, Math.min(1, tx * dir[0] + tz * dir[1])));
-      if (ang > 0.8 || game.world.collision.blocked(player.pos.x, player.pos.y + 1.6, player.pos.z, t.pos.x, t.pos.y + 1.4, t.pos.z, 2.2)) continue;
+      const ty = dy > 2.5 ? player.pos.y + 1.6 : t.pos.y + 1.4; // from a roof: is the way across clear (he drops down onto them)
+      if (ang > 0.8 || game.world.collision.blocked(player.pos.x, player.pos.y + 1.6, player.pos.z, t.pos.x, ty, t.pos.z, 2.2)) continue;
       const sc = d * 0.4 + ang * 6; if (sc < bs) { bs = sc; best = t; }
     }
     if (!best) return player.leap(dir);
     player.leapCd = 1.2; if (player.mode === 'board') player.mode = 'foot';
+    const fromRoof = player.pos.y - best.pos.y > 2.5, unawareFoe = ['idle', 'patrol', 'return'].includes(best.state);
+    C.chainUntil = 0;
     player.startAct('pounce', best, () => {
       fx.dust(player.pos.x, player.pos.y + 0.1, player.pos.z, 8);
       if (dist(best, player) > 2.6 || !best.alive) return;
-      const ko = hitFoe(best, 2, 'heavy'); landed(best, 2, 'heavy', ko);
+      if (fromRoof && unawareFoe && best.takeHit) { best.takeHit(99, player.pos.x, player.pos.z, 'takedown'); game.onKnockout?.(best); landed(best, 3, 'heavy', true); game.hitStop = 0.18; game.addRespect(250, 'ROOFTOP AMBUSH'); }
+      else { const ko = hitFoe(best, 2, 'heavy'); landed(best, 2, 'heavy', ko); game.addRespect(chaining ? 120 : 60, chaining ? 'CAT CHAIN' : 'POUNCE'); }
       for (const o of game.thugs) if (o !== best && o.alive && !o.grounded && dist(o, player) < 2.2) o.stun?.(0.6);
-      game.addRespect(60, 'POUNCE'); game.expose?.(14);
+      C.chainUntil = game.time + 1.6; game.expose?.(14);
+      if (foes().some(o => o !== best && !o.grounded && dist(o, player) > 3 && dist(o, player) < 16)) hud.popup('<b>V</b> AGAIN · CAT CHAIN');
     }, { invuln: true, reach: 1.0 });
     return true;
   };
