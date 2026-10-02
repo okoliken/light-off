@@ -109,7 +109,7 @@ export class Thug {
         if (this.role === 'beater' && this.victim) {
           face = Math.atan2(this.victim.pos.x - this.pos.x, this.victim.pos.z - this.pos.z);
           this.kickT += dt;
-          if (this.kickT > 1.3) { this.kickT = -Math.random() * 0.6; this.victim.hurtFlash?.(); game.fx?.dust(this.victim.pos.x, 0.3, this.victim.pos.z, 2); game.audio?.punch(); }
+          if (this.kickT > 1.3) { this.kickT = -Math.random() * 0.6; this.victim.hurtFlash?.(); game.fx?.dust(this.victim.pos.x, 0.3, this.victim.pos.z, 2); if (dist < 30) game.audio?.punch(); } // only heard up close
           if (this.kickT > 0 && this.kickT < 0.45) Pose.kickDown(r, this.kickT / 0.45);
           if (Math.random() < dt * 0.15) game.say(this, pick(['You no go pay?!', 'Na Red Caps own this street!', 'Shut up there!', 'Where the money?!']), 'Red Cap', 60);
         } else if (this.role === 'collector') { r.set('shLX', -0.4); r.set('elLX', -1.1); face = this.homeYaw; }

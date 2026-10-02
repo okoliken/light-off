@@ -237,6 +237,7 @@ export function createGame(ctx) {
   // ---------- shooting at Bolaji (police officers) ----------
   const _chest = new THREE.Vector3(), _miss = new THREE.Vector3(), _t = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
   function resolveShot(from) {
+    if (game.arrest || player.mode === 'ride') return; // he's in the back of a car: nobody shoots
     _chest.set(player.pos.x, player.pos.y + 1.2, player.pos.z);
     const d = from.distanceTo(_chest);
     const los = !col.blocked(from.x, from.y, from.z, _chest.x, _chest.y, _chest.z, 1.2);
@@ -688,6 +689,8 @@ export function createGame(ctx) {
     player.startRide(car, false);
     L.wallet = 0;
     game.arrest = { car, t: 0, struggle: 0, second: !!player.cuffed };
+    for (const g of game.gunmen) if (g.alive && g.role === 'police' && !g.post) { g.state = 'return'; g.t = 0; }
+    for (const t of game.thugs) if (t.alive && t.engaged) t.state = 'return'; // the fight is over
     hud.banner('ARRESTED', player.cuffed ? 'Caught again. They tightened the cuffs. Kick harder.' : 'Cuffed in the back of a police car. <b>Mash F / Space to kick the door out.</b>', 'red', 3.5);
     game.say(null, ['Oya siddon there! Station!', 'You think say you fit run? Station!', 'Okafor go like this one.'][Math.floor(R() * 3)], 'Police');
   }
@@ -901,7 +904,7 @@ export function createGame(ctx) {
       if (g.removed) continue;
       const r = g.update(sdt, game);
       if (g.state === 'aim') { const m = g.muzzle(); fx.laser(g, m, _t.set(player.pos.x, player.pos.y + 1.2, player.pos.z), g.aimT / 1.0, game.sense); }
-      if (r?.shoot) resolveShot(g.muzzle().clone());
+      if (r?.shoot && !game.arrest) resolveShot(g.muzzle().clone());
       if (r?.grab) game.officerGrab = true;
     }
     for (let i = game.gunmen.length - 1; i >= 0; i--) if (game.gunmen[i].removed) game.gunmen.splice(i, 1);

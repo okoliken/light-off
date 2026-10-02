@@ -61,6 +61,7 @@ export class Gunman {
         break;
       }
       case 'chase': {
+        if (game.arrest && this.role !== 'thief') { this.state = 'return'; break; } // he's already in the car
         face = toP;
         if (game.heat <= 0 && this.role === 'police') { this.state = 'return'; break; }
         if (this.post && dist > 60) { this.state = 'return'; break; }
@@ -79,6 +80,7 @@ export class Gunman {
         break;
       }
       case 'aim': {
+        if (game.arrest) { this.state = this.role === 'thief' ? 'flee' : 'return'; break; }
         face = toP; Pose.idle(r, game.time, false);
         r.set('shRX', -1.55); r.set('elRX', 0); r.set('shRZ', 0.1); r.set('chestY', -0.2); r.set('shLX', -1.2); r.set('elLX', -0.9); r.set('shLZ', -0.3);
         this.aimT += dt;
@@ -108,11 +110,11 @@ export class Gunman {
         break;
       }
       case 'return': {
-        if (this.post) { if (game.heat > 0 && dist < 45) { this.state = 'chase'; break; } this.state = 'post'; break; }
+        if (this.post) { if (game.heat > 0 && dist < 45 && !game.arrest) { this.state = 'chase'; break; } this.state = 'post'; break; }
         if (!this.car) { this.remove(); return null; }
         const cx = this.car.pos.x - this.pos.x, cz = this.car.pos.z - this.pos.z, cd = Math.hypot(cx, cz);
         face = Math.atan2(cx, cz); speed = 3.2;
-        if (game.heat > 0) { this.state = 'chase'; break; }
+        if (game.heat > 0 && !game.arrest) { this.state = 'chase'; break; }
         if (cd < 2.6) { this.remove(); return null; }
         break;
       }
