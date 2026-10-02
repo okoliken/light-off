@@ -374,7 +374,7 @@ export function createHUD(root, world) {
       ['Sprint', 'Shift', 'RT'], ['Board: unclip / strap on', 'R', 'Y'], ['Skitch: grab a vehicle', 'E', 'RB'], ['Board trick (in the air)', 'F', 'X']]],
     ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
       ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
-    ['The street', [['Interact · pick up · talk', 'F', 'X'], ['Change into / out of the suit (if you carry it, and nobody sees)', 'U', '—'], ['Pocket radio: news and leads', 'N', 'D-Pad →'], ['Street Sense', 'automatic', '—'], ['Big map', 'M', 'Back'], ['Pause', 'Esc · P', 'Start']]],
+    ['The street', [['Interact · pick up · talk', 'F', 'X'], ['Change into / out of the suit (if you carry it, and nobody sees)', 'U', '—'], ['Pocket radio: news and leads', 'N', 'D-Pad →'], ['Torchlight on / off (buy at a mall)', 'L', '—'], ['Belly board (when skating fast)', 'X', '—'], ['Street Sense', 'automatic', '—'], ['Big map', 'M', 'Back'], ['Pause', 'Esc · P', 'Start']]],
   ];
   const keycaps = (k) => k.split(' · ').map(x => `<kbd>${x}</kbd>`).join('<i>or</i>');
   const PSN = { A: '✕', B: '○', X: '□', Y: '△', RB: 'R1', LB: 'L1', RT: 'R2', LT: 'L2', Back: 'Share', Start: 'Options' };
@@ -581,6 +581,18 @@ export function createHUD(root, world) {
       <div class="cols">${rest.map((h, i) => `<div><h3>${h.replace(/^[A-Z ]+:\s*/, '')}</h3><div class="src">${(h.match(/^[A-Z ]+/) || [''])[0]}</div><p>${FILLER[(i + heads.length) % FILLER.length]}</p></div>`).join('')}</div>
       <button class="btn" data-go>Fold the paper</button></div></div>`;
     el.overlays.querySelector('[data-go]').onclick = () => { el.overlays.innerHTML = ''; onClose?.(); };
+  };
+  H.shop = (shop, items, wallet, onBuy, onClose) => {
+    const draw = (msg = '') => {
+      el.overlays.innerHTML = `<div class="overlay"><div class="card ridemenu">
+        <div class="subtitle">${shop.name} · you have ₦${wallet().toLocaleString()}</div><h1 class="title" style="font-size:56px">SHOP</h1>
+        <div class="rides">${items().map(it => `<div class="ride"><div><b>${it.name}</b><span>${it.desc}</span></div><div class="modes"><button class="btn ${it.owned ? 'ghost' : ''}" data-buy="${it.id}" ${it.owned ? 'disabled' : ''}>${it.owned ? 'Owned' : '₦' + it.price.toLocaleString()}</button></div></div>`).join('')}</div>
+        <p class="intro" style="font-size:13px;opacity:.8">${msg}</p>
+        <button class="btn ghost" data-close>Leave</button></div></div>`;
+      el.overlays.querySelectorAll('[data-buy]').forEach((b: any) => b.onclick = () => { const r = onBuy(b.dataset.buy); draw(r === 'broke' ? 'Not enough money.' : r === 'ok' ? 'Bought.' : ''); });
+      (el.overlays.querySelector('[data-close]') as any).onclick = () => { el.overlays.innerHTML = ''; onClose(); };
+    };
+    draw();
   };
   H.rideMenu = (from, opts, onPick, onCancel) => {
     const LBL = { danfo: 'Danfo', keke: 'Keke', okada: 'Okada' };

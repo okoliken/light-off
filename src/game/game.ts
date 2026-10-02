@@ -373,7 +373,10 @@ export function createGame(ctx) {
     }
     const pk = game.thugs.find(t => t.alive && t.item && ['idle', 'patrol', 'return'].includes(t.state) && dist2(t.pos, player.pos) < 1.8 * 1.8);
     if (pk) { const tx = player.pos.x - pk.pos.x, tz = player.pos.z - pk.pos.z, tl = Math.hypot(tx, tz) || 1; if ((Math.sin(pk.yaw) * tx + Math.cos(pk.yaw) * tz) / tl < 0.1) return { kind: 'pickpocket', t: pk, text: `<span class="key">F</span>Pick his pocket (${pk.item.label})` }; }
+    if (player.cuffed && !game.arrest && L.items.pins > 0 && game.story.flags.canPick) return { kind: 'pickhint', text: `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
     const co = game.cuffOption(); if (co) return co;
+    const shop = (world.shops || []).find(q => dist2(q, player.pos) < 4 * 4);
+    if (shop && !player.cuffed) return { kind: 'shop', shop, text: `<span class="key">F</span>Go into ${shop.name} (torchlight, pins, first aid)` };
     const ro = game.police.option(); if (ro) return ro;
     const so = game.story.option?.(); if (so) return so;
     const ao = game.activities.option(); if (ao) return ao;
@@ -397,7 +400,10 @@ export function createGame(ctx) {
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
       case 'home': game.enterHome(); return true;
-      case 'uncuff': player.cuffed = false; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Baba Kolade: "I did not see you. I did not see these. Go home."', 'green'); game.addRespect(200, 'ESCAPED CUSTODY'); return true;
+      case 'shop': game.onShop?.(opt.shop); return true;
+      case 'pickhint': return true;
+      case 'uncuff': if (!game.story.flags.canPick) { game.story.flags.canPick = true; setTimeout(() => hud.toast('Baba Kolade showed you how: <b>a bent hair pin and two minutes of patience.</b> Buy pins at a mall, and next time you can <b>pick the cuffs yourself</b> (hold F where no police can see you).', 'blue'), 2500); }
+        player.cuffed = false; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Baba Kolade: "I did not see you. I did not see these. Go home."', 'green'); game.addRespect(200, 'ESCAPED CUSTODY'); return true;
       case 'roger': { game.logNight('roger'); const amt = game.police.take(opt.cp); audio.snatch(); startCarry(rogerItem(amt)); game.addRespect(200, 'ROGER SNATCHED'); game.say(opt.o, 'Thief! Na the boy in black! Catch am!', 'Police', 60); addHeat(1, 'The police want their roger back.'); return true; }
       case 'story': return game.story.doOption(opt);
       case 'activity': return game.activities.doOption(opt);
@@ -452,6 +458,37 @@ export function createGame(ctx) {
     } else hud.popup(L.suit ? 'SUITED UP · NOBODY SAW' : 'CHANGED BACK · NOBODY SAW');
   }
   game.changeClothes = changeClothes;
+  // ---------- shopping, the torch, picking cuffs ----------
+  game.shopItems = () => [
+    { id: 'torch', name: 'Torchlight', desc: 'L to switch on and off. Lights the dark streets, but makes you easier to spot.', price: 1500, owned: L.items.torch },
+    { id: 'pins', name: 'Hair pins (×3)', desc: L.items.pins ? `You have ${L.items.pins}.` : 'For picking handcuffs, once someone shows you how.', price: 500 },
+    { id: 'meds', name: 'Plaster & paracetamol', desc: 'Patches you up: heals some injury and health.', price: 800 },
+    { id: 'drink', name: 'Energy drink', desc: '+35 energy.', price: 400 },
+  ];
+  game.buy = (id) => {
+    const it = game.shopItems().find(q => q.id === id); if (!it || it.owned) return 'owned';
+    if (L.wallet < it.price) return 'broke';
+    L.wallet -= it.price; audio.pickup();
+    if (id === 'torch') { L.items.torch = true; hud.toast('Got a <b>torchlight</b>. Press <span class="key">L</span> to switch it on.', 'green'); }
+    if (id === 'pins') L.items.pins += 3;
+    if (id === 'meds') { player.injury = Math.max(0, player.injury - 18); player.hp = Math.min(player.cap(), player.hp + 30); }
+    if (id === 'drink') L.energy = Math.min(100, L.energy + 35);
+    game.save(); return 'ok';
+  };
+  let torch = null; game.torchOn = false;
+  function toggleTorch() {
+    if (!L.items.torch) { hud.popup('NO TORCHLIGHT · BUY ONE AT A MALL'); return; }
+    if (!torch) { torch = new THREE.SpotLight(0xfff2d6, 0, 34, 0.42, 0.45, 1.4); const tgt = new THREE.Object3D(); tgt.position.set(0, 0.2, 8); torch.position.set(0.15, 1.35, 0.25); torch.target = tgt; player.rig.root.add(torch, tgt); }
+    game.torchOn = !game.torchOn; torch.intensity = game.torchOn ? 38 : 0; audio.tick?.();
+  }
+  let pickT = 0;
+  function updatePick(dt, input) {
+    if (!player.cuffed || game.arrest || !L.items.pins || !game.story.flags.canPick || !input.held.act) { if (pickT > 0 && !input.held.act) pickT = 0; return; }
+    const watched = traffic.police().some(v => v.police.sees) || game.gunmen.some(g => g.alive && g.role === 'police' && dist2(g.pos, player.pos) < 25 * 25 && !col.blocked(g.pos.x, g.pos.y + 1.5, g.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2));
+    if (watched) { if (pickT > 0.3) hud.popup('THEY CAN SEE YOU · GET OUT OF SIGHT FIRST'); pickT = 0; return; }
+    pickT += dt; game.hudMeter = pickT / 3.5; game.catchLabel = 'PICKING THE CUFFS · KEEP HOLDING F';
+    if (pickT >= 3.5) { pickT = 0; player.cuffed = false; L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
+  }
   let dayAttT = 0, dayToldT = -999;
   function updateDaySuit(dt) { // the boy in black in broad daylight draws a crowd and the police
     if (!(L.suit && !L.inside && L.daylight() > 0.5)) { dayAttT = 0; return; }
@@ -580,7 +617,7 @@ export function createGame(ctx) {
   let visT = 0;
   const onFoot = () => ['foot', 'climb', 'wallrun', 'roll', 'down', 'act'].includes(player.mode);
   function updatePolice(dt) {
-    game.policeRange = (game.power > 0.5 ? 58 : 22) * (player.pos.y > 4 ? 0.6 : 1);
+    game.policeRange = (game.power > 0.5 ? 58 : 22) * (player.pos.y > 4 ? 0.6 : 1) * (player.prone ? 0.35 : 1) * (game.torchOn ? 1.35 : 1); // flat on the board: hard to spot; a torch: easy
     visT -= dt; game.assaultCd -= dt;
     const pol = traffic.police();
     if (visT <= 0) {
@@ -835,6 +872,7 @@ export function createGame(ctx) {
       if (input.pressed.flash && !L.inside) combat.pounce(dir);
       if (input.pressed.radio) game.radio.listen();
       if (input.pressed.change) changeClothes();
+      if (input.pressed.torch) toggleTorch();
     }
 
     player.update(sdt, input, camera.yaw, game.time);
@@ -888,6 +926,7 @@ export function createGame(ctx) {
     game.radio.update(dt);
     updateExposure(dt);
     updateDaySuit(dt);
+    updatePick(dt, input);
     game.activities?.update(sdt);
     game.story.update(sdt);
     L.update(sdt);
@@ -1061,6 +1100,9 @@ export function createGame(ctx) {
       case 'splash': fx.burst(player.pos.x, player.pos.y + 0.1, player.pos.z, 0x8d7b62, 6, 3); audio.splash?.(); break;
       case 'down': camera.shake = 0.7; if (ev.critical) hud.banner('CRITICAL', 'You can barely move. <b>Crawl away</b> and get out of their sight!', 'red', 3); else hud.notice('DOWN', 'stay down a moment, then get back up', 'red'); break;
       case 'getup': audio.grab(); break;
+      case 'proneOn': audio.grab(); hud.popup('BELLY BOARD · <b>LOW AND HARD TO SPOT</b>'); break;
+      case 'proneOff': audio.grab(); break;
+      case 'proneSlow': hud.popup('GO FASTER FIRST, THEN X'); break;
       case 'adrenaline': audio.alert(); camera.shake = 0.6; hud.popup('ADRENALINE · <b>RUN</b>'); fx.dust(player.pos.x, player.pos.y + 0.1, player.pos.z, 12); break;
     }
   }
@@ -1106,7 +1148,7 @@ export function createGame(ctx) {
         v: 1, night: L.night, phase: L.phase,
         story: { index: game.story.progress(), unlocked: Math.max(game.story.unlocked, game.story.saved?.unlocked ?? 0), dayDone: game.story.dayDone, dayUnlocked: game.story.dayUnlocked, recon: game.story.recon, flags: game.story.flags, places: game.story.places },
         respect: game.respect, stats: game.stats,
-        life: { wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy },
+        life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy },
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois as Record<string, any>).filter(q => q.found).map(q => q.id),
         // where he is right now, so a reload puts him back on the street (not at home)

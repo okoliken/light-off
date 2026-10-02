@@ -26,6 +26,7 @@ export const OUTFITS = {
   brute: { skin: '#352016', top: '#1b1b1b', bottom: '#263238', sock: '#2b2b2b', sole: '#1a1a1a', glove: null, hood: false, shorts: false, singlet: true, beret: '#b71c1c', scale: 1.28, sheen: '#443333' },
   scorpion: { skin: '#3a2317', top: '#b71c1c', bottom: '#111111', sock: '#111', sole: '#0a0a0a', glove: '#111', hood: false, shorts: false, beret: '#111111', mask: 'bandana', scale: 1.12, sheen: '#884444' },
   hawker: { skin: '#3f2618', top: '#00897b', bottom: '#37474f', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, tray: true, scale: 1.02, sheen: '#557766' },
+  impostor: { skin: '#3f2618', top: '#1d1e22', bottom: '#1b1b1b', sock: '#222', sole: '#111', glove: null, hood: true, shorts: false, mask: 'bandana', scale: 1.06, sheen: '#555' }, // a cheap copy: hood but no ears, a red rag for a mask
   blade: { skin: '#3a2317', top: '#1c1d22', bottom: '#15161a', sock: '#111', sole: '#0a0a0a', glove: '#111', hood: false, shorts: false, mask: 'bandana', sash: true, scale: 1.0, sheen: '#444a58' },
   egungun: { skin: '#2a1a12', top: '#7b1fa2', bottom: '#1b1b1b', sock: '#111', sole: '#0a0a0a', glove: '#3e2723', hood: false, shorts: false, egungun: true, scale: 1.02, sheen: '#664477' },
   chairman: { skin: '#3a2317', top: '#ddd6c8', bottom: '#d6cfc0', sock: '#222', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#b71c1c', scale: 1.14, sheen: '#aaaaaa' },

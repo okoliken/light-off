@@ -803,6 +803,7 @@ export function buildCity(scene, opt: any = {}) {
       S.add(x - 1.2, 0, z - 0.7, x + 1.2, CURB + 1.0, z + 0.7, 'stall'); world.stalls.push({ x, z: z - 1.3 });
     }
     world.tejuosho = { x: ex, z: z0 - 9 };
+    (world.shops ||= []).push({ x: ex, z: z0 - 5, name: 'Tejuosho Market' });
   }
   // Ladipo, Mushin: the auto spare-parts market. Sheds of zinc, tyres, engines, doors, stripped cars, oil
   function buildLadipo(r) {
@@ -868,6 +869,7 @@ export function buildCity(scene, opt: any = {}) {
     const i = WALK + 6;
     addBuilding(r.x0 + i, r.z0 + i + 6, r.x1 - i, r.z1 - i, 4, '#37474f', true, [0, 1], false, 'yaba');
     B.lamp.box(r.x1 - r.x0 - 2 * i - 2, 9, 0.1, { p: [(r.x0 + r.x1) / 2, CURB + 6, r.z1 - i + 0.08] }, '#4f6f8a'); // tinted glass
+    (world.shops ||= []).push({ x: (r.x0 + r.x1) / 2, z: r.z1 - WALK - 1, name: 'E-Centre Mall' });
     board('E-CENTRE', '#111', '#ff4081', 10, 2, (r.x0 + r.x1) / 2, CURB + 11, r.z1 - i + 0.2, Math.PI, 'CINEMA · MALL · SABO', 0.7);
     for (let k = 0; k < 16; k++) (world.districtHangouts ||= []).push({ x: r.x0 + i + 4 + (k % 8) * 5, z: r.z1 - WALK - 2 - Math.floor(k / 8) * 1.4 });
   }

@@ -81,6 +81,7 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
 // menus opened from inside the game pause it
 function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(() => { state = 'play'; input.lock(); }); }
 game.onRideMenu = (stop) => openMenu(done => hud.rideMenu(stop, game.transport.options(stop), (to, mode) => { done(); game.transport.board(stop, to, mode); }, done));
+game.onShop = (shop) => openMenu(done => hud.shop(shop, () => game.shopItems(), () => game.life.wallet, (id) => game.buy(id), done));
 game.onNewspaper = (heads) => openMenu(done => hud.newspaper(heads, done));
 
 // cutscenes (game/cinema.js): the camera frames whoever is talking, lines type and advance by themselves

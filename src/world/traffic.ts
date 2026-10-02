@@ -317,10 +317,11 @@ export function createTraffic(scene, world) {
     s -= LA;
     const t = s / LANE; return [-LANE * Math.cos(t), LZs + LANE * Math.sin(t), Math.atan2(Math.sin(t), Math.cos(t))];
   }
-  const LOOPMIX = ['danfo', 'brt', 'car', 'danfo', 'tanker', 'car', 'danfo', 'brt', 'car', 'danfo', 'car', 'brt', 'danfo', 'tanker', 'car', 'danfo', 'brt', 'car', 'danfo', 'car', 'keke', 'danfo', 'car', 'brt', 'car', 'danfo', 'tanker', 'car'];
+  const LOOPBASE = ['danfo', 'car', 'danfo', 'brt', 'car', 'okada', 'danfo', 'car', 'keke', 'tanker', 'car', 'danfo', 'okada', 'car'];
+  const LOOPMIX = Array.from({ length: 84 }, (_, k) => LOOPBASE[k % LOOPBASE.length]); // Third Mainland is never empty
   LOOPMIX.forEach((type, k) => {
     const v = makeVehicle(type, 'loop');
-    v.cruise = 7 + R() * 3.5;
+    v.cruise = (type === 'okada' ? 10 : 7) + R() * 4;
     v.ls = (k / LOOPMIX.length) * LOOP + R() * 10;
     const [x, z, y] = loopAt(v.ls); v.pos.set(x, 0, z); v.yaw = y;
     v.group.rotation.order = 'YXZ';

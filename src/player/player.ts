@@ -310,7 +310,16 @@ export function createPlayer(scene, world, traffic) {
   function skate(dt, inp, camYaw) {
     const w = wishDir(inp, camYaw), mag = Math.min(1, w.length());
     let pushing = 0;
-    if (p.onGround) {
+    // lying on the board: only once he's going fast; low, hard to spot, steer with the hands
+    if (inp.pressed.prone && p.onGround) { if (p.prone) { p.prone = false; emit('proneOff'); } else if (p.speed > 9) { p.prone = true; emit('proneOn'); } else emit('proneSlow'); }
+    if (p.prone && (p.speed < 2.2 || !p.onGround)) { p.prone = false; emit('proneOff'); }
+    if (p.prone && p.onGround) {
+      if (mag > 0.2) { const diff = wrap(Math.atan2(w.x, w.z) - p.heading); p.heading += clamp(diff, -2.6 * dt, 2.6 * dt); if (Math.cos(diff) > 0.5 && p.speed < 7) p.speed += 1.6 * dt; } // hands paddling
+      p.speed -= (0.12 + p.speed * 0.006) * dt; // less drag lying flat
+      p.speed = Math.max(0, p.speed);
+      p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed;
+    }
+    else if (p.onGround) {
       if (mag > 0.2) {
         const want = Math.atan2(w.x, w.z), diff = wrap(want - p.heading);
         if (Math.abs(diff) > 2.3) p.speed -= 11 * dt; // pulling back = brake (foot drag)
@@ -343,7 +352,7 @@ export function createPlayer(scene, world, traffic) {
       if (mag > 0.2) { const want = Math.atan2(w.x, w.z); p.heading += clamp(wrap(want - p.heading), -2 * dt, 2 * dt); }
       if (p.vel.y < 2 && tryGrind()) return;
     }
-    if (inp.pressed.board && p.onGround) { toFoot(); return; }
+    if (inp.pressed.board && p.onGround) { p.prone = false; toFoot(); return; }
     if (inp.pressed.skitch) { const v = traffic.nearestSkitch(p.pos); if (v) { startSkitch(v); return; } }
     p.pushing = pushing;
 
@@ -606,6 +615,12 @@ export function createPlayer(scene, world, traffic) {
         if (p.charge != null) { const k = Math.min(1, p.charge / 0.58); rig.set('hipsY', HIP_H - 0.08 - 0.32 * k); rig.set('thLX', -0.6 - 0.9 * k); rig.set('knLX', 0.9 + 1.2 * k); rig.set('thRX', -0.5 - 0.9 * k); rig.set('knRX', 0.9 + 1.2 * k); rig.set('ftLX', -0.3 * k); rig.set('ftRX', -0.3 * k); rig.set('spineX', 0.3 + 0.3 * k); rig.set('shLX', 0.5 * k); rig.set('shRX', 0.5 * k); rate = 20; }
         break;
       case 'board': {
+        if (p.prone) { // flat on his belly on the board, hands out to steer
+          rig.reset(); rig.set('hipsY', 0.32); rig.set('hipsRX', -1.5); rig.set('neckX', -0.9); rig.set('headX', -0.3);
+          const pad = Math.sin(time * 9) * (p.speed < 7 ? 0.5 : 0.15);
+          rig.set('shLX', -2.6 + pad); rig.set('shRX', -2.6 - pad); rig.set('elLX', -0.2); rig.set('elRX', -0.2); rig.set('thLX', 0.1); rig.set('thRX', 0.1);
+          bodyYaw = p.heading; lift = 0.115; rate = 14; break;
+        }
         const air = !p.onGround;
         const lean = clamp(wrap(p.heading - (p.prevHeading ?? p.heading)) / Math.max(dt, 1e-3) * 0.25, -1, 1);
         Pose.skate(rig, time, { crouch: air ? 0.6 : 0.25 + Math.min(0.35, p.speed / 40), push: p.pushing ? 1 : 0, lean, air });

@@ -323,8 +323,42 @@ export function createActivities(game, h) {
       A.block = null;
     }
   }
+  // ---- the copycat: someone in a black hoodie using the boy in black's name to collect "protection" ----
+  A.fake = null; A.fakeCd = 300 + Math.random() * 200;
+  function startFake() {
+    const spot = h.spot(60, 160); if (!spot) return;
+    const trader = h.victim({ x: spot.x, z: spot.z, yaw: Math.atan2(spot.nx, spot.nz), mood: 'scared' }); trader.name = pick(['Mama Rasheed', 'Iya Bisi', 'Oga Chidi', 'Aunty Funke']);
+    const crew = [];
+    const fake = h.thug({ x: spot.x + spot.nx * 1.4, z: spot.z + spot.nz * 1.4, yaw: Math.atan2(-spot.nx, -spot.nz), variant: 'impostor', role: 'guard', group: crew }); fake.name = 'the fake boy in black'; crew.push(fake);
+    for (const k of [-1, 1]) crew.push(h.thug({ x: spot.x + spot.nx * 2 + spot.nz * k * 1.6, z: spot.z + spot.nz * 2 - spot.nx * k * 1.6, variant: 'agbero2', weapon: k > 0 ? 'stick' : null, role: 'guard', group: crew }));
+    const take = 8000 + Math.floor(Math.random() * 5) * 2000;
+    h.giveItem(fake, { label: `${trader.name}'s money`, amount: take, owner: trader });
+    A.fake = { trader, crew, fake, t: 0, area: world.areaAt(spot.x, spot.z) };
+    game.radio?.say(`Callers dey vex: one "boy in black" dey collect protection money for ${A.fake.area}! Dem say na him. Na him?`);
+    hud.notice('SOMEBODY IS USING YOUR NAME', `A fake boy in black is collecting "protection" money in ${A.fake.area}.`, 'red');
+    game.audio.alert();
+  }
+  function updateFake(dt) {
+    A.fakeCd -= dt;
+    if (!A.fake) { if (A.fakeCd <= 0 && game.respect >= 3000 && L.phase !== 'day' && !L.inside && !game.story.active && !game.carrying && !player.cuffed) { A.fakeCd = 420 + Math.random() * 300; startFake(); } return; }
+    const F = A.fake; F.t += dt;
+    if (F.t > 150 && F.fake.alive) { // he got away with it: the city now thinks the boy in black extorts people
+      game.respect = Math.max(0, game.respect - 600); hud.notice('THE NAME TAKES A HIT', `People in ${F.area} now say the boy in black takes money from traders.`, 'red');
+      for (const t of F.crew) t.remove(); F.trader.runHome(F.trader.pos.x + 30, F.trader.pos.z); A.fake = null; return;
+    }
+    if (!F.fake.alive && !F.unmasked) {
+      F.unmasked = true;
+      game.playScene?.([
+        { who: 'Bolaji', text: 'Take that thing off your face.' },
+        'Under the rag: a boy from Lawanson, maybe nineteen. Shaking.',
+        { who: 'The fake', text: 'Everybody dey fear the boy in black now... I just wan make dem pay me too. Na hunger, bros.' },
+        { who: 'Bolaji', text: 'The black isn\'t a costume. Give it back to them.' },
+      ], { x: F.fake.pos.x, y: F.fake.pos.y, z: F.fake.pos.z }, () => game.addRespect(500, 'NAME CLEARED'), 'THE COPYCAT');
+    }
+    if (F.unmasked && F.crew.every(t => !t.alive) && !(game.carrying?.owner === F.trader || game.dropped?.item.owner === F.trader)) A.fake = null;
+  }
   A.update = (dt) => {
-    updateBlockade(dt);
+    updateBlockade(dt); updateFake(dt);
     updateHit(dt); updateSnatch(dt); updateJob(dt); updateSkate(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); updateSprint(dt); };
   A.option = () => {
     if (L.inside || !['foot', 'board'].includes(player.mode)) return null;
@@ -346,6 +380,7 @@ export function createActivities(game, h) {
     return null;
   };
   A.target = () => {
+    if (A.fake && A.fake.fake.alive) return { x: A.fake.fake.pos.x, z: A.fake.fake.pos.z, label: 'THE COPYCAT', moving: true };
     if (A.block) { const t = A.block.cult.find(q => q.alive) || A.block.hostages.find(v => v.mood === 'captive'); if (t) return { x: t.pos.x, z: t.pos.z, label: 'BLOCKADE' }; }
     if (A.sprint) return { x: SPRINT.end.x, z: SPRINT.end.z, label: 'ADENIJI ADELE' };
     if (A.goslow) { const t = A.goslow.robbers.filter(q => !q.done).sort((a, b) => d2(a.pos, player.pos) - d2(b.pos, player.pos))[0]; if (t) return { x: t.pos.x, z: t.pos.z, label: 'ROBBER', moving: true }; }
