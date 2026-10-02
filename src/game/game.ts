@@ -300,11 +300,12 @@ export function createGame(ctx) {
   function hitTest(a, b, owner) {
     let best = null;
     const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
-    const list = owner === 'enemy' ? [player] : [...game.thugs, ...game.gunmen].filter(f => f.alive);
+    const list = owner === 'enemy' ? [player] : [...game.thugs, ...game.gunmen].filter(f => f.alive).concat(traffic.vehicles.filter(v => v.kind === 'getaway' && v.ai && !v.ai.stopped).map(v => ({ pos: v.pos, alive: true, car: v })));
     for (const f of list) {
       const t = Math.max(0, Math.min(1, ((f.pos.x - a.x) * abx + (f.pos.z - a.z) * abz) / Math.max(1e-6, abx * abx + abz * abz)));
       const px = a.x + abx * t, py = a.y + aby * t, pz = a.z + abz * t;
-      if ((px - f.pos.x) ** 2 + (pz - f.pos.z) ** 2 < 0.6 * 0.6 && py > f.pos.y - 0.2 && py < f.pos.y + 2 && (!best || t < best.t)) best = { t, target: f };
+      const rr = f.car ? 1.6 : 0.6;
+      if ((px - f.pos.x) ** 2 + (pz - f.pos.z) ** 2 < rr * rr && py > f.pos.y - 0.2 && py < f.pos.y + 2 && (!best || t < best.t)) best = { t, target: f };
     }
     return best;
   }
@@ -313,6 +314,12 @@ export function createGame(ctx) {
     if (kind === 'bottle') audio.glass(); else if (kind === 'sachet') audio.splash?.(); else audio.clank?.(pos);
     if (owner === 'enemy') { if (target === player && player.hurt(kind === 'knife' ? 15 : 10, pos.x, pos.z, 2)) { combat.hit(); env.grade.uniforms.hurt.value = 1; camera.shake = 0.35; } return; }
     if (!target) return;
+    if (target.car) { // a stone through the windscreen
+      const v = target.car; v.ai.health -= kind === 'brick' || kind === 'tyre' || kind === 'board' ? 2 : 1; audio.glass(); camera.shake = 0.2;
+      hud.popup(v.ai.health > 0 ? `WINDSCREEN · <b>${v.ai.health} MORE</b>` : '<b>THE DRIVER LOST IT</b>');
+      if (v.ai.health <= 0) { v.ai.smashed = true; game.addRespect(300, 'CAR STOPPED'); }
+      return;
+    }
     const eff = { stone: ['light', 1, 'stun', 1.0], brick: ['light', 2, 'stun', 1.4], bottle: ['light', 1, 'stun', 1.8], sachet: [null, 0, 'blind', 2.4], bucket: [null, 0, 'blind', 3.4], tyre: ['heavy', 2, null], board: ['heavy', 2, null] }[kind];
     let ko = false;
     if (eff[0]) ko = target.takeHit ? target.takeHit(eff[1], player.pos.x, player.pos.z, eff[0] === 'light' && target.big ? 'heavy' : eff[0]) : target.hit(eff[1], player.pos.x, player.pos.z, 5);
@@ -850,6 +857,7 @@ export function createGame(ctx) {
     const dir = moveDir(input);
     const opt = game.respawnT > 0 ? null : interactOption();
     let prompt = opt?.text || null;
+    if (!prompt && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) prompt = '<span class="key">F</span>Tackle him';
     if (!prompt && !L.inside && ['foot', 'board'].includes(player.mode) && player.onGround && !player.aiming && !player.fightingNear) {
       const v = traffic.nearestSkitch(player.pos);
       if (v) prompt = `<span class="key">E</span>Skitch the ${v.spec.label.toLowerCase()}`;
@@ -859,6 +867,11 @@ export function createGame(ctx) {
     else if (player.mode === 'ride') { TR.update(dt, input); input.pressed = {}; }
     if (game.respawnT <= 0 && player.mode !== 'down') {
       if ((input.pressed.fire && player.aiming) || input.pressed.throw) { if (!L.inside) doThrow(dir); }
+      else if (input.pressed.act && ['foot', 'board'].includes(player.mode) && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) {
+        const t = game.thugs.filter(q => q.alive && q.state === 'run').sort((a, b) => dist2(a.pos, player.pos) - dist2(b.pos, player.pos))[0];
+        if (player.mode === 'board') player.mode = 'foot';
+        player.startAct('pounce', t, () => { t.takeHit(99, player.pos.x, player.pos.z, 'takedown'); game.onKnockout(t); camera.shake = 0.5; fx.dust(t.pos.x, t.pos.y + 0.1, t.pos.z, 10); audio.punch(); game.addRespect(200, 'TACKLED'); }, { invuln: true, reach: 0.6 });
+      }
       else if (input.pressed.act && player.mode === 'skitch' && player.skitch?.v?.kind === 'getaway') {
         // holding onto a getaway car: F smashes the windows until the driver loses it
         const v = player.skitch.v; v.ai.health--; audio.glass(); camera.shake = 0.35; fx.burst(v.pos.x, v.pos.y + 1.3, v.pos.z, 0xb3e5fc, 12, 3);

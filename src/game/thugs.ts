@@ -194,11 +194,18 @@ export class Thug {
         r.update(dt, 20); r.root.position.copy(this.pos); r.root.rotation.y = this.yaw;
         return null;
       }
-      case 'run': { // a thief running with something: alive, hittable, but not fighting
-        const tx = this.runTo.x - this.pos.x, tz = this.runTo.z - this.pos.z;
-        face = Math.atan2(tx, tz); speed = this.runSpeed || 6.4;
+      case 'run': { // a thief running with something: along the streets (not into walls), glancing back
+        this.routeT = (this.routeT || 0) - dt;
+        if (!this.route || this.routeT <= 0) { this.routeT = 2; this.route = game.traffic?.route(this.pos.x, this.pos.z, this.yaw, this.runTo.x, this.runTo.z) || [[this.runTo.x, this.runTo.z]]; }
+        while (this.route.length > 1 && Math.hypot(this.route[0][0] - this.pos.x, this.route[0][1] - this.pos.z) < 4) this.route.shift();
+        const wp = this.route[0] || [this.runTo.x, this.runTo.z];
+        const tx = wp[0] - this.pos.x, tz = wp[1] - this.pos.z;
+        face = Math.atan2(tx, tz);
+        // he speeds up when you're close, and tires over a long chase
+        speed = (this.runSpeed || 6.4) * (dist < 10 ? 1.12 : 1) * Math.max(0.78, 1 - this.t / 140);
         this.anim += dt * 11; Pose.run(r, this.anim, 1);
-        if (Math.hypot(tx, tz) < 2 || this.t > 45) { this.escaped = true; this.remove(); return null; }
+        if (Math.sin(game.time * 1.7 + this.anim) > 0.93) r.set('headY', 2.4); // a look over his shoulder
+        if (Math.hypot(this.runTo.x - this.pos.x, this.runTo.z - this.pos.z) < 3 || this.t > 50) { this.escaped = true; this.remove(); return null; }
         break;
       }
       case 'blinded': { Pose.cough(r, game.time); if (this.t > this.blindDur) { this.state = 'circle'; this.t = 0; } break; }

@@ -302,7 +302,12 @@ export function createTraffic(scene, world) {
       A.route = routeTo(v, best[0], best[1]);
     }
     const [tx, tz] = nextWaypoint(v, A.route);
-    freeDrive(v, dt, tx, tz, A.topSpeed, { accel: 7 });
+    // slow for corners, flat out on straights
+    const turn = Math.abs(Math.atan2(Math.sin(Math.atan2(tx - v.pos.x, tz - v.pos.z) - v.yaw), Math.cos(Math.atan2(tx - v.pos.x, tz - v.pos.z) - v.yaw)));
+    freeDrive(v, dt, tx, tz, A.topSpeed * (turn > 0.6 ? 0.55 : 1), { accel: 7 });
+    // jammed against something for 2.5 s: back onto the nearest junction and carry on
+    A.slowT = v.speed < 1.5 ? (A.slowT || 0) + dt : 0;
+    if (A.slowT > 2.5) { const [i, j] = nearestNode(v.pos.x, v.pos.z), nx = roadLine(i) + LANE, nz = roadLine(j); if (Math.hypot(nx - pp.x, nz - pp.z) > 15) { v.pos.set(nx, 0, nz); v.speed = 6; } A.slowT = 0; A.route = []; A.routeT = 0; }
   }
 
   // ---- the bridge: go-slow traffic looping UNILAG <-> the district ----
