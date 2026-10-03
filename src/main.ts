@@ -81,10 +81,15 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); game.restoreSnap(saved.snap); }
   else { game.clearSave(); game.startDay(); }
   state = 'play'; input.lock();
+  let seen = false; try { seen = !!localStorage.getItem('light-off-seen-controls'); localStorage.setItem('light-off-seen-controls', '1'); } catch { /* */ }
+  if (!seen && !touch) showControls(true);
   if (game.pendingResume) { const id = game.pendingResume; game.pendingResume = null; setTimeout(() => game.story.resumePending(id), 800); }
   else if (game.interrupted) { hud.notice('MISSION INTERRUPTED', `"${game.interrupted}" was cut short. Start it again from your door tonight.`, 'blue'); game.interrupted = null; }
 }, { quality: settings.quality, presets: PRESETS, patrol: patrolSaved ? { night: patrolSaved.night, phase: patrolSaved.phase, respect: patrolSaved.respect } : null });
 
+function showControls(first = false) { openMenu(done => hud.controlsCard(done, first)); }
+hud.onHelpBar((k) => { if (state !== 'play') return; if (k === 'pause') { document.exitPointerLock?.(); pause(); } else if (k === 'controls') showControls(); else { state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); } });
+document.addEventListener('pointerlockchange', () => document.body.classList.toggle('locked', !!document.pointerLockElement));
 // menus opened from inside the game pause it
 function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(() => { state = 'play'; input.lock(); }); }
 game.onRideMenu = (stop) => openMenu(done => hud.rideMenu(stop, game.transport.options(stop), (to, mode) => { done(); game.transport.board(stop, to, mode); }, done));
@@ -165,7 +170,7 @@ function frame() {
   if (state === 'play') {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
     if (inp.pressed.map) { state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
-    if (inp.pressed.help) hud.help();
+    if (inp.pressed.help) showControls();
     game.update(dt, inp);
     camera.update(dt, inp, player);
     nav.update(dt, game, game.time);

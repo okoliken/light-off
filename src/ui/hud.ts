@@ -2,6 +2,7 @@
 // context prompts, subtitles, toasts, banners, on-screen markers, and the title / pause / end screens.
 import * as THREE from 'three';
 import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.ts';
+import { buildStyledMap } from './mapstyle.ts';
 
 const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting', bike: 'Okada' };
 
@@ -66,7 +67,8 @@ export function createHUD(root, world) {
     <div class="say hidden"></div>
     <div class="toasts"></div>
     <div class="markers"></div>
-    <div class="help">H · controls &nbsp; M · big map</div>
+    <div class="help"><button data-hb="pause">❚❚ Pause <kbd>Esc</kbd></button><button data-hb="controls">Controls <kbd>H</kbd></button><button data-hb="map">Map <kbd>M</kbd></button></div>
+    <div class="aimdot"></div>
     <div class="bannerwrap"></div>
     <div class="overlays"></div>`;
   const $ = s => root.querySelector(s);
@@ -106,6 +108,7 @@ export function createHUD(root, world) {
     x.fillText('THIRD MAINLAND BRIDGE', MX(60), MZ(-700)); x.fillText('NATIONAL STADIUM', MX(170), MZ(420)); x.fillText('LAGOS ISLAND', MX(0), MZ(-1360)); x.fillText('MAKOKO', MX(-95), MZ(-560)); x.fillText('UNILAG · AKOKA', MX(420), MZ(-380)); x.fillText('YABA', MX(400), MZ(-20)); x.fillText('MUSHIN', MX(-450), MZ(40)); x.fillText('IDI-ARABA', MX(-300), MZ(-130)); x.fillText('LAGOS LAGOON', MX(190), MZ(-640));
   }
   const mctx = el.map.getContext('2d');
+  let styled: HTMLCanvasElement = null; // the big map's artwork, drawn the first time it opens
 
   const H: any = {};
   // controller glyphs: when a pad is in use, keyboard keys in prompts become that pad's buttons
@@ -257,12 +260,10 @@ export function createHUD(root, world) {
   }
 
   // ---- the big map (M): pan, zoom, legend, click to set a waypoint ----
-  const LEGEND: any[] = [['#ffffff', 'Home'], ['#ff3d3d', 'Trouble happening now'], ['#ff9100', 'Red Cap levy point'], ['#1e88e5', 'Police checkpoint'], ['#e53935', 'Police car'],
-    ['#69f0ae', 'Runs & escapes'], ['#80deea', 'Errand / job / waypoint'], ['#43a047', 'Return goods here'], ['#fbc02d', 'Bus stop'], ['#ffab40', 'Food'], ['#b39ddb', 'News'], ['#42a5f5', 'Skate challenge']];
   H.openMap = (game, onClose) => {
     const wrap = document.createElement('div'); wrap.className = 'bigmap overlay';
-    wrap.innerHTML = `<canvas></canvas><button class="bm-close" data-close>✕ CLOSE</button><div class="bm-head"><b>LAGOS</b><span>Surulere · Third Mainland · Lagos Island</span></div>
-      <div class="bm-legend">${LEGEND.map(([c, l]) => `<div><i style="background:${c}"></i>${l}</div>`).join('')}</div>
+    wrap.innerHTML = `<canvas></canvas><button class="bm-close" data-close>✕ CLOSE</button><div class="bm-head"><span>LIGHT-OFF · CITY MAP</span><b>LAGOS</b><em>${game.areaName || 'Surulere'} · ${game.life.timeStr()}</em></div>
+      <div class="bm-legend"><div><i style="background:#ffd54f"></i>You</div><div><i style="background:#4fc3f7"></i>Places</div><div><i style="background:#fbc02d"></i>Bus stops</div><div><i style="background:#ce93d8"></i>Shops</div><div><i style="background:#ff4d4d"></i>Police</div><div><i style="background:#ff3d3d;box-shadow:0 0 6px #ff3d3d"></i>Trouble</div></div>
       <div class="bm-side"><input class="bm-search" placeholder="Where to? (search places)"><div class="bm-pick"></div><div class="bm-list"></div></div>
       <div class="bm-hint">DRAG · MOVE &nbsp; SCROLL / PINCH · ZOOM &nbsp; TAP · PICK A PLACE &nbsp; M / ESC · CLOSE</div>`;
     el.overlays.appendChild(wrap);
@@ -300,25 +301,73 @@ export function createHUD(root, world) {
     const resize = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
     resize();
     const toWorld = (sx, sy) => ({ x: v.x + (sx * devicePixelRatio - cv.width / 2) / (v.zoom * devicePixelRatio), z: v.z + (sy * devicePixelRatio - cv.height / 2) / (v.zoom * devicePixelRatio) });
+    const SS = matchMedia('(pointer: coarse)').matches ? 1.25 : 2;
+    styled ||= buildStyledMap(world, { EXT, NZ, W0, H0 }, SS);
+    let tz = v.zoom; v.zoom = 4.2; const t0 = performance.now(); // open with a zoom-out from Bolaji
+    const PINC: any = { home: '#ffffff', place: '#4fc3f7', shop: '#ce93d8', bus: '#fbc02d', food: '#ffab40', spot: '#ffd54f' };
+    const DISTRICTS: any[] = [['SURULERE', 0, 30, 1], ['AGUDA', -110, -110, 0], ['OJUELEGBA', 60, -130, 0], ['ADELABU', -110, 110, 0], ['YABA', 400, -40, 1], ['SABO', 330, -170, 0], ['TEJUOSHO', 420, 10, 0], ['UNILAG', 420, -350, 1], ['MUSHIN', -470, 40, 1], ['IDI-ARABA', -300, -150, 0], ['LADIPO', -400, 60, 0], ['NATIONAL STADIUM', 170, 250, 0], ['THIRD MAINLAND BRIDGE', 60, -700, 1], ['LAGOS ISLAND', 0, -1360, 1], ['MAKOKO', -95, -560, 0]];
     const draw = () => {
-      const W = cv.width, Hh = cv.height, k = v.zoom * devicePixelRatio;
-      cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.fillStyle = '#0a1420'; cx2.fillRect(0, 0, W, Hh);
+      const now = performance.now(), W = cv.width, Hh = cv.height, dpr = devicePixelRatio;
+      if (now - t0 < 700) { const e = 1 - Math.pow(1 - (now - t0) / 700, 3); v.zoom = 4.2 + (tz - 4.2) * e; } else v.zoom += (tz - v.zoom) * 0.25;
+      const k = v.zoom * dpr, z = v.zoom;
+      cx2.setTransform(1, 0, 0, 1, 0, 0); cx2.fillStyle = '#061522'; cx2.fillRect(0, 0, W, Hh);
       cx2.setTransform(k, 0, 0, k, W / 2 - (v.x + EXT) * k, Hh / 2 - (v.z + NZ) * k);
-      cx2.imageSmoothingEnabled = v.zoom < 2; cx2.drawImage(mapC, 0, 0);
+      { const lt = -HALF - CELL - 4 + NZ; cx2.fillStyle = '#071a2c'; cx2.fillRect(-4000, -4000, 9000, lt + 4000); cx2.fillStyle = '#15171d'; cx2.fillRect(-4000, lt, 9000, 6000); } // the city carries on past the edges
+      cx2.imageSmoothingEnabled = true; cx2.drawImage(styled, 0, 0, styled.width / SS, styled.height / SS);
       cx2.translate(EXT, NZ);
-      const dot = (x, z, r, col, ring?: string) => { cx2.beginPath(); cx2.arc(x, z, r / v.zoom, 0, 7); cx2.fillStyle = col; cx2.fill(); cx2.lineWidth = 2 / v.zoom; cx2.strokeStyle = ring || 'rgba(0,0,0,0.8)'; cx2.stroke(); };
-      if (game.nav && game.navRoute?.length) { cx2.beginPath(); cx2.moveTo(P.x, P.z); for (const [x, z] of game.navRoute) cx2.lineTo(x, z); cx2.strokeStyle = '#' + new THREE.Color(game.nav.color).getHexString(); cx2.lineWidth = 4 / v.zoom; cx2.lineJoin = 'round'; cx2.stroke(); }
-      for (const m of game.mapMarkers) dot(m.x, m.z, 6, m.color);
-      for (const q of game.traffic.vehicles) if (q.kind === 'police') dot(q.pos.x, q.pos.z, 5, q.police.siren && Math.floor(performance.now() / 160) % 2 ? '#3d7bff' : '#e53935', '#fff');
-      if (v.zoom > 0.9) for (const q of places) if (q.kind !== 'food') dot(q.x, q.z, q.kind === 'home' ? 6 : 3.5, q.kind === 'home' ? '#ffffff' : q.kind === 'bus' ? '#fbc02d' : q.kind === 'shop' ? '#ce93d8' : '#b0bec5');
-      if (picked) { dot(picked.x, picked.z, 9 + Math.sin(performance.now() / 200) * 2, 'rgba(255,213,79,0.35)', '#ffd54f'); dot(picked.x, picked.z, 4, '#ffd54f'); if (v.zoom > 0.6) { cx2.fillStyle = '#ffd54f'; cx2.font = `bold ${14 / v.zoom}px Inter, sans-serif`; cx2.textAlign = 'center'; cx2.fillText(picked.name, picked.x, picked.z - 14 / v.zoom); } }
-      if (game.waypoint) { const w = game.waypoint; cx2.save(); cx2.translate(w.x, w.z); cx2.rotate(Math.PI / 4); cx2.fillStyle = '#80deea'; const s2 = 9 / v.zoom; cx2.fillRect(-s2, -s2, s2 * 2, s2 * 2); cx2.restore(); }
-      // Bolaji: an arrow the way he's facing
-      cx2.save(); cx2.translate(P.x, P.z); cx2.rotate(-game.player.yaw + Math.PI); const a = 11 / v.zoom;
-      cx2.beginPath(); cx2.moveTo(0, -a * 1.3); cx2.lineTo(a * 0.8, a); cx2.lineTo(0, a * 0.45); cx2.lineTo(-a * 0.8, a); cx2.closePath(); cx2.fillStyle = '#ffd54f'; cx2.fill(); cx2.lineWidth = 2 / v.zoom; cx2.strokeStyle = '#000'; cx2.stroke(); cx2.restore();
-      // area names
-      cx2.fillStyle = 'rgba(255,255,255,0.85)'; cx2.font = `bold ${13 / v.zoom}px Inter, sans-serif`; cx2.textAlign = 'center';
-      for (const [n, x, z] of <any[]>[['AGUDA', -110, -110], ['OJUELEGBA', 60, -130], ['ADELABU', -110, 110], ['NATIONAL STADIUM', 170, 250], ['YABA', 400, -40], ['SABO', 330, -170], ['TEJUOSHO', 420, 10], ['UNILAG', 420, -350], ['MUSHIN', -470, 40], ['IDI-ARABA', -300, -150], ['LADIPO', -400, 60], ['SURULERE', 0, 30]]) cx2.fillText(n, x, z);
+      const t = now / 1000;
+      // live traffic: faint moving lights
+      for (const q of game.traffic.vehicles) { if (q.kind === 'police') continue; cx2.fillStyle = q.type === 'danfo' ? 'rgba(255,202,40,0.75)' : 'rgba(255,255,255,0.45)'; const r = (q.type === 'danfo' ? 2.2 : 1.5) / Math.sqrt(z); cx2.fillRect(q.pos.x - r, q.pos.z - r, r * 2, r * 2); }
+      // route: a glowing animated trail
+      if (game.nav && game.navRoute?.length) {
+        const col = '#' + new THREE.Color(game.nav.color).getHexString();
+        cx2.beginPath(); cx2.moveTo(P.x, P.z); for (const [x, zz] of game.navRoute) cx2.lineTo(x, zz);
+        cx2.lineJoin = 'round'; cx2.lineCap = 'round';
+        cx2.strokeStyle = col + '33'; cx2.lineWidth = 12 / z; cx2.stroke();
+        cx2.strokeStyle = col; cx2.lineWidth = 4 / z; cx2.stroke();
+        cx2.setLineDash([6 / z, 10 / z]); cx2.lineDashOffset = -t * 40 / z; cx2.strokeStyle = 'rgba(255,255,255,0.9)'; cx2.lineWidth = 1.6 / z; cx2.stroke(); cx2.setLineDash([]);
+      }
+      const pin = (x, zz, col, r, label?: string, sel = false) => {
+        const R = r / z;
+        cx2.beginPath(); cx2.arc(x, zz, R * 1.9, 0, 7); cx2.fillStyle = col + (sel ? '55' : '22'); cx2.fill();
+        cx2.beginPath(); cx2.arc(x, zz, R, 0, 7); cx2.fillStyle = col; cx2.fill(); cx2.lineWidth = 1.5 / z; cx2.strokeStyle = '#0a0c10'; cx2.stroke();
+        if (label) { cx2.font = `700 ${11 / z}px Inter, sans-serif`; cx2.textAlign = 'left'; cx2.lineWidth = 3 / z; cx2.strokeStyle = 'rgba(5,8,14,0.9)'; cx2.strokeText(label, x + R * 1.8, zz + 4 / z); cx2.fillStyle = '#e8eef6'; cx2.fillText(label, x + R * 1.8, zz + 4 / z); }
+      };
+      for (const m of game.mapMarkers) pin(m.x, m.z, m.color, 4.5);
+      if (z > 0.8) for (const q of places) if (q.kind !== 'food' || z > 2.4) pin(q.x, q.z, PINC[q.kind] || '#4fc3f7', q.kind === 'home' ? 5.5 : 3.6, z > 2.2 || q.kind === 'home' ? q.name : undefined);
+      for (const q of game.traffic.vehicles) if (q.kind === 'police') { const on = q.police.siren && Math.floor(now / 160) % 2; pin(q.pos.x, q.pos.z, on ? '#3d7bff' : '#ff4d4d', 4); }
+      if (game.waypoint) { const w = game.waypoint; cx2.save(); cx2.translate(w.x, w.z); cx2.rotate(Math.PI / 4); cx2.fillStyle = '#80deea'; const s2 = 7 / z; cx2.shadowColor = '#80deea'; cx2.shadowBlur = 12; cx2.fillRect(-s2, -s2, s2 * 2, s2 * 2); cx2.restore(); }
+      if (picked) { const pr = (10 + Math.sin(t * 5) * 3) / z; cx2.beginPath(); cx2.arc(picked.x, picked.z, pr, 0, 7); cx2.strokeStyle = '#ffd54f'; cx2.lineWidth = 2.5 / z; cx2.stroke(); pin(picked.x, picked.z, '#ffd54f', 5, picked.name, true); }
+      // district names: big, spaced, fading in as you zoom out
+      cx2.textAlign = 'center';
+      for (const [n, x, zz, major] of DISTRICTS) {
+        const a = major ? Math.min(1, Math.max(0.25, 2.6 - z)) : Math.min(0.85, Math.max(0, (z - 0.7) * 1.2)) * Math.min(1, Math.max(0.2, 3.2 - z));
+        if (a <= 0.02) continue;
+        const fs = (major ? 22 : 13) / Math.pow(z, 0.75);
+        cx2.font = `800 ${fs}px Inter, sans-serif`; (cx2 as any).letterSpacing = `${fs * 0.35}px`;
+        cx2.fillStyle = `rgba(255,255,255,${a * (major ? 0.55 : 0.6)})`; cx2.fillText(n, x, zz);
+        (cx2 as any).letterSpacing = '0px';
+      }
+      // Bolaji: a pulsing beacon with a view cone
+      const yaw = -game.player.yaw + Math.PI, pr = (14 + (t * 18) % 16) / z;
+      cx2.beginPath(); cx2.arc(P.x, P.z, pr, 0, 7); cx2.strokeStyle = `rgba(255,213,79,${0.6 * (1 - ((t * 18) % 16) / 16)})`; cx2.lineWidth = 2 / z; cx2.stroke();
+      cx2.save(); cx2.translate(P.x, P.z); cx2.rotate(yaw);
+      const cg = cx2.createRadialGradient(0, 0, 0, 0, 0, 46 / z); cg.addColorStop(0, 'rgba(255,213,79,0.35)'); cg.addColorStop(1, 'rgba(255,213,79,0)');
+      cx2.beginPath(); cx2.moveTo(0, 0); cx2.arc(0, 0, 46 / z, -Math.PI / 2 - 0.55, -Math.PI / 2 + 0.55); cx2.closePath(); cx2.fillStyle = cg; cx2.fill();
+      const a = 9 / z; cx2.beginPath(); cx2.moveTo(0, -a * 1.3); cx2.lineTo(a * 0.85, a); cx2.lineTo(0, a * 0.45); cx2.lineTo(-a * 0.85, a); cx2.closePath();
+      cx2.shadowColor = '#ffd54f'; cx2.shadowBlur = 14; cx2.fillStyle = '#ffd54f'; cx2.fill(); cx2.shadowBlur = 0; cx2.lineWidth = 1.5 / z; cx2.strokeStyle = '#000'; cx2.stroke(); cx2.restore();
+      // screen space: compass and scale bar
+      cx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const vw = W / dpr, vh = Hh / dpr, bx = 46, by = 150;
+      cx2.beginPath(); cx2.arc(bx, by, 17, 0, 7); cx2.fillStyle = 'rgba(8,10,16,0.75)'; cx2.fill(); cx2.strokeStyle = 'rgba(255,255,255,0.2)'; cx2.lineWidth = 1; cx2.stroke();
+      cx2.beginPath(); cx2.moveTo(bx, by - 12); cx2.lineTo(bx + 5, by); cx2.lineTo(bx - 5, by); cx2.closePath(); cx2.fillStyle = '#ff5252'; cx2.fill();
+      cx2.beginPath(); cx2.moveTo(bx, by + 12); cx2.lineTo(bx + 5, by); cx2.lineTo(bx - 5, by); cx2.closePath(); cx2.fillStyle = '#ccc'; cx2.fill();
+      cx2.font = '800 9px Inter, sans-serif'; cx2.textAlign = 'center'; cx2.fillStyle = '#fff'; cx2.fillText('N', bx, by - 20);
+      const m = [25, 50, 100, 200, 500, 1000].find(q => q * z > 70) || 1000, sw = m * z;
+      cx2.fillStyle = 'rgba(8,10,16,0.75)'; cx2.fillRect(bx + 30, by - 6, sw + 16, 18);
+      cx2.fillStyle = '#fff'; cx2.fillRect(bx + 38, by + 4, sw, 2); cx2.fillRect(bx + 38, by, 2, 6); cx2.fillRect(bx + 36 + sw, by, 2, 6);
+      cx2.font = '700 9px Inter, sans-serif'; cx2.fillText(m >= 1000 ? '1 km' : m + ' m', bx + 38 + sw / 2, by - 0);
+      void vw;
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -329,13 +378,13 @@ export function createHUD(root, world) {
       if (t.length === 1) { drag = { x: t[0].clientX, y: t[0].clientY, vx: v.x, vz: v.z }; moved = false; pinch = null; }
       else if (t.length === 2) { pinch = { d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), z: v.zoom }; moved = true; } }, { passive: false });
     cv.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches;
-      if (pinch && t.length === 2) v.zoom = Math.max(0.35, Math.min(6, pinch.z * Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) / pinch.d));
+      if (pinch && t.length === 2) tz = v.zoom = Math.max(0.35, Math.min(6, pinch.z * Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) / pinch.d));
       else if (t.length === 1) onMove({ clientX: t[0].clientX, clientY: t[0].clientY }); }, { passive: false });
     cv.addEventListener('touchend', (e) => { if (e.touches.length) return; const c = e.changedTouches[0]; onUp({ clientX: c.clientX, clientY: c.clientY, button: 0 }); pinch = null; });
     const onMove = (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; v.x = drag.vx - dx / v.zoom; v.z = drag.vz - dy / v.zoom; };
     const onUp = (e) => { if (drag && !moved && e.button === 0) { const w = toWorld(e.clientX, e.clientY), r = 18 / v.zoom; const near = places.filter(q => Math.hypot(q.x - w.x, q.z - w.z) < r).sort((a, b) => Math.hypot(a.x - w.x, a.z - w.z) - Math.hypot(b.x - w.x, b.z - w.z))[0]; pick(near || { name: 'This spot', x: w.x, z: w.z, kind: 'spot', area: game.world.areaAt(w.x, w.z) }); } drag = null; };
     cv.oncontextmenu = (e) => { e.preventDefault(); game.setWaypoint(null); };
-    cv.onwheel = (e) => { e.preventDefault(); const before = toWorld(e.clientX, e.clientY); v.zoom = Math.max(0.35, Math.min(6, v.zoom * (e.deltaY < 0 ? 1.15 : 0.87))); const after = toWorld(e.clientX, e.clientY); v.x += before.x - after.x; v.z += before.z - after.z; };
+    cv.onwheel = (e) => { e.preventDefault(); const before = toWorld(e.clientX, e.clientY); tz = Math.max(0.35, Math.min(6, tz * (e.deltaY < 0 ? 1.18 : 0.85))); const z0 = v.zoom; v.zoom = tz; const after = toWorld(e.clientX, e.clientY); v.zoom = z0; v.x += before.x - after.x; v.z += before.z - after.z; };
     const close = () => { cancelAnimationFrame(raf); removeEventListener('mousemove', onMove); removeEventListener('mouseup', onUp); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', resize); wrap.remove(); onClose?.(); };
     const onKey = (e) => {
       if (e.target === search) return;
@@ -343,7 +392,7 @@ export function createHUD(root, world) {
       if (e.code === 'KeyM' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } // don't let the same key reopen it
       else if (e.code === 'KeyW' || e.code === 'ArrowUp') v.z -= step; else if (e.code === 'KeyS' || e.code === 'ArrowDown') v.z += step;
       else if (e.code === 'KeyA' || e.code === 'ArrowLeft') v.x -= step; else if (e.code === 'KeyD' || e.code === 'ArrowRight') v.x += step;
-      else if (e.code === 'Equal' || e.code === 'NumpadAdd') v.zoom = Math.min(6, v.zoom * 1.25); else if (e.code === 'Minus' || e.code === 'NumpadSubtract') v.zoom = Math.max(0.35, v.zoom / 1.25);
+      else if (e.code === 'Equal' || e.code === 'NumpadAdd') tz = Math.min(6, tz * 1.25); else if (e.code === 'Minus' || e.code === 'NumpadSubtract') tz = Math.max(0.35, tz / 1.25);
       else if (e.code === 'KeyC') { v.x = P.x; v.z = P.z; }
     };
     addEventListener('mousemove', onMove); addEventListener('mouseup', onUp); document.addEventListener('keydown', onKey, true); addEventListener('resize', resize);
@@ -411,12 +460,33 @@ export function createHUD(root, world) {
   // One shell for both: the city keeps moving behind, a vertical menu on the left, and sub-screens that
   // slide in from the right. Mouse, keyboard (arrows/WASD, Enter, Esc) and gamepad (D-pad/stick, A, B).
   const CONTROL_GROUPS: any[] = [
-    ['Movement', [['Move', 'W A S D', 'L-Stick'], ['Camera', 'Mouse', 'R-Stick'], ['Jump · climb a wall', 'Space', 'A'], ['Hold: charge a cat leap', 'Space', 'A'], ['Flip (in the air)', 'Space', 'A'],
-      ['Sprint', 'Shift', 'RT'], ['Board: unclip / strap on', 'R', 'Y'], ['Skitch: grab a vehicle', 'E', 'RB'], ['Board trick (in the air)', 'F', 'X']]],
+    ['Game', [['Pause · menu', 'Esc · P', 'Start'], ['Map: search a place, pick how to get there', 'M', 'View'], ['This controls card', 'H', '—']]],
+    ['Moving', [['Move', 'W A S D', 'L-Stick'], ['Look around', 'Mouse', 'R-Stick'], ['Jump · climb a wall', 'Space', 'A'], ['Hold: charge a cat leap', 'Space', 'A'], ['Sprint', 'Shift', 'RT']]],
+    ['Skating', [['Board on / off', 'R', 'Y'], ['Ollie (faster or holding Shift = higher)', 'Space', 'A'], ['In the air: board flip (+ a direction)', 'F', 'X'], ['In the air: backflip / frontflip / 360 spin (pull back / push forward / sideways)', 'Space', 'A'],
+      ['Lie on your belly (when fast) · X again to get up', 'X', '—'], ['Skitch: grab a vehicle', 'E', 'RB']]],
+    ['Okada', [['Take one (get close, or catch it on the board)', 'F', 'X'], ['Ride · full throttle', 'W A S D · Shift', 'L-Stick · RT'], ['Brake', 'Space', 'A'], ['Get off', 'R', 'Y']]],
     ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
       ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
-    ['The street', [['Interact · pick up · talk', 'F', 'X'], ['Change into / out of the suit (if you carry it, and nobody sees)', 'U', '—'], ['Pocket radio: news and leads', 'N', 'D-Pad →'], ['Torchlight on / off (buy at a mall)', 'L', '—'], ['Belly board (when skating fast)', 'X', '—'], ['Street Sense', 'automatic', '—'], ['Big map', 'M', 'Back'], ['Pause', 'Esc · P', 'Start']]],
+    ['The street', [['Interact · buy · talk', 'F', 'X'], ['Change into / out of the suit (nobody watching)', 'U', '—'], ['Pocket radio', 'N', 'D-Pad →'], ['Torch', 'L', '—'], ['Street Sense (hold)', 'Q', 'LB']]],
   ];
+  // the short version, shown the first time and on H
+  H.controlsCard = (onDone, first = false) => {
+    const wrap = document.createElement('div'); wrap.className = 'overlay ccard';
+    const row = (k, t) => `<div><kbd>${k}</kbd><span>${t}</span></div>`;
+    wrap.innerHTML = `<div class="cc-box"><div class="cc-k">${first ? 'BEFORE YOU GO OUT' : 'CONTROLS'}</div><h1>HOW TO PLAY</h1>
+      <div class="cc-grid">
+        <section><h3>Move</h3>${row('W A S D', 'Move')}${row('Mouse', 'Look around')}${row('Space', 'Jump · climb')}${row('Shift', 'Sprint')}</section>
+        <section><h3>Skate</h3>${row('R', 'Board on / off')}${row('Space', 'Ollie, then Space again to flip')}${row('F', 'Board trick in the air')}${row('X', 'Belly-board (when fast)')}${row('E', 'Grab a car')}</section>
+        <section><h3>Street</h3>${row('F', 'Hit · use · take an okada')}${row('C', 'Dodge · counter')}${row('M', 'Map: pick a place, pick a ride')}${row('U', 'Change into the suit')}</section>
+        <section class="cc-hot"><h3>Menu</h3>${row('Esc', 'Pause (any time)')}${row('H', 'This card')}</section>
+      </div>
+      <button class="cc-go">${first ? 'Got it · click to play' : 'Back to the game'}</button><p class="cc-note">The mouse is captured while you play so it can turn the camera. Press <b>Esc</b> to get your cursor back (it pauses the game).</p></div>`;
+    el.overlays.appendChild(wrap);
+    const done = () => { wrap.remove(); removeEventListener('keydown', key, true); onDone?.(); };
+    const key = (e) => { if (['Enter', 'Escape', 'KeyH', 'Space'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); done(); } };
+    addEventListener('keydown', key, true);
+    wrap.querySelector<HTMLElement>('.cc-go').onclick = done;
+  };
   const keycaps = (k) => k.split(' · ').map(x => `<kbd>${x}</kbd>`).join('<i>or</i>');
   const PSN = { A: '✕', B: '○', X: '□', Y: '△', RB: 'R1', LB: 'L1', RT: 'R2', LT: 'L2', Back: 'Share', Start: 'Options' };
   const padLabel = (k) => padType === 'ps' ? (PSN[k] || k) : k;
@@ -541,7 +611,7 @@ export function createHUD(root, world) {
     M.back = resume;
     if (opts.openBoard) boardPanel(M);
   };
-  H.help = () => { if (el.overlays.innerHTML) return false; H.toast('F strike · C counter/dodge · G launch · V pounce · N radio · Space jump/flip · R board · E skitch · M map', 'blue'); return true; };
+  H.onHelpBar = (fn) => (root as any).querySelectorAll('[data-hb]').forEach((b: any) => b.onclick = (e) => { e.stopPropagation(); fn(b.dataset.hb); });
   H.end = (stats, onContinue) => {
     const S = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
     el.overlays.innerHTML = `<div class="overlay"><div class="card">

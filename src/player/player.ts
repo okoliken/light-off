@@ -10,6 +10,7 @@ const R_BODY = 0.34, H_BODY = 1.75;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+const _c = new THREE.Vector3(), _c2 = new THREE.Vector3(), _qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
 export function createPlayer(scene, world, traffic) {
   const col = world.collision;
   const rig = new Rig();
@@ -90,8 +91,21 @@ export function createPlayer(scene, world, traffic) {
   };
 
   const TRICKS = { right: ['Kickflip', 0.42, 0, 1, 60], left: ['Heelflip', 0.42, 0, -1, 60], up: ['360 Flip', 0.55, 2, 1, 120], down: ['Shove-it', 0.36, 1, 0, 50], none: ['Kickflip', 0.42, 0, 1, 60] };
+  // body flips on the board: Space again in the air. Pull back = backflip, push forward = frontflip,
+  // left/right = 360 spin. Like a cat he finds a bit more air for it.
+  const BODY = { down: ['Backflip', 0.62, 0, -1, 150], none: ['Backflip', 0.62, 0, -1, 150], up: ['Frontflip', 0.62, 0, 1, 150], left: ['360 Spin', 0.5, -1, 0, 110], right: ['360 Spin', 0.5, 1, 0, 110] };
+  p.tryBodyFlip = () => {
+    if (p.mode !== 'board' || p.onGround || (p.trick && p.trick.t < p.trick.dur) || p.airT < 0.06 || p.prone) return false;
+    const m = p.lastMove, dir = Math.hypot(m.x, m.y) < 0.4 ? 'none' : Math.abs(m.x) > Math.abs(m.y) ? (m.x > 0 ? 'right' : 'left') : (m.y > 0 ? 'up' : 'down');
+    const [name, dur, spin, flip, pts] = BODY[dir];
+    p.vel.y = Math.max(p.vel.y, 0) + 4.2;
+    p.trick = { name, dur, spins: 0, flips: 0, body: true, bspin: spin, bflip: flip, pts, t: 0 };
+    p.airTricks.push({ name, pts });
+    emit('trick', { name });
+    return true;
+  };
   p.tryTrick = () => {
-    if (p.mode !== 'board' || p.onGround || (p.trick && p.trick.t < p.trick.dur) || p.airT < 0.08) return false;
+    if (p.mode !== 'board' || p.onGround || (p.trick && p.trick.t < p.trick.dur) || p.airT < 0.05 || p.prone) return false;
     const m = p.lastMove, dir = Math.hypot(m.x, m.y) < 0.4 ? 'none' : Math.abs(m.x) > Math.abs(m.y) ? (m.x > 0 ? 'right' : 'left') : (m.y > 0 ? 'up' : 'down');
     const [name, dur, spins, flips, pts] = TRICKS[dir];
     p.trick = { name, dur, spins, flips, pts, t: 0 };
@@ -341,7 +355,7 @@ export function createPlayer(scene, world, traffic) {
       else if (cond === 'bad' && p.speed > 9) p.speed -= (p.speed - 9) * 1.2 * dt; // rough surface
       p.speed = Math.max(0, p.speed);
       p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed;
-      if (inp.pressed.jump) { p.vel.y = 7.3; p.onGround = false; p.riding = null; p.airTricks = []; emit('ollie'); }
+      if (inp.pressed.jump) { p.vel.y = 7.6 + Math.min(1.8, p.speed * 0.1) + (inp.held.sprint ? 1.2 : 0); p.onGround = false; p.riding = null; p.airTricks = []; emit('ollie'); }
       // potholes
       p.holeCd -= dt;
       if (p.speed > 4 && p.holeCd <= 0) for (const h of world.potholes) {
@@ -354,6 +368,7 @@ export function createPlayer(scene, world, traffic) {
     } else {
       // air: small rotation control, look for rails
       if (mag > 0.2) { const want = Math.atan2(w.x, w.z); p.heading += clamp(wrap(want - p.heading), -2 * dt, 2 * dt); }
+      if (inp.pressed.jump && p.tryBodyFlip()) { /* flipping */ }
       if (p.vel.y < 2 && tryGrind()) return;
     }
     if (inp.pressed.board && p.onGround) { p.prone = false; toFoot(); return; }
@@ -366,7 +381,7 @@ export function createPlayer(scene, world, traffic) {
     if (ph.landed) {
       const hs = Math.hypot(p.vel.x, p.vel.z);
       const along = hs > 0.1 ? (p.vel.x * Math.sin(p.heading) + p.vel.z * Math.cos(p.heading)) / hs : 1;
-      if (p.trick && p.trick.t < p.trick.dur * 0.8) { emit('trickFail', { name: p.trick.name }); startBail(1); return; }
+      if (p.trick && p.trick.t < p.trick.dur * (p.trick.body ? 0.85 : 0.7)) { emit('trickFail', { name: p.trick.name }); startBail(1); return; }
       if (p.landVy < -16 || along < 0.3) { startBail(1); return; }
       p.speed = hs * Math.max(0.5, along);
       if (p.airTricks.length) { emit('trickLand', { names: p.airTricks.slice(), pts: p.airTricks.reduce((a, t) => a + t.pts, 0) + Math.round(p.airT * 40) }); p.airTricks = []; }
@@ -681,9 +696,11 @@ export function createPlayer(scene, world, traffic) {
         break;
       case 'board': {
         if (p.prone) { // flat on his belly on the board, hands out to steer
-          rig.reset(); rig.set('hipsY', 0.32); rig.set('hipsRX', -1.5); rig.set('neckX', -0.9); rig.set('headX', -0.3);
-          const pad = Math.sin(time * 9) * (p.speed < 7 ? 0.5 : 0.15);
-          rig.set('shLX', -2.6 + pad); rig.set('shRX', -2.6 - pad); rig.set('elLX', -0.2); rig.set('elRX', -0.2); rig.set('thLX', 0.1); rig.set('thRX', 0.1);
+          // face down, head forward, chest on the deck, hands gripping the front edges, feet up behind: ready to pop up
+          rig.reset(); rig.set('hipsY', 0.3); rig.set('hipsRX', 1.45); rig.set('neckX', -0.95); rig.set('headX', -0.35);
+          const pad = Math.sin(time * 9) * (p.speed < 7 ? 0.25 : 0);
+          rig.set('shLX', -1.25 + pad); rig.set('shRX', -1.25 - pad); rig.set('shLZ', 0.35); rig.set('shRZ', -0.35); rig.set('elLX', -1.0); rig.set('elRX', -1.0);
+          rig.set('thLX', 0.05); rig.set('thRX', 0.05); rig.set('thLZ', 0.12); rig.set('thRZ', -0.12); rig.set('knLX', 0.9); rig.set('knRX', 0.9);
           bodyYaw = p.heading; lift = 0.115; rate = 14; break;
         }
         const air = !p.onGround;
@@ -718,8 +735,17 @@ export function createPlayer(scene, world, traffic) {
     if (p.cuffed && ['foot', 'roll', 'bail'].includes(p.mode)) { rig.set('shLX', 0.55); rig.set('shRX', 0.55); rig.set('shLZ', -0.3); rig.set('shRZ', 0.3); rig.set('elLX', -1.0); rig.set('elRX', -1.0); } // wrists cuffed behind his back
     rig.update(dt, rate);
     rig.root.position.set(p.pos.x, p.pos.y + lift, p.pos.z);
+    if (p.prone && p.mode === 'board') { rig.root.position.x -= Math.sin(p.heading) * 0.35; rig.root.position.z -= Math.cos(p.heading) * 0.35; } // chest over the deck
     const cur = rig.root.rotation.y;
     rig.root.rotation.y = cur + wrap(bodyYaw - cur) * Math.min(1, dt * (onBoard ? 14 : 18));
+    const bt = p.mode === 'board' && p.trick?.body && p.trick.t < p.trick.dur ? p.trick : null;
+    if (bt) {
+      const k = Math.min(1, bt.t / bt.dur), e = k * k * (3 - 2 * k);
+      rig.root.rotation.order = 'YXZ';
+      rig.root.rotation.y = p.heading - Math.PI / 2 + bt.bspin * Math.PI * 2 * e;
+      rig.root.rotation.z = -bt.bflip * Math.PI * 2 * e;
+      _c.set(0, 0.85, 0); _c2.copy(_c).applyEuler(rig.root.rotation); rig.root.position.x += _c.x - _c2.x; rig.root.position.y += _c.y - _c2.y; rig.root.position.z += _c.z - _c2.z;
+    } else if (rig.root.rotation.z) rig.root.rotation.z = 0;
     // flicker while invulnerable after a hit
     rig.root.visible = p.mode === 'ride' ? !!p.ride?.visible : !(p.invuln > 0 && p.hurtT < 1 && Math.floor(p.t * 20) % 2 === 0);
     if (p.mode === 'bike') { bikeMesh.visible = true; bikeMesh.position.set(p.pos.x, p.pos.y, p.pos.z); bikeMesh.rotation.set(0, p.heading, -(p.lean || 0), 'YXZ'); }
@@ -733,6 +759,7 @@ export function createPlayer(scene, world, traffic) {
       let ry = 0, rz = 0;
       if (p.trick && p.trick.t < p.trick.dur) { const k = Math.min(1, p.trick.t / p.trick.dur); ry = p.trick.spins * Math.PI * k; rz = p.trick.flips * Math.PI * 2 * k; }
       board.rotation.set(!p.onGround && p.mode === 'board' ? -Math.max(-0.35, Math.min(0.35, p.vel.y * 0.06)) : 0, p.heading + ry, rz, 'YXZ');
+      if (bt) { board.quaternion.copy(rig.root.quaternion).multiply(_qy); board.position.copy(rig.root.position); }
       if (rz) board.position.y += 0.18 * Math.sin(Math.min(1, p.trick.t / p.trick.dur) * Math.PI);
     } else if (flying) {
       const b = p.boardFly; board.position.set(b.x, b.y, b.z); board.rotation.set(b.spin, b.spin * 0.7, b.spin * 0.3);
