@@ -33,9 +33,9 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
       <div class="tut-bar"><i style="width:${(i / STEPS.length) * 100}%"></i></div><div class="tut-s">${touch ? 'Skip: ❚❚ → Skip tutorial' : 'Skip: Esc → Skip tutorial'}</div>`;
   };
   T.done = () => { try { return !!localStorage.getItem(KEY); } catch { return false; } };
-  T.start = () => { T.active = true; i = 0; s = fresh(); lastYaw = camera.yaw; el.classList.remove('hidden'); draw(); };
+  T.start = () => { T.active = true; game.tutorialOn = true; document.body.classList.add('tut-on'); i = 0; s = fresh(); lastYaw = camera.yaw; el.classList.remove('hidden'); draw(); };
   T.stop = (finished = false) => {
-    T.active = false; el.classList.add('hidden'); try { localStorage.setItem(KEY, '1'); } catch { /* */ }
+    T.active = false; game.tutorialOn = false; document.body.classList.remove('tut-on'); game.outT = 0; el.classList.add('hidden'); try { localStorage.setItem(KEY, '1'); } catch { /* */ }
     if (finished) game.hud.banner('YOU\'RE READY', 'Lagos is yours. Go anywhere: press M for the map.', 'green', 3.5);
   };
   T.event = (e: string) => { if (!T.active) return; if (e === 'map') s.mapped = true; if (e === 'pause') s.paused = true; };

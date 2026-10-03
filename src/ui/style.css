@@ -474,7 +474,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 .bigmap { animation: bmFade 0.25s ease-out; } @keyframes bmFade { from { opacity: 0; } to { opacity: 1; } }
 
 /* first-steps tutorial */
-.tut { position: absolute; left: 20px; top: 250px; width: min(400px, calc(100vw - 32px)); background: rgba(8,10,16,0.88); border: 1px solid rgba(255,213,79,0.5); box-shadow: 0 10px 40px rgba(0,0,0,0.5); padding: 14px 18px 12px; pointer-events: none; z-index: 5; animation: bmIn 0.25s ease-out; }
+.tut { position: absolute; right: 20px; top: 330px; width: min(360px, calc(100vw - 32px)); background: rgba(8,10,16,0.88); border: 1px solid rgba(255,213,79,0.5); box-shadow: 0 10px 40px rgba(0,0,0,0.5); padding: 14px 18px 12px; pointer-events: none; z-index: 5; animation: bmIn 0.25s ease-out; }
 .tut-k { font: 800 10px Inter, sans-serif; letter-spacing: 0.28em; color: #8d897f; }
 .tut-t { font: 400 30px Anton, Impact, sans-serif; color: #ffd54f; letter-spacing: 0.02em; margin: 4px 0 2px; display: flex; align-items: center; gap: 10px; }
 .tut-ok { color: #69f0ae; font-family: Inter, sans-serif; font-weight: 800; font-size: 26px; }
@@ -482,4 +482,20 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 .tut-h kbd { font: 800 12px Inter, sans-serif; background: #f2f0ea; color: #111; border-radius: 4px; padding: 2px 7px; margin: 0 2px; box-shadow: 0 2px 0 #999; }
 .tut-bar { height: 4px; background: rgba(255,255,255,0.1); margin-top: 12px; } .tut-bar i { display: block; height: 100%; background: #ffd54f; transition: width 0.4s; }
 .tut-s { font: 700 10px Inter, sans-serif; letter-spacing: 0.12em; color: #6f6b62; margin-top: 8px; text-transform: uppercase; }
-@media (max-height: 500px) { .tut { top: 150px; width: 300px; padding: 8px 12px; } .tut-t { font-size: 20px; } .tut-h { font-size: 12px; } }
+@media (max-height: 500px) { .tut { top: 52px; right: auto; left: 50%; margin-left: -170px; width: 340px; padding: 8px 12px; } .tut-t { font-size: 20px; } .tut-h { font-size: 12px; } }
+
+/* the tutorial nudges you: a shake and a glow every few seconds until you do the step */
+.tut { animation: tutIn 0.3s ease-out, tutNudge 5s ease-in-out 2s infinite; }
+.tut.ping { animation: tutNudge 0.9s ease-in-out; }
+@keyframes tutIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; } }
+@keyframes tutNudge {
+  0%, 82%, 100% { translate: 0 0; box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 0 0 rgba(255,213,79,0); }
+  85% { translate: -7px 0; box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 0 4px rgba(255,213,79,0.55); }
+  88% { translate: 7px 0; }
+  91% { translate: -5px 0; }
+  94% { translate: 4px 0; box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 22px 6px rgba(255,213,79,0.35); }
+  97% { translate: 0 0; }
+}
+
+@media (max-height: 500px) { body.tut-on .objective { display: none !important; } }
+@media (pointer: coarse) and (max-height: 500px) { .modebox { transform: scale(0.6); transform-origin: bottom left; opacity: 0.7; } }

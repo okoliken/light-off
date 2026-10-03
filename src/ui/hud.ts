@@ -115,13 +115,14 @@ export function createHUD(root, world) {
   let padType = null;
   const PAD = {
     xbox: { F: 'X', C: 'B', SPACE: 'A', R: 'Y', E: 'RB', G: 'D-PAD ↑', V: 'D-PAD ↓', T: 'D-PAD ←', N: 'D-PAD →', Q: 'LB', M: 'VIEW', J: 'MENU', P: 'MENU', SHIFT: 'RT' },
+    touch: { F: 'HIT/USE', C: 'DODGE', SPACE: 'JUMP', R: 'BOARD', E: 'GRAB', G: 'LAUNCH', V: 'POUNCE', T: 'THROW', N: 'RADIO', Q: 'SENSE', M: 'MAP', J: '❚❚', P: '❚❚', ESC: '❚❚', SHIFT: 'STICK ALL THE WAY', U: 'SUIT', L: 'TORCH', X: 'BELLY', H: '❚❚' },
     ps: { F: '□', C: '○', SPACE: '✕', R: '△', E: 'R1', G: 'D-PAD ↑', V: 'D-PAD ↓', T: 'D-PAD ←', N: 'D-PAD →', Q: 'L1', M: 'SHARE', J: 'OPTIONS', P: 'OPTIONS', SHIFT: 'R2' },
   };
   const glyph = (html) => {
     if (!padType || !html) return html;
     const m = PAD[padType];
     return html.replace(/(<span class="key">)([^<]+)(<\/span>)/g, (all, a, k, b) => a + (m[k.trim().toUpperCase()] || k) + b)
-      .replace(/\((F|C|G|V|T|E|Q|N|J|R|SHIFT)\)/g, (all, k) => `(${m[k] || k})`);
+      .replace(/\((F|C|G|V|T|E|Q|N|J|R|SHIFT|U|L|X|M)\)/g, (all, k) => `(${m[k] || k})`);
   };
   H.setPad = (t) => { padType = t; };
   let toastN = 0, sayT = 0, bannerT = 0, bigMap = false;
@@ -422,7 +423,7 @@ export function createHUD(root, world) {
     { const lbl = el.catchW.querySelector('.meterlbl'), want = game.catchLabel || 'OFFICER GRABBING YOU · MOVE!'; if (lbl.textContent !== want) lbl.textContent = want; }
     el.catchB.style.width = Math.min(100, meterV * 100) + '%';
     el.prompt.classList.toggle('hidden', !game.prompt);
-    H.setPad(game.input?.usingPad ? game.input.padType || 'xbox' : null);
+    H.setPad(game.input?.usingPad ? game.input.padType || 'xbox' : game.input?.touch?.state.active ? 'touch' : null);
     if (game.prompt) el.prompt.innerHTML = glyph(game.prompt);
     if (sayT > 0) { sayT -= dt; if (sayT <= 0) el.say.classList.add('hidden'); }
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) el.banner.innerHTML = ''; }

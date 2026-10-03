@@ -8,7 +8,7 @@ type Btn = { id: string; label: string; key: string; cls?: string };
 // right-thumb cluster (big actions) and the small row above it
 const MAIN: Btn[] = [
   { id: 'jump', label: 'JUMP', key: 'jump', cls: 'big a' },
-  { id: 'act', label: 'HIT', key: 'act', cls: 'big b' },
+  { id: 'act', label: 'HIT<br>USE', key: 'act', cls: 'big b' },
   { id: 'roll', label: 'DODGE', key: 'roll', cls: 'c' },
   { id: 'flash', label: 'POUNCE', key: 'flash', cls: 'd' },
 ];
