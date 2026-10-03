@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.ts';
 import { buildStyledMap } from './mapstyle.ts';
 
-const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting', bike: 'Okada' };
+const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting', bike: 'Okada', ride: 'Riding' };
 
 const FILLER = [
   'Residents say the situation has gone on for too long. "We are tired," said one trader who asked not to be named.',
@@ -289,7 +289,7 @@ export function createHUD(root, world) {
       pickEl.innerHTML = `<div class="bm-card"><div class="bm-ct"><span>${ICON[q.kind] || '📍'}</span><div><b>${q.name}</b><i>${q.area || ''} · ${Q.dist} m away</i></div><button class="bm-x" data-x>✕</button></div>
         <div class="bm-how">HOW DO YOU WANT TO GET THERE?</div>
         ${opt('skate', 'Skate / walk', `Free · about ${mins(Q.skate.secs)} on the board · follow the trail`, true)}
-        ${ride('okada', 'Okada')}${ride('keke', 'Keke')}${ride('danfo', 'Danfo')}</div>`;
+        ${Q.ferry ? (Q.ferry.no ? opt('ferry', 'Ferry', Q.ferry.no, false) : opt('ferry', 'Ferry across the lagoon', `₦${Q.ferry.fare} · from ${Q.ferry.jetty.name} (${Q.ferry.jettyDist} m) · skip the bridge traffic`, true)) : ''}${ride('okada', 'Okada')}${ride('keke', 'Keke')}${ride('danfo', 'Danfo')}</div>`;
       pickEl.querySelector<HTMLElement>('[data-x]').onclick = () => { picked = null; pickEl.innerHTML = ''; };
       pickEl.querySelectorAll<HTMLElement>('[data-go]').forEach(b => b.onclick = () => { const m = b.dataset.go; close(); game.travel(q, m); });
     };

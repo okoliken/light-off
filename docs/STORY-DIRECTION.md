@@ -22,16 +22,16 @@ Make the default free roam feel natural and alive first, then layer the missions
 
 | Detail | Status |
 |---|---|
-| Police: bigger checkpoints (4 to 6 officers) stopping vehicles and collecting money | building now |
-| Police raids: a van pulls up and they harass young men for "Yahoo boy" phones | building now |
-| Police see the suit = instant chase, no warning | building now |
-| Lagos chatter: drivers and okada men talk to you on rides; street talk about daily life | building now |
-| Ojuelegba under-bridge: a busy bus stop, danfos stopping and loading people | building now |
-| Vehicles stop at bus stops and pick people up | building now |
-| Third Mainland traffic continues onto the Island (no U-turn at the end of the bridge) | building now |
-| Lagos Island: more places and activity | building now |
-| Ferry: a jetty on the mainland and one on the Island, ride across with other passengers | building now |
-| Carry a passenger on your okada for cash | building now |
+| Police: bigger checkpoints (4 to 6 officers) stopping vehicles and collecting money | done (local) |
+| Police raids: a van pulls up and they harass young men for "Yahoo boy" phones | done (local) |
+| Police see the suit = instant chase, no warning | done (local) |
+| Lagos chatter: drivers and okada men talk to you on rides; street talk about daily life | done (local) |
+| Ojuelegba under-bridge: a busy bus stop, danfos stopping and loading people | done (local) |
+| Vehicles stop at bus stops and pick people up | done (local) |
+| Third Mainland traffic continues onto the Island (no U-turn at the end of the bridge) | done (local) |
+| Lagos Island: more places and activity | done (local) |
+| Ferry: a jetty on the mainland and one on the Island, ride across with other passengers | done (local) |
+| Carry a passenger on your okada for cash | done (local) |
 | Remove Mama from the game | next, with the story rework |
 | Delivery job: office, workmates, parcels, late reports | next: the first mission system |
 | The cruel copycat the police mistake for Bolaji | later (an early "copycat" event exists) |
@@ -41,3 +41,16 @@ Make the default free roam feel natural and alive first, then layer the missions
 - "Light-Off is becoming a Lagos life sim: by day you're a delivery runner, by night you're the boy in black."
 - Show: police checkpoints full of officers collecting roger, a raid on "Yahoo boys", a ferry ride to the Island, a danfo loading at Ojuelegba.
 - Then: "Next: the delivery job. 15 drops a day, a boss on your neck, and a copycat making your name worse."
+
+## Done in this pass (on the local `freeroam` branch)
+- **Checkpoints** now have 4 or 5 officers: two in the road and the rest loafing by the table. They still stop vehicles and collect roger.
+- **Raids:** a "Police · Special Squad" van parks up, three young men stand against the wall with their hands up, and the officers go through their phones. "Bring your phone. Unlock am. Now!" / "Officer, I be student! Na school laptop!"
+- **No pity:** police who see the suit give chase at once.
+- **Ride conversations:** the driver and Bolaji talk about fuel prices, NEPA, Third Mainland traffic, the Super Eagles, japa, the boy in black, roger, the rain, delivery work, Big Brother and garri prices.
+- **Street talk** near stalls, bus stops and crowds: traders, conductors, a preacher, a man on the phone saying "I don reach Ojuelegba".
+- **Bus stops:** danfos, BRTs and kekes pull in, and the conductor shouts the route ("CMS! Obalende! Oya oya!").
+- **Ojuelegba:** traffic now runs both ways over the flyover. Underneath there's a danfo park, hawkers and a crowd.
+- **Third Mainland** traffic now drives down onto Lagos Island and round the cross roads, then heads back. No more U-turning on the bridge.
+- **Lagos Island:** new landmarks are Tinubu Square's fountain, the Central Mosque, a CMS BRT terminal and a Marina waterfront. Idumota, Balogun and the Adeniji Adele interchange now show up in map search.
+- **Ferry:** LagFerry runs between Ebute-Metta Jetty and Marina Jetty for ₦500, with seated passengers, the driver shouting about life jackets, a wake behind the boat and chatter on the way. The map now suggests the ferry when you pick somewhere across the water.
+- **Okada for hire:** on your okada, stop at a bus stop and press F to carry a passenger. They name the place, you name the price, and you get paid when you drop them off. Crash and you get nothing.

@@ -92,12 +92,16 @@ export function createTransport(game) {
     const out: any = { dist: d, walk: { secs: Math.round(d / 4.5) }, skate: { secs: Math.round(d / 9) } };
     for (const m of ['okada', 'keke']) out[m] = why ? { no: why } : !here ? { no: 'Get to a road first.' } : !there ? { no: 'No road goes there.' } : { fare: T.fare(here, there, m), secs: Math.round(d / (m === 'okada' ? 12 : 7.5)) };
     const bs = T.nearestStop(pp), bd = bs ? Math.round(Math.hypot(bs.x - pp.x, bs.z - pp.z)) : 0;
+    // crossing to or from Lagos Island: the ferry is the smart way
+    const isl = (q) => q.z < -1100, J = game.ferry?.jetties;
+    if (J && isl(dest) !== isl(pp)) { const j = isl(pp) ? J[1] : J[0], jd = Math.round(Math.hypot(j.x - pp.x, j.z - pp.z)); out.ferry = why && game.heat > 0 ? { no: why } : { fare: 500, secs: Math.round(jd / 9 + 60), jetty: j, jettyDist: jd }; }
     out.danfo = why ? { no: why } : !bs || !there ? { no: 'No danfo goes there.' } : { fare: T.fare(bs, there, 'danfo'), secs: Math.round(d / 10), stop: bs, stopDist: bd };
     return out;
   };
   T.trip = (dest, mode) => {
     const q = T.quote(dest)[mode]; if (!q || q.no) { if (q?.no) hud.toast(q.no, 'red'); return false; }
     const to = pseudoStop(roadSpot(dest, 60), dest.name || 'There');
+    if (mode === 'ferry') { game.setWaypoint({ x: q.jetty.x, z: q.jetty.z, title: `${q.jetty.name} · ferry across` }); return true; }
     if (mode === 'danfo') {
       if (q.stopDist > 6) { game.pendingTrip = { dest: to }; game.setWaypoint({ x: q.stop.x, z: q.stop.z, title: `${q.stop.name} bus stop · danfo to ${to.name}` }); return true; }
       return T.board(q.stop, to, 'danfo');

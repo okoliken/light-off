@@ -15,6 +15,7 @@ import { createCheckpoints } from './police.ts';
 import { createActivities } from './activities.ts';
 import { createRadio } from './radio.ts';
 import { createChatter } from './chatter.ts';
+import { createFerry } from './ferry.ts';
 import { nightStart } from './nightreport.ts';
 import { OUTFITS, Rig, Pose } from '../player/rig.ts';
 import { textSign } from '../core/textures.ts';
@@ -200,6 +201,7 @@ export function createGame(ctx) {
   game.activities = createActivities(game, { spot: findSpot, victim: spawnVictim, thug: spawnThug, giveItem: api.giveItem, gunman: api.gunman });
   const DAY = game.day, TR = game.transport;
   game.chatter = createChatter(game);
+  game.ferry = createFerry(game);
   // a danfo pulls in at a stop near you: the conductor shouts the route, someone squeezes on
   const ROUTES = ['Ojuelegba! Ojuelegba! Enter with your change!', 'CMS! Obalende! Oya oya!', 'Oshodi-Oke! Oshodi! Last two!', 'Yaba! Sabo! Yaba!', 'Mushin! Idi-Araba! Enter!', 'Stadium! Stadium! One chance!', 'Ikeja along! Ikeja! Shift o!'];
   game.onBusStop = (v, st) => {
@@ -409,6 +411,32 @@ export function createGame(ctx) {
     if (sh) return { kind: 'mallshop', shop: sh, text: `<span class="key">F</span>Buy at <b>${sh.name}</b>` };
     return null;
   }
+  // ---------- okada for hire: pick someone up at a bus stop, drop them where they're going ----------
+  game.fare = null;
+  function startFare() {
+    const pl = game.places().filter(q => q.kind !== 'food' && q.kind !== 'home' && q.z > -1100).map(q => ({ q, d: Math.hypot(q.x - player.pos.x, q.z - player.pos.z) })).filter(o => o.d > 140 && o.d < 600);
+    const pk = pl[Math.floor(R() * pl.length)]; if (!pk) return;
+    const pay = Math.round((250 + pk.d * 0.9) / 50) * 50;
+    const r = new Rig({ skin: ['#4a2e1f', '#5b3a26', '#3e2418'][Math.floor(R() * 3)], top: ['#1565c0', '#c62828', '#fafafa', '#6a1b9a', '#2e7d32'][Math.floor(R() * 5)], bottom: '#263238', sock: '#3e2723', sole: '#2b2b2b', cap: R() < 0.4 ? '#212121' : null, sheen: '#556070' });
+    Pose.idle(r, 0, false); r.set('hipsY', 0.62); r.set('thLX', -1.3); r.set('thRX', -1.3); r.set('knLX', 1.2); r.set('knRX', 1.2); r.set('thLZ', 0.3); r.set('thRZ', -0.3); r.set('shLX', -0.5); r.set('shRX', -0.5); r.snap(); r.update(0.016);
+    r.root.position.set(0, 0.32, -0.6); player.bikeMesh.add(r.root);
+    game.fare = { dest: pk.q, pay, rig: r };
+    hud.say('Passenger', `${pk.q.name}. How much?`, 2.4);
+    setTimeout(() => game.fare && hud.say('Bolaji', `₦${pay.toLocaleString()}.`, 2), 2400);
+    setTimeout(() => game.fare && hud.say('Passenger', ['Ah, too much! ...oya, make we go.', 'No wahala, carry me go.', 'Drive well o, I get small pikin for house.'][Math.floor(R() * 3)], 3), 4400);
+    game.setWaypoint({ x: pk.q.x, z: pk.q.z, title: `Drop: ${pk.q.name}` });
+  }
+  function endFare(paid, line) {
+    const f = game.fare; if (!f) return;
+    player.bikeMesh.remove(f.rig.root); game.fare = null; game.setWaypoint(null);
+    if (paid) { L.wallet += f.pay; audio.pickup(); hud.popup(`FARE <b>+₦${f.pay.toLocaleString()}</b>`); }
+    hud.say('Passenger', line, 3);
+  }
+  function updateFare() {
+    const f = game.fare; if (!f) return;
+    if (player.mode !== 'bike') { endFare(false, player.mode === 'bail' || player.mode === 'down' ? 'You wan kill me?! I no dey pay you anything!' : 'Na here you drop me? I no go pay o!'); return; }
+    if (dist2(f.dest, player.pos) < 14 * 14 && Math.hypot(player.vel.x, player.vel.z) < 3) endFare(true, ['Thank you, my guy!', 'Na here. God bless you.', 'Ehen! You sabi road.'][Math.floor(R() * 3)]);
+  }
   function interactOption() {
     if (game.inMall) return mallOption();
     if (L.inside) return roomOption();
@@ -423,6 +451,7 @@ export function createGame(ctx) {
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
     if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
     const dopt = DAY.interactOption(); if (dopt) return dopt;
+    const fo = game.ferry.option(); if (fo) return fo;
     const stop = TR.stopNear(player.pos);
     if (stop && !player.fightingNear) return { kind: 'bus', stop, text: `<span class="key">F</span>Take a ride from <b>${stop.name}</b> bus stop` };
     const cap = game.civilians.find(c => c.mood === 'captive' && dist2(c.pos, player.pos) < 2 * 2);
@@ -461,6 +490,7 @@ export function createGame(ctx) {
       case 'pickup': { const it = game.dropped.item; scene.remove(game.dropped.mesh); game.dropped = null; startCarry(it); return true; }
       case 'deliver': deliver(); return true;
       case 'mount': player.mountBike(player.bike.yaw); return true;
+      case 'ferry': game.ferry.board(opt.j); return true;
       case 'steal': stealOkada(opt.v); return true;
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
@@ -984,9 +1014,14 @@ export function createGame(ctx) {
     }
     game.prompt = prompt;
     if (game.arrest) { updateArrest(dt, input); input.pressed = {}; }
-    else if (player.mode === 'ride') { TR.update(dt, input); input.pressed = {}; }
+    else if (player.mode === 'ride') { if (game.ferry.ride) game.ferry.update(dt, input); else TR.update(dt, input); input.pressed = {}; }
     else if (game.pendingTrip && player.mode === 'foot') TR.checkPending();
-    if (player.mode === 'bike') prompt = game.prompt = '<span class="key">R</span>Get off · <span class="key">Space</span>Brake · <span class="key">Shift</span>Full throttle';
+    if (player.mode === 'bike') {
+      const st = !game.fare && Math.hypot(player.vel.x, player.vel.z) < 2.5 && TR.stops.find(q => dist2(q, player.pos) < 8 * 8);
+      prompt = game.prompt = st ? '<span class="key">F</span>Carry a passenger (okada for hire)' : game.fare ? `Passenger to <b>${game.fare.dest.name}</b> · ₦${game.fare.pay.toLocaleString()} · <span class="key">R</span> drops him` : '<span class="key">R</span>Get off · <span class="key">Space</span>Brake · <span class="key">Shift</span>Full throttle';
+      if (st && input.pressed.act) startFare();
+    }
+    updateFare();
     if (game.respawnT <= 0 && player.mode !== 'down' && player.mode !== 'bike') {
       if ((input.pressed.fire && player.aiming) || input.pressed.throw) { if (!L.inside) doThrow(dir); }
       else if (input.pressed.act && ['foot', 'board'].includes(player.mode) && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) {
@@ -1087,7 +1122,7 @@ export function createGame(ctx) {
     game.autoT = (game.autoT || 0) + dt; if (game.autoT > 20 && !game.arrest && player.mode !== 'ride') { game.autoT = 0; game.save(); }
     if (!L.inside && game.tipI < TIPS.length && game.outT > TIPS[game.tipI][0]) hud.toast(TIPS[game.tipI++][1], 'blue');
     if (game.inMall && !mallOpen()) { hud.say('Security', 'We don close! Oya, everybody out.', 3); leaveMall(); }
-    const area = game.inMall ? (game.mallFrom?.name || 'Mall') : world.areaAt(player.pos.x, player.pos.z);
+    const area = game.ferry.ride ? 'Lagos Lagoon' : game.inMall ? (game.mallFrom?.name || 'Mall') : world.areaAt(player.pos.x, player.pos.z);
     if (area !== game.areaName) { if (game.areaName) hud.area?.(area); game.areaName = area; }
 
     game.dangers.length = 0;
@@ -1302,6 +1337,8 @@ export function createGame(ctx) {
     for (const q of Object.values(DAY.pois as Record<string, any>)) out.push({ name: q.name, x: q.x, z: q.z, kind: 'place' });
     for (const s of world.shops || []) out.push({ name: s.name, x: s.x, z: s.z, kind: 'shop' });
     for (const s of TR.stops) out.push({ name: s.name + ' bus stop', x: s.x, z: s.z, kind: 'bus' });
+    for (const j of game.ferry.jetties) out.push({ name: j.name + ' (ferry)', x: j.x, z: j.z, kind: 'bus' });
+    for (const [n, x, z] of <any[]>[['Idumota Market', -60, -1296], ['Balogun Market', 60, -1296], ['Adeniji Adele Interchange', 0, -1170], ['Lagos Island danfo park', -35, -1222]]) out.push({ name: n, x, z, kind: 'place' });
     const seen = new Set(); for (const v of world.vendors) { if (seen.has(v.label)) continue; seen.add(v.label); out.push({ name: v.label, x: v.x, z: v.z, kind: 'food' }); }
     for (const p of out) p.area = world.areaAt(p.x, p.z);
     return out;

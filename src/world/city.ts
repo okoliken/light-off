@@ -567,7 +567,8 @@ export function buildCity(scene, opt: any = {}) {
   sign3('OBALENDE · CMS · MARINA →', '#1b5e20', '#ffffff', 7.5, 1.3, 5.2, 4.9, GZ + 0.3, 0);
   world.gate = { x: 0, z: GZ };
   // dense old Island blocks between the roads, with a few towers toward Marina (east)
-  const inRoad = (x0, z0, x1, z1) => ISL_ROADS.some(([a, b, c, d]) => x1 > a - 3 && x0 < c + 3 && z1 > b - 3 && z0 < d + 3);
+  const ISL_KEEP: any[] = [[-68, -1344, -52, -1326], [26, -1354, 54, -1326], [22, -1218, 58, -1206]]; // Tinubu Square, the mosque, the BRT terminal
+  const inRoad = (x0, z0, x1, z1) => [...ISL_ROADS, ...ISL_KEEP].some(([a, b, c, d]) => x1 > a - 3 && x0 < c + 3 && z1 > b - 3 && z0 < d + 3);
   const islB: any[] = [];
   for (let z = C.z0 + 10; z < C.z1 - 26; z += 26) for (let x = C.x0 + 10; x < C.x1 - 10; x += 22) {
     const w = 15 + R() * 5, d = 17 + R() * 6, x0 = x, z0 = z, x1 = x + w, z1 = z + d;
@@ -597,6 +598,30 @@ export function buildCity(scene, opt: any = {}) {
   for (let k = 0; k < 14; k++) world.island.hangouts.push({ x: -38 + (k % 7) * 2.8, z: -1219 - Math.floor(k / 7) * 2 });
   { let k = 0; for (let z = C.z1 - 30; z > C.z0 + 12; z -= 17, k++) if (k % 2 === 0) { streetlight(-8.4, z - 4, 1, 0); streetlight(8.4, z - 12, -1, 0); } }
   B.misc.box(C.x1 - C.x0, 0.6, 0.4, { p: [0, 0.3, C.z1 + 0.2] }, '#9a958b'); // lagoon-front wall
+  // more of the Island: Tinubu Square's fountain, the Central Mosque, a BRT terminal at CMS, and hawkers everywhere
+  { // Tinubu Square (on the west cross road)
+    const tx = -60, tz = -1336;
+    B.misc.cyl(5, 5.4, 0.7, { p: [tx, 0.35, tz] }, '#cfc8bb', 24); B.misc.cyl(4.5, 4.5, 0.05, { p: [tx, 0.72, tz] }, '#3fa9d8', 24); B.misc.cyl(0.6, 1, 3, { p: [tx, 1.6, tz] }, '#e0dacb', 12);
+    S.add(tx - 5, 0, tz - 5, tx + 5, 0.7, tz + 5, 'fountain');
+    sign3('TINUBU SQUARE', '#1b5e20', '#ffffff', 6, 1, tx, 3.6, tz + 5.4, 0);
+    for (let k = 0; k < 16; k++) world.island.hangouts.push({ x: tx - 7 + R() * 14, z: tz + 6 + R() * 4 });
+  }
+  { // the Central Mosque: white walls, a green dome, four minarets
+    const mx = 40, mz = -1340;
+    B.misc.box(22, 9, 22, { p: [mx, 4.5, mz] }, '#f2efe8'); S.add(mx - 11, 0, mz - 11, mx + 11, 9, mz + 11, 'mosque');
+    B.misc.sphere(7, { p: [mx, 9.5, mz] }, '#2e7d32', 16, 10); B.lamp.cyl(0.25, 0.25, 1.4, { p: [mx, 17, mz] }, '#ffd54f', 6);
+    for (const [dx, dz] of <any[]>[[-11, -11], [11, -11], [-11, 11], [11, 11]]) { B.misc.cyl(0.9, 1, 20, { p: [mx + dx, 10, mz + dz] }, '#f2efe8', 10); B.misc.cyl(0.05, 1.1, 2.2, { p: [mx + dx, 21.1, mz + dz] }, '#2e7d32', 10); }
+    world.mapRects.push({ x0: mx - 11, z0: mz - 11, x1: mx + 11, z1: mz + 11, color: '#3a3e4a' });
+  }
+  { // CMS BRT terminal by the landing: a long shelter, BRT buses waiting
+    const bx = 40, bz = -1212;
+    B.metal.box(30, 0.2, 4, { p: [bx, 3.2, bz] }, '#1565c0'); for (let k = -3; k <= 3; k++) B.metal.cyl(0.1, 0.1, 3.2, { p: [bx + k * 4.6, 1.6, bz + 1.6] }, '#9e9e9e', 6);
+    sign3('CMS · BRT TERMINAL', '#1565c0', '#ffffff', 8, 1.2, bx, 3.9, bz + 2.05, 0);
+    for (let k = 0; k < 2; k++) world.parked.push({ type: 'brt', x: bx - 8 + k * 15, z: bz - 4.5, yaw: Math.PI / 2 });
+    for (let k = 0; k < 18; k++) world.island.hangouts.push({ x: bx - 13 + R() * 26, z: bz + 0.5 + R() * 2.5 });
+  }
+  // Marina: a waterfront walk along the lagoon wall, with people looking at the water
+  for (let k = 0; k < 20; k++) world.island.hangouts.push({ x: -150 + R() * 300, z: C.z1 - 2 - R() * 2 });
 
   // ---------- seen from the bridge: Makoko on its stilts, and UNILAG on the far shore ----------
   // Makoko: the fishing settlement built on stilts in the lagoon, beside the mainland end of the bridge
