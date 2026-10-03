@@ -750,7 +750,8 @@ export function createGame(ctx) {
     const seen = pol.some(v => v.police.sees) || offSee;
     if (seen && game.heat === 0 && game.carrying?.site) addHeat(1, 'Police spotted you with the levy bag. (The agberos pay them their cut.)');
     game.grudgeCd = (game.grudgeCd || 0) - dt;
-    if (seen && game.heat === 0 && L.suit && L.phase !== 'day' && game.story.progress() >= 2 && !game.story.active && game.grudgeCd <= 0) { game.grudgeCd = 90; addHeat(1, 'Police: "Na the boy in black! Oga Okafor say make we carry am!"'); }
+    // the suit is a criminal's outfit to them: any sighting is a chase, no warning, no pity
+    if (seen && game.heat === 0 && L.suit && !game.arrest && game.grudgeCd <= 0) { game.grudgeCd = 6; addHeat(1, 'Police: "' + ['Na the boy in black! Carry am!', 'See am! Masked boy! Stop there!', 'Na him! Oga say make we no let am escape!', 'Thief! Stop! Or I shoot!'][Math.floor(R() * 4)] + '"'); }
     if (game.heat >= 2) game.wasHot = true;
     if (game.heat === 0 && game.wasHot) { // he shook off a serious chase: the man paying the police is losing patience
       game.wasHot = false; const F = game.story.flags; F.policeFails = (F.policeFails || 0) + 1;
