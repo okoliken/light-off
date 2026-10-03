@@ -261,7 +261,7 @@ export function createHUD(root, world) {
     ['#69f0ae', 'Runs & escapes'], ['#80deea', 'Errand / job / waypoint'], ['#43a047', 'Return goods here'], ['#fbc02d', 'Bus stop'], ['#ffab40', 'Food'], ['#b39ddb', 'News'], ['#42a5f5', 'Skate challenge']];
   H.openMap = (game, onClose) => {
     const wrap = document.createElement('div'); wrap.className = 'bigmap overlay';
-    wrap.innerHTML = `<canvas></canvas><div class="bm-head"><b>LAGOS</b><span>Surulere · Third Mainland · Lagos Island</span></div>
+    wrap.innerHTML = `<canvas></canvas><button class="bm-close" data-close>✕ CLOSE</button><div class="bm-head"><b>LAGOS</b><span>Surulere · Third Mainland · Lagos Island</span></div>
       <div class="bm-legend">${LEGEND.map(([c, l]) => `<div><i style="background:${c}"></i>${l}</div>`).join('')}</div>
       <div class="bm-side"><input class="bm-search" placeholder="Where to? (search places)"><div class="bm-pick"></div><div class="bm-list"></div></div>
       <div class="bm-hint">DRAG · MOVE &nbsp; SCROLL / PINCH · ZOOM &nbsp; TAP · PICK A PLACE &nbsp; M / ESC · CLOSE</div>`;
@@ -294,6 +294,7 @@ export function createHUD(root, world) {
     };
     search.oninput = renderList; search.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') { search.blur(); } if (e.key === 'Enter') { const b = listEl.querySelector<HTMLElement>('[data-p]'); b?.click(); } };
     renderList();
+    wrap.querySelector<HTMLElement>('[data-close]').onclick = () => close();
     const P = game.player.pos, v = { x: P.x, z: P.z, zoom: 1.4 };
     let raf = 0, drag = null, moved = false;
     const resize = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
@@ -322,6 +323,15 @@ export function createHUD(root, world) {
     };
     raf = requestAnimationFrame(draw);
     cv.onmousedown = (e) => { drag = { x: e.clientX, y: e.clientY, vx: v.x, vz: v.z }; moved = false; };
+    // touch: one finger pans, two fingers pinch to zoom, a tap picks a place
+    let pinch = null;
+    cv.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.touches;
+      if (t.length === 1) { drag = { x: t[0].clientX, y: t[0].clientY, vx: v.x, vz: v.z }; moved = false; pinch = null; }
+      else if (t.length === 2) { pinch = { d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), z: v.zoom }; moved = true; } }, { passive: false });
+    cv.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches;
+      if (pinch && t.length === 2) v.zoom = Math.max(0.35, Math.min(6, pinch.z * Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) / pinch.d));
+      else if (t.length === 1) onMove({ clientX: t[0].clientX, clientY: t[0].clientY }); }, { passive: false });
+    cv.addEventListener('touchend', (e) => { if (e.touches.length) return; const c = e.changedTouches[0]; onUp({ clientX: c.clientX, clientY: c.clientY, button: 0 }); pinch = null; });
     const onMove = (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; v.x = drag.vx - dx / v.zoom; v.z = drag.vz - dy / v.zoom; };
     const onUp = (e) => { if (drag && !moved && e.button === 0) { const w = toWorld(e.clientX, e.clientY), r = 18 / v.zoom; const near = places.filter(q => Math.hypot(q.x - w.x, q.z - w.z) < r).sort((a, b) => Math.hypot(a.x - w.x, a.z - w.z) - Math.hypot(b.x - w.x, b.z - w.z))[0]; pick(near || { name: 'This spot', x: w.x, z: w.z, kind: 'spot', area: game.world.areaAt(w.x, w.z) }); } drag = null; };
     cv.oncontextmenu = (e) => { e.preventDefault(); game.setWaypoint(null); };

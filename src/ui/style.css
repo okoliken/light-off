@@ -388,3 +388,51 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 .bm-go:hover { background: #ffd54f; color: #111; } .bm-go:hover i { color: #333; } .bm-go b { display: block; font-size: 14px; } .bm-go i { font-style: normal; font-size: 11px; color: #aaa; }
 .bm-go.off { opacity: 0.45; cursor: default; } .bm-go.off:hover { background: rgba(255,255,255,0.05); color: #fff; }
 @media (max-width: 700px) { .bm-side { top: auto; height: 55vh; } .bm-head { display: none; } .bm-legend { display: none; } }
+
+/* ---- touch controls (phones, tablets) ---- */
+.tpad { position: fixed; inset: 0; pointer-events: none; z-index: 40; display: none; user-select: none; -webkit-user-select: none; }
+.tpad.on { display: block; }
+.tpad .tb { pointer-events: auto; touch-action: none; position: relative; border: 2px solid rgba(255,255,255,0.35); background: rgba(10,12,18,0.45); color: #fff; font: 800 11px Inter, sans-serif; letter-spacing: 0.06em; border-radius: 50%; width: 58px; height: 58px; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+.tpad .tb.on { background: rgba(255,213,79,0.85); color: #111; border-color: #ffd54f; }
+.tp-main { position: absolute; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(22px + env(safe-area-inset-bottom, 0px)); width: 190px; height: 170px; }
+.tp-main .tb { position: absolute; }
+.tp-main .big { width: 76px; height: 76px; font-size: 13px; }
+.tp-main .a { right: 0; bottom: 0; border-color: rgba(105,240,174,0.7); }
+.tp-main .b { right: 88px; bottom: 6px; border-color: rgba(255,82,82,0.7); }
+.tp-main .c { right: 8px; bottom: 90px; }
+.tp-main .d { right: 92px; bottom: 96px; }
+.tp-small { position: absolute; right: calc(214px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(2, 50px); gap: 8px; }
+.tp-small .tb { width: 50px; height: 50px; font-size: 9px; border-radius: 14px; }
+.tp-top { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+.tp-top .tb { width: auto; height: 34px; padding: 0 12px; border-radius: 17px; font-size: 10px; }
+.tp-stick { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(10,12,18,0.25); left: 120px; top: 70%; opacity: 0.5; }
+.tp-stick.on { opacity: 1; }
+.tp-knob { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: rgba(255,213,79,0.8); }
+.tp-rotate { display: none; }
+@media (orientation: portrait) { .tpad.on .tp-rotate { display: flex; position: fixed; inset: 0; align-items: center; justify-content: center; background: rgba(5,6,10,0.92); color: #ffd54f; font: 400 28px Anton, Impact, sans-serif; text-align: center; padding: 30px; pointer-events: auto; } }
+/* small screens: a lighter HUD that stays out of the thumbs' way */
+@media (pointer: coarse) {
+  .help, .modebox .moves, .cmdbar { display: none !important; }
+  .objective, .notices { margin-top: 42px; }
+  html, body { touch-action: none; overscroll-behavior: none; }
+}
+@media (max-height: 500px) {
+  .objective { transform: scale(0.8); transform-origin: top center; }
+  .status { transform: scale(0.75); transform-origin: top left; }
+  .minimap { transform: scale(0.65); transform-origin: top right; }
+  .clock { transform: scale(0.7); transform-origin: top right; }
+}
+.bm-close { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 2; background: rgba(8,10,16,0.9); color: #fff; border: 1px solid rgba(255,255,255,0.2); font: 800 11px Inter, sans-serif; letter-spacing: 0.15em; padding: 9px 16px; cursor: pointer; }
+/* touch screens: no keyboard hints, room for thumbs */
+@media (pointer: coarse) {
+  .gadgets, .mm-hints, .bm-hint, .clock, .power { display: none !important; }
+}
+@media (max-height: 500px) {
+  .mm-logo h1 { font-size: 64px; }
+  .mm-item { padding: 4px 0 4px 14px; }
+  .mm-item .l { font-size: 24px; }
+  .mm-item small { font-size: 11px; margin-top: 2px; }
+  .bm-legend, .bm-head { display: none; }
+  .bm-side { top: 60px; bottom: 12px; }
+  .toasts { transform: scale(0.7); transform-origin: top left; }
+}

@@ -73,6 +73,14 @@ export function createInput(canvas) {
       }
       break;
     }
+    // on-screen touch controls (phones, tablets)
+    if (st.touch?.state.active) {
+      const T = st.touch.take();
+      if (T.move.x || T.move.y) { mx = T.move.x; my = T.move.y; }
+      lx += T.look.dx; ly += T.look.dy;
+      for (const [k, v] of Object.entries(T.held)) if (v) held[k] = true;
+      for (const [k, v] of Object.entries(T.pressed)) if (v) pressed[k] = true;
+    }
     // while aiming, the strike button / RT fires the catapult instead
     if (held.aim) { pressed.fire = pressed.act || (pressed.sprint ?? false); pressed.act = false; held.sprint = false; }
     const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }

@@ -17,8 +17,11 @@ import { buildRoom } from './world/room.ts';
 import { nightReport } from './game/nightreport.ts';
 import { createCinema } from './game/cinema.ts';
 import { loadSettings, saveSettings, preset, PRESETS } from './game/settings.ts';
+import { createTouchPad, isTouchDevice } from './player/touch.ts';
 
+const touchDevice = isTouchDevice();
 const settings = loadSettings();
+if (touchDevice && !localStorage.getItem('light-off-settings')) settings.quality = 'low'; // phones and tablets start on Low
 let Q = preset(settings);
 
 const canvas = document.getElementById('game');
@@ -41,6 +44,8 @@ const traffic = createTraffic(scene, world);
 const player = createPlayer(scene, world, traffic);
 const camera = createCamera(innerWidth / innerHeight, world);
 const input = createInput(canvas);
+const touch = touchDevice ? createTouchPad(document.body) : null;
+input.touch = touch;
 const audio = createAudio();
 const hud = createHUD(hudRoot, world);
 const env = createEnv(scene, renderer, camera.cam, { shadows: Q.shadows, shadowSize: Q.shadowSize, bloom: Q.bloom });
@@ -155,6 +160,7 @@ function frame() {
   else if (state === 'play' && pendingReports.length) game.onMissionComplete(pendingReports.shift());
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
+  touch?.show(state === 'play');
   const inp = input.poll();
   if (state === 'play') {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
