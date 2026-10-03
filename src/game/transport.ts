@@ -80,6 +80,32 @@ export function createTransport(game) {
     if (r.v.ai.arrived) T.getOff(true);
     else if (input.pressed.act) T.getOff(false);
   };
+  // ---- trips from the map: hail an okada or keke right here, or a danfo from the nearest bus stop ----
+  const roadSpot = (p, r = 1e9) => { let best = null, bd = r * r; for (const s of world.spots) { const d = (s.x - p.x) ** 2 + (s.z - p.z) ** 2; if (d < bd) { bd = d; best = s; } } return best; };
+  const pseudoStop = (s, name) => s && { name, x: s.x, z: s.z, nx: s.nx, nz: s.nz };
+  T.nearestStop = (p) => stops.slice().sort((a, b) => ((a.x - p.x) ** 2 + (a.z - p.z) ** 2) - ((b.x - p.x) ** 2 + (b.z - p.z) ** 2))[0];
+  // what each way of getting to `dest` costs right now (or why it's not possible)
+  T.quote = (dest) => {
+    const pp = player.pos, d = Math.round(Math.hypot(dest.x - pp.x, dest.z - pp.z));
+    const why = player.cuffed ? 'Nobody will carry a boy in handcuffs.' : game.heat > 0 ? 'Police are after you: no driver will stop.' : L.inside ? 'Go outside first.' : null;
+    const here = roadSpot(pp, 30), there = roadSpot(dest, 60);
+    const out: any = { dist: d, walk: { secs: Math.round(d / 4.5) }, skate: { secs: Math.round(d / 9) } };
+    for (const m of ['okada', 'keke']) out[m] = why ? { no: why } : !here ? { no: 'Get to a road first.' } : !there ? { no: 'No road goes there.' } : { fare: T.fare(here, there, m), secs: Math.round(d / (m === 'okada' ? 12 : 7.5)) };
+    const bs = T.nearestStop(pp), bd = bs ? Math.round(Math.hypot(bs.x - pp.x, bs.z - pp.z)) : 0;
+    out.danfo = why ? { no: why } : !bs || !there ? { no: 'No danfo goes there.' } : { fare: T.fare(bs, there, 'danfo'), secs: Math.round(d / 10), stop: bs, stopDist: bd };
+    return out;
+  };
+  T.trip = (dest, mode) => {
+    const q = T.quote(dest)[mode]; if (!q || q.no) { if (q?.no) hud.toast(q.no, 'red'); return false; }
+    const to = pseudoStop(roadSpot(dest, 60), dest.name || 'There');
+    if (mode === 'danfo') {
+      if (q.stopDist > 6) { game.pendingTrip = { dest: to }; game.setWaypoint({ x: q.stop.x, z: q.stop.z, title: `${q.stop.name} bus stop · danfo to ${to.name}` }); return true; }
+      return T.board(q.stop, to, 'danfo');
+    }
+    return T.board(pseudoStop(roadSpot(player.pos, 30), 'Here'), to, mode);
+  };
+  // reached the bus stop picked on the map: the danfo is waiting
+  T.checkPending = () => { const p = game.pendingTrip; if (!p || T.ride) return; const s = T.stopNear(player.pos); if (s && T.board(s, p.dest, 'danfo')) { game.pendingTrip = null; game.setWaypoint(null); } };
   T.hurry = (input) => !!(T.ride && input.held.jump);
   return T;
 }

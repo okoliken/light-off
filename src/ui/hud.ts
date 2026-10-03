@@ -257,15 +257,43 @@ export function createHUD(root, world) {
   }
 
   // ---- the big map (M): pan, zoom, legend, click to set a waypoint ----
-  const LEGEND: any[] = [['#ffffff', 'Home'], ['#ffd54f', 'Story / Look'], ['#ff3d3d', 'Trouble happening now'], ['#ff9100', 'Red Cap levy point'], ['#1e88e5', 'Police checkpoint'], ['#e53935', 'Police car'],
+  const LEGEND: any[] = [['#ffffff', 'Home'], ['#ff3d3d', 'Trouble happening now'], ['#ff9100', 'Red Cap levy point'], ['#1e88e5', 'Police checkpoint'], ['#e53935', 'Police car'],
     ['#69f0ae', 'Runs & escapes'], ['#80deea', 'Errand / job / waypoint'], ['#43a047', 'Return goods here'], ['#fbc02d', 'Bus stop'], ['#ffab40', 'Food'], ['#b39ddb', 'News'], ['#42a5f5', 'Skate challenge']];
   H.openMap = (game, onClose) => {
     const wrap = document.createElement('div'); wrap.className = 'bigmap overlay';
     wrap.innerHTML = `<canvas></canvas><div class="bm-head"><b>LAGOS</b><span>Surulere · Third Mainland · Lagos Island</span></div>
       <div class="bm-legend">${LEGEND.map(([c, l]) => `<div><i style="background:${c}"></i>${l}</div>`).join('')}</div>
-      <div class="bm-hint">DRAG · MOVE &nbsp; SCROLL · ZOOM &nbsp; CLICK · SET WAYPOINT &nbsp; RIGHT-CLICK · CLEAR &nbsp; M / ESC · CLOSE</div>`;
+      <div class="bm-side"><input class="bm-search" placeholder="Where to? (search places)"><div class="bm-pick"></div><div class="bm-list"></div></div>
+      <div class="bm-hint">DRAG · MOVE &nbsp; SCROLL / PINCH · ZOOM &nbsp; TAP · PICK A PLACE &nbsp; M / ESC · CLOSE</div>`;
     el.overlays.appendChild(wrap);
     const cv = wrap.querySelector('canvas'), cx2 = cv.getContext('2d');
+    // ---- places: search, pick one, choose how to get there ----
+    const places = game.places(), P0 = game.player.pos;
+    const dist = (q) => Math.round(Math.hypot(q.x - P0.x, q.z - P0.z));
+    const ICON: any = { home: '🏠', place: '📍', shop: '🛍', bus: '🚌', food: '🍲', spot: '✚' };
+    const mins = (s) => s < 60 ? `${s}s` : `${Math.round(s / 60)} min`;
+    const listEl = wrap.querySelector('.bm-list'), pickEl = wrap.querySelector('.bm-pick'), search = wrap.querySelector<HTMLInputElement>('.bm-search');
+    let picked = null;
+    const renderList = () => {
+      const f = search.value.trim().toLowerCase();
+      const L2 = places.filter(q => !f || q.name.toLowerCase().includes(f) || (q.area || '').toLowerCase().includes(f)).sort((a, b) => dist(a) - dist(b)).slice(0, 40);
+      listEl.innerHTML = L2.map((q, i) => `<button class="bm-pl" data-p="${places.indexOf(q)}"><span>${ICON[q.kind] || '📍'}</span><b>${q.name}</b><i>${q.area || ''} · ${dist(q)} m</i></button>`).join('') || '<p class="bm-none">Nothing called that around here.</p>';
+      listEl.querySelectorAll<HTMLElement>('[data-p]').forEach(b => b.onclick = () => pick(places[+b.dataset.p], true));
+    };
+    const pick = (q, centre = false) => {
+      picked = q; if (centre) { v.x = q.x; v.z = q.z; }
+      const Q = game.transport.quote(q);
+      const opt = (m, label, sub, ok, extra = '') => `<button class="bm-go ${ok ? '' : 'off'}" data-go="${m}" ${ok ? '' : 'disabled'}><b>${label}</b><i>${sub}</i>${extra}</button>`;
+      const ride = (m, label) => Q[m].no ? opt(m, label, Q[m].no, false) : opt(m, label, `₦${Q[m].fare} · about ${mins(Q[m].secs)}${m === 'danfo' && Q.danfo.stopDist > 6 ? ` · from ${Q.danfo.stop.name} stop (${Q.danfo.stopDist} m)` : ''}`, true);
+      pickEl.innerHTML = `<div class="bm-card"><div class="bm-ct"><span>${ICON[q.kind] || '📍'}</span><div><b>${q.name}</b><i>${q.area || ''} · ${Q.dist} m away</i></div><button class="bm-x" data-x>✕</button></div>
+        <div class="bm-how">HOW DO YOU WANT TO GET THERE?</div>
+        ${opt('skate', 'Skate / walk', `Free · about ${mins(Q.skate.secs)} on the board · follow the trail`, true)}
+        ${ride('okada', 'Okada')}${ride('keke', 'Keke')}${ride('danfo', 'Danfo')}</div>`;
+      pickEl.querySelector<HTMLElement>('[data-x]').onclick = () => { picked = null; pickEl.innerHTML = ''; };
+      pickEl.querySelectorAll<HTMLElement>('[data-go]').forEach(b => b.onclick = () => { const m = b.dataset.go; close(); game.travel(q, m); });
+    };
+    search.oninput = renderList; search.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') { search.blur(); } if (e.key === 'Enter') { const b = listEl.querySelector<HTMLElement>('[data-p]'); b?.click(); } };
+    renderList();
     const P = game.player.pos, v = { x: P.x, z: P.z, zoom: 1.4 };
     let raf = 0, drag = null, moved = false;
     const resize = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
@@ -281,6 +309,8 @@ export function createHUD(root, world) {
       if (game.nav && game.navRoute?.length) { cx2.beginPath(); cx2.moveTo(P.x, P.z); for (const [x, z] of game.navRoute) cx2.lineTo(x, z); cx2.strokeStyle = '#' + new THREE.Color(game.nav.color).getHexString(); cx2.lineWidth = 4 / v.zoom; cx2.lineJoin = 'round'; cx2.stroke(); }
       for (const m of game.mapMarkers) dot(m.x, m.z, 6, m.color);
       for (const q of game.traffic.vehicles) if (q.kind === 'police') dot(q.pos.x, q.pos.z, 5, q.police.siren && Math.floor(performance.now() / 160) % 2 ? '#3d7bff' : '#e53935', '#fff');
+      if (v.zoom > 0.9) for (const q of places) if (q.kind !== 'food') dot(q.x, q.z, q.kind === 'home' ? 6 : 3.5, q.kind === 'home' ? '#ffffff' : q.kind === 'bus' ? '#fbc02d' : q.kind === 'shop' ? '#ce93d8' : '#b0bec5');
+      if (picked) { dot(picked.x, picked.z, 9 + Math.sin(performance.now() / 200) * 2, 'rgba(255,213,79,0.35)', '#ffd54f'); dot(picked.x, picked.z, 4, '#ffd54f'); if (v.zoom > 0.6) { cx2.fillStyle = '#ffd54f'; cx2.font = `bold ${14 / v.zoom}px Inter, sans-serif`; cx2.textAlign = 'center'; cx2.fillText(picked.name, picked.x, picked.z - 14 / v.zoom); } }
       if (game.waypoint) { const w = game.waypoint; cx2.save(); cx2.translate(w.x, w.z); cx2.rotate(Math.PI / 4); cx2.fillStyle = '#80deea'; const s2 = 9 / v.zoom; cx2.fillRect(-s2, -s2, s2 * 2, s2 * 2); cx2.restore(); }
       // Bolaji: an arrow the way he's facing
       cx2.save(); cx2.translate(P.x, P.z); cx2.rotate(-game.player.yaw + Math.PI); const a = 11 / v.zoom;
@@ -293,11 +323,12 @@ export function createHUD(root, world) {
     raf = requestAnimationFrame(draw);
     cv.onmousedown = (e) => { drag = { x: e.clientX, y: e.clientY, vx: v.x, vz: v.z }; moved = false; };
     const onMove = (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; v.x = drag.vx - dx / v.zoom; v.z = drag.vz - dy / v.zoom; };
-    const onUp = (e) => { if (drag && !moved && e.button === 0) { const w = toWorld(e.clientX, e.clientY); game.setWaypoint({ x: w.x, z: w.z, title: 'Waypoint' }); } drag = null; };
+    const onUp = (e) => { if (drag && !moved && e.button === 0) { const w = toWorld(e.clientX, e.clientY), r = 18 / v.zoom; const near = places.filter(q => Math.hypot(q.x - w.x, q.z - w.z) < r).sort((a, b) => Math.hypot(a.x - w.x, a.z - w.z) - Math.hypot(b.x - w.x, b.z - w.z))[0]; pick(near || { name: 'This spot', x: w.x, z: w.z, kind: 'spot', area: game.world.areaAt(w.x, w.z) }); } drag = null; };
     cv.oncontextmenu = (e) => { e.preventDefault(); game.setWaypoint(null); };
     cv.onwheel = (e) => { e.preventDefault(); const before = toWorld(e.clientX, e.clientY); v.zoom = Math.max(0.35, Math.min(6, v.zoom * (e.deltaY < 0 ? 1.15 : 0.87))); const after = toWorld(e.clientX, e.clientY); v.x += before.x - after.x; v.z += before.z - after.z; };
     const close = () => { cancelAnimationFrame(raf); removeEventListener('mousemove', onMove); removeEventListener('mouseup', onUp); document.removeEventListener('keydown', onKey, true); removeEventListener('resize', resize); wrap.remove(); onClose?.(); };
     const onKey = (e) => {
+      if (e.target === search) return;
       const step = 40 / v.zoom;
       if (e.code === 'KeyM' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } // don't let the same key reopen it
       else if (e.code === 'KeyW' || e.code === 'ArrowUp') v.z -= step; else if (e.code === 'KeyS' || e.code === 'ArrowDown') v.z += step;

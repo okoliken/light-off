@@ -865,6 +865,7 @@ export function createGame(ctx) {
     game.prompt = prompt;
     if (game.arrest) { updateArrest(dt, input); input.pressed = {}; }
     else if (player.mode === 'ride') { TR.update(dt, input); input.pressed = {}; }
+    else if (game.pendingTrip && player.mode === 'foot') TR.checkPending();
     if (game.respawnT <= 0 && player.mode !== 'down') {
       if ((input.pressed.fire && player.aiming) || input.pressed.throw) { if (!L.inside) doThrow(dir); }
       else if (input.pressed.act && ['foot', 'board'].includes(player.mode) && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) {
@@ -1167,6 +1168,17 @@ export function createGame(ctx) {
     return out.sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || a.dist - b.dist);
   };
   game.waypoint = null;
+  // every named place he knows, for the map's place list
+  game.places = () => {
+    const out: any[] = [{ name: 'Home (Aguda)', x: world.homeDoor.x, z: world.homeDoor.z, kind: 'home' }];
+    for (const q of Object.values(DAY.pois as Record<string, any>)) out.push({ name: q.name, x: q.x, z: q.z, kind: 'place' });
+    for (const s of world.shops || []) out.push({ name: s.name, x: s.x, z: s.z, kind: 'shop' });
+    for (const s of TR.stops) out.push({ name: s.name + ' bus stop', x: s.x, z: s.z, kind: 'bus' });
+    const seen = new Set(); for (const v of world.vendors) { if (seen.has(v.label)) continue; seen.add(v.label); out.push({ name: v.label, x: v.x, z: v.z, kind: 'food' }); }
+    for (const p of out) p.area = world.areaAt(p.x, p.z);
+    return out;
+  };
+  game.travel = (place, mode) => mode === 'skate' ? (game.setWaypoint({ x: place.x, z: place.z, title: place.name }), true) : TR.trip(place, mode);
   game.setWaypoint = (e) => { game.waypoint = e ? { x: e.x, z: e.z, label: e.title } : null; if (e) hud.notice('WAYPOINT', e.title, 'blue'); };
   game.patrolTracker = () => {
     const b = game.patrolBoard().slice(0, 3), r = game.rank();
