@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { N, LANE, INT, HALF, CELL, roadLine, nearestNode, rng, CURB, I0, I1 } from './layout.ts';
 import { buildTemplate, vehicleMats, SPECS } from './vehicles.ts';
+import { FLY } from './city.ts';
 import { glowTexture } from '../core/textures.ts';
 
 const DIRS: any[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -311,25 +312,48 @@ export function createTraffic(scene, world) {
   }
 
   // ---- the bridge: go-slow traffic looping UNILAG <-> the district ----
-  const LZs = -HALF - 56, LZe = -1215, LA = LZs - LZe, LB = Math.PI * LANE, LOOP = 2 * LA + 2 * LB;
+  // The bridge loop runs down Third Mainland, all the way round Lagos Island (Adeniji Adele, the cross
+  // roads past Idumota and Balogun) and back over the bridge to the mainland: a closed path with rounded
+  // corners, so nobody U-turns in the middle of the bridge any more.
+  const LZs = -HALF - 56, LZe = -1215;
+  const LOOP_PTS: number[][] = [[LANE, LZs], [LANE, -1290 + LANE], [92 - LANE, -1290 + LANE], [92 - LANE, -1371 + LANE], [-92 + LANE, -1371 + LANE], [-92 + LANE, -1290 + LANE], [-LANE, -1290 + LANE], [-LANE, LZs]];
+  const LSEG: any[] = [];
+  {
+    const RAD = 7, n = LOOP_PTS.length, pts: number[][] = [];
+    for (let k = 0; k < n; k++) { // replace every corner with a quarter-ish arc (quadratic curve through the corner)
+      const P = LOOP_PTS[(k - 1 + n) % n], Q = LOOP_PTS[k], N2 = LOOP_PTS[(k + 1) % n];
+      const d1 = Math.hypot(Q[0] - P[0], Q[1] - P[1]), d2 = Math.hypot(N2[0] - Q[0], N2[1] - Q[1]), r = Math.min(RAD, d1 / 2.2, d2 / 2.2);
+      const a = [Q[0] + (P[0] - Q[0]) * r / d1, Q[1] + (P[1] - Q[1]) * r / d1], c = [Q[0] + (N2[0] - Q[0]) * r / d2, Q[1] + (N2[1] - Q[1]) * r / d2];
+      for (let t = 0; t <= 1.001; t += 1 / 6) pts.push([(1 - t) ** 2 * a[0] + 2 * (1 - t) * t * Q[0] + t * t * c[0], (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * Q[1] + t * t * c[1]]);
+    }
+    let acc = 0;
+    for (let k = 0; k < pts.length; k++) { const A = pts[k], B2 = pts[(k + 1) % pts.length], L = Math.hypot(B2[0] - A[0], B2[1] - A[1]); if (L < 1e-3) continue; LSEG.push({ A, B: B2, s: acc, L, yaw: Math.atan2(B2[0] - A[0], B2[1] - A[1]) }); acc += L; }
+  }
+  const LOOP = LSEG[LSEG.length - 1].s + LSEG[LSEG.length - 1].L;
   function loopAt(s) {
     s = ((s % LOOP) + LOOP) % LOOP;
-    if (s < LA) return [LANE, LZs - s, Math.PI];
-    s -= LA;
-    if (s < LB) { const t = s / LANE; return [LANE * Math.cos(t), LZe - LANE * Math.sin(t), Math.atan2(-Math.sin(t), -Math.cos(t))]; }
-    s -= LB;
-    if (s < LA) return [-LANE, LZe + s, 0];
-    s -= LA;
-    const t = s / LANE; return [-LANE * Math.cos(t), LZs + LANE * Math.sin(t), Math.atan2(Math.sin(t), Math.cos(t))];
+    let lo = 0, hi = LSEG.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (LSEG[m].s <= s) lo = m; else hi = m - 1; }
+    const g = LSEG[lo], t = (s - g.s) / g.L;
+    return [g.A[0] + (g.B[0] - g.A[0]) * t, g.A[1] + (g.B[1] - g.A[1]) * t, g.yaw];
   }
+  void LZe;
   const LOOPBASE = ['danfo', 'car', 'danfo', 'brt', 'car', 'okada', 'danfo', 'car', 'keke', 'tanker', 'car', 'danfo', 'okada', 'car'];
-  const LOOPMIX = Array.from({ length: 84 }, (_, k) => LOOPBASE[k % LOOPBASE.length]); // Third Mainland is never empty
+  const LOOPMIX = Array.from({ length: 120 }, (_, k) => LOOPBASE[k % LOOPBASE.length]); // Third Mainland is never empty
   LOOPMIX.forEach((type, k) => {
     const v = makeVehicle(type, 'loop');
     v.cruise = (type === 'okada' ? 10 : 7) + R() * 4;
     v.ls = (k / LOOPMIX.length) * LOOP + R() * 10;
     const [x, z, y] = loopAt(v.ls); v.pos.set(x, 0, z); v.yaw = y;
     v.group.rotation.order = 'YXZ';
+  });
+
+  // ---- Ojuelegba flyover: traffic over the top, both ways, all day ----
+  const FZa = -HALF - 40, FZb = HALF + 40, FL = FZb - FZa;
+  const flyAt = (s) => { s = ((s % (2 * FL)) + 2 * FL) % (2 * FL); return s < FL ? [FLY.x + LANE, FZb - s, Math.PI] : [FLY.x - LANE, FZa + (s - FL), 0]; };
+  ['danfo', 'car', 'brt', 'danfo', 'car', 'okada', 'tanker', 'car', 'danfo', 'keke', 'car', 'danfo', 'car', 'okada', 'danfo', 'car', 'brt', 'car'].forEach((type, k, all) => {
+    const v = makeVehicle(type, 'loop'); v.loopFn = flyAt; v.fly = true;
+    v.cruise = (type === 'okada' ? 11 : 8) + R() * 4; v.ls = (k / all.length) * 2 * FL + R() * 6;
+    const [x, z, y] = flyAt(v.ls); v.pos.set(x, FLY.y, z); v.yaw = y; v.group.rotation.order = 'YXZ';
   });
 
   // road route for navigation (the GPS line and the guide arrow)
@@ -433,6 +457,16 @@ export function createTraffic(scene, world) {
             if (v.cpT > b.hold) { v.cp = b; v.cpT = 0; b.stopped = null; b.onPaid?.(v); }
           }
         }
+        // danfos, BRTs and kekes pull in at bus stops: people get off, people squeeze on
+        if (v.kind === 'traffic' && (v.type === 'danfo' || v.type === 'brt' || v.type === 'keke')) {
+          for (const st of world.busStops || []) {
+            if (v.lastStop === st) continue;
+            const rx = st.road.x - v.pos.x, rz = st.road.z - v.pos.z, along = rx * fx + rz * fz;
+            if (along < -2 || along > 16 || Math.abs(rx * fz - rz * fx) > 2.6) continue;
+            gap = Math.min(gap, along + v.spec.len / 2 - 0.5);
+            if (v.speed < 0.6 && along < 3) { v.stopT = (v.stopT || 0) + dt; if (!v.shouted) { v.shouted = true; game.onBusStop?.(v, st); } if (v.stopT > 4.5 + (v.type === 'brt' ? 2 : 0)) { v.lastStop = st; v.stopT = 0; v.shouted = false; } }
+          }
+        }
         // Bolaji standing in the road ahead
         let forPlayer = false;
         if (!player.riding || player.riding !== v) {
@@ -453,7 +487,7 @@ export function createTraffic(scene, world) {
         if (v.honk > 1.2) { v.honk = -3; game.audio?.horn(v.pos); }
         if (v.kind === 'loop') {
           v.ls += v.speed * dt;
-          const [x, z, yaw] = loopAt(v.ls);
+          const [x, z, yaw] = (v.loopFn || loopAt)(v.ls);
           let dy = yaw - v.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
           v.yaw = yaw; v.yawRate = dt > 0 ? dy / dt : 0;
           const half = v.spec.len * 0.4;

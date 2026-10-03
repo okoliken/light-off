@@ -200,6 +200,13 @@ export function createGame(ctx) {
   game.activities = createActivities(game, { spot: findSpot, victim: spawnVictim, thug: spawnThug, giveItem: api.giveItem, gunman: api.gunman });
   const DAY = game.day, TR = game.transport;
   game.chatter = createChatter(game);
+  // a danfo pulls in at a stop near you: the conductor shouts the route, someone squeezes on
+  const ROUTES = ['Ojuelegba! Ojuelegba! Enter with your change!', 'CMS! Obalende! Oya oya!', 'Oshodi-Oke! Oshodi! Last two!', 'Yaba! Sabo! Yaba!', 'Mushin! Idi-Araba! Enter!', 'Stadium! Stadium! One chance!', 'Ikeja along! Ikeja! Shift o!'];
+  game.onBusStop = (v, st) => {
+    const d = Math.hypot(st.x - player.pos.x, st.z - player.pos.z);
+    if (d < 28 && v.type !== 'keke') hud.say(v.type === 'brt' ? 'BRT driver' : 'Conductor', ROUTES[Math.floor(R() * ROUTES.length)], 2.6);
+    if (d < 40) game.crowd?.board?.(st, v);
+  };
 
   // ---------- lookouts following him home ----------
   function spawnTails(n) {

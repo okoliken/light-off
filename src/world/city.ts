@@ -641,6 +641,21 @@ export function buildCity(scene, opt: any = {}) {
       for (const dx of [-4.5, 4.5]) { B.misc.box(1.3, F.y, 1.3, { p: [F.x + dx, F.y / 2, z] }, '#7d786f'); S.add(F.x + dx - 0.65, 0, z - 0.65, F.x + dx + 0.65, F.y, z + 0.65, 'pillar'); }
       B.misc.box(F.half * 2 - 1, 0.8, 1.4, { p: [F.x, F.y - 1, z] }, '#7d786f');
     }
+    // under the bridge: a danfo park and hawkers, Ojuelegba's busiest corner
+    for (let z = -HALF + 8; z < HALF - 8; z += 7.5) {
+      if (isRoad(F.x, z) || isRoad(F.x, z + 4) || isRoad(F.x, z - 4)) continue;
+      const bj = Math.floor((z + HALF) / CELL); if (blockType(4, bj) === 'pitch') continue;
+      if (R() < 0.6) world.parked.push({ type: 'danfo', x: F.x - 1.6, z, yaw: R() < 0.5 ? 0 : Math.PI });
+      if (R() < 0.7) {
+        const hx = F.x + 2.5;
+        B.misc.box(1.6, 0.8, 0.9, { p: [hx, CURB + 0.4, z] }, pick(['#6d4c41', '#8d6e63', '#5d4037']));
+        B.misc.box(1.4, 0.2, 0.8, { p: [hx, CURB + 0.9, z] }, pick(['#e53935', '#fdd835', '#43a047', '#1e88e5', '#fb8c00', '#f5f5f5']));
+        B.misc.cyl(1.1, 0.05, 0.3, { p: [hx, CURB + 2.6, z] }, pick(['#e53935', '#1e88e5', '#fdd835', '#43a047']), 10);
+        B.misc.cyl(0.03, 0.03, 1.9, { p: [hx, CURB + 1.6, z] }, '#bbb', 4);
+        S.add(hx - 0.8, 0, z - 0.45, hx + 0.8, CURB + 1.0, z + 0.45, 'stall');
+      }
+      for (let k = 0; k < 3; k++) (world.districtHangouts ||= []).push({ x: F.x + 1 + R() * 2.2, z: z + (R() - 0.5) * 5 });
+    }
     // stair ramp up from the ground on the east side
     B.misc.add(wedge, { p: [x1 + 1.6, CURB, RZ], ry: -Math.PI / 2, s: [RL, F.y - CURB, 3.2] }, '#6f6a62');
     col.ramps.push({ x0: x1, x1: x1 + 3.2, z0: RZ, z1: RZ + RL, axis: 'z', sign: 1, h: F.y - CURB, base: CURB });
