@@ -19,6 +19,7 @@ import { nightReport } from './game/nightreport.ts';
 import { createCinema } from './game/cinema.ts';
 import { loadSettings, saveSettings, preset, PRESETS } from './game/settings.ts';
 import { createTouchPad, isTouchDevice } from './player/touch.ts';
+import { createTutorial } from './game/tutorial.ts';
 
 const touchDevice = isTouchDevice();
 const settings = loadSettings();
@@ -84,15 +85,15 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); game.restoreSnap(saved.snap); }
   else { game.clearSave(); game.startDay(); }
   state = 'play'; input.lock();
-  let seen = false; try { seen = !!localStorage.getItem('light-off-seen-controls'); localStorage.setItem('light-off-seen-controls', '1'); } catch { /* */ }
-  if (!seen && !touch) showControls(true);
+  if (!tutorial.done()) setTimeout(() => tutorial.start(), 1200); // first time: learn by doing
   if (game.pendingResume) { const id = game.pendingResume; game.pendingResume = null; setTimeout(() => game.story.resumePending(id), 800); }
   else if (game.interrupted) { hud.notice('MISSION INTERRUPTED', `"${game.interrupted}" was cut short. Start it again from your door tonight.`, 'blue'); game.interrupted = null; }
 }, { quality: settings.quality, presets: PRESETS, patrol: patrolSaved ? { night: patrolSaved.night, phase: patrolSaved.phase, respect: patrolSaved.respect } : null });
 
 function showControls(first = false) { openMenu(done => hud.controlsCard(done, first)); }
-hud.onHelpBar((k) => { if (state !== 'play') return; if (k === 'pause') { document.exitPointerLock?.(); pause(); } else if (k === 'controls') showControls(); else { state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); } });
+hud.onHelpBar((k) => { if (state !== 'play') return; if (k === 'pause') { document.exitPointerLock?.(); pause(); } else if (k === 'controls') showControls(); else { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); } });
 document.addEventListener('pointerlockchange', () => document.body.classList.toggle('locked', !!document.pointerLockElement));
+const tutorial = createTutorial(hudRoot, { game, player, camera, input, touch });
 // menus opened from inside the game pause it
 function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(() => { state = 'play'; input.lock(); }); }
 game.onRideMenu = (stop) => openMenu(done => hud.rideMenu(stop, game.transport.options(stop), (to, mode) => { done(); game.transport.board(stop, to, mode); }, done));
@@ -131,13 +132,13 @@ document.addEventListener('pointerlockchange', () => {
   if (!document.pointerLockElement && state === 'play' && !input.usingPad && !hudRoot.querySelector('.overlay')) pause();
 });
 function pause(openBoard = false) {
-  state = 'paused';
+  state = 'paused'; tutorial.event('pause');
   game.save(); // pausing is a save point
   hud.setHudVisible(false);
   const S = game.story, list = S.missions.map((m, i) => ({ title: m.title, done: i < S.progress(), current: i === S.progress(), unlocked: i < S.unlocked }));
   const resume = () => { state = 'play'; hud.setHudVisible(true); input.lock(); audio.start(); };
   hud.pause(resume, list, (i) => { resume(); game.jumpToMission(i); }, { quality: settings.quality, presets: PRESETS, onQuality: applyQuality,
-    mode: game.mode, board: () => game.patrolBoard(), onWaypoint: (e) => { game.setWaypoint(e); resume(); }, openBoard, rank: game.rank() });
+    mode: game.mode, tutorial: { active: tutorial.active, skip: () => { tutorial.stop(); resume(); }, replay: () => { resume(); tutorial.start(); } }, board: () => game.patrolBoard(), onWaypoint: (e) => { game.setWaypoint(e); resume(); }, openBoard, rank: game.rank() });
 }
 canvas.addEventListener('click', () => { if (state === 'play' && !document.pointerLockElement) input.lock(); });
 
@@ -172,9 +173,10 @@ function frame() {
   const inp = input.poll();
   if (state === 'play') {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
-    if (inp.pressed.map) { state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
+    if (inp.pressed.map) { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.help) showControls();
     game.update(dt, inp);
+    tutorial.update(dt, inp);
     camera.update(dt, inp, player);
     nav.update(dt, game, game.time);
   } else if (state === 'scene') {
@@ -206,4 +208,4 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && (st
 
 // debug hooks (used by the automated smoke test)
 import('./game/thugs.js').then(m => { window.__ThugClass = m.Thug; });
-window.__game = { game, player, traffic, world, camera, input, fx, nav, hud, state: () => state, start: () => hudRoot.querySelector<HTMLElement>('[data-start]')?.click() };
+window.__game = { game, player, traffic, world, camera, input, fx, nav, hud, tutorial, state: () => state, start: () => hudRoot.querySelector<HTMLElement>('[data-start]')?.click() };
