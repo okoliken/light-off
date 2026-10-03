@@ -37,9 +37,9 @@ export function createFerry(game) {
 
   // the boat: a covered fibreglass ferry with passengers already sitting
   const boat = new THREE.Group();
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 11), m('#f5f5f5')); hull.position.y = 0.1; boat.add(hull);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3, 4), m('#f5f5f5')); nose.rotation.x = Math.PI / 2; nose.rotation.y = Math.PI / 4; nose.scale.set(1, 1, 0.5); nose.position.set(0, 0.1, 6.6); boat.add(nose);
-  const band = new THREE.Mesh(new THREE.BoxGeometry(3.25, 0.25, 11.05), m('#1565c0')); band.position.y = 0.35; boat.add(band);
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 11), m('#0e5a6e', { roughness: 0.9, metalness: 0 })); hull.position.y = 0.1; boat.add(hull);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3, 4), m('#0e5a6e', { roughness: 0.9, metalness: 0 })); nose.rotation.x = Math.PI / 2; nose.rotation.y = Math.PI / 4; nose.scale.set(1, 1, 0.5); nose.position.set(0, 0.1, 6.6); boat.add(nose);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(3.25, 0.25, 11.05), m('#f9a825', { roughness: 0.85 })); band.position.y = 0.35; boat.add(band);
   const canopy = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.1, 7), m('#fdd835')); canopy.position.set(0, 2.3, -0.5); boat.add(canopy);
   for (const dx of [-1.4, 1.4]) for (const dz of [-3.8, 2.8]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.8, 6), m('#9e9e9e')); p.position.set(dx, 1.45, dz); boat.add(p); }
   for (let r = 0; r < 4; r++) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.1, 0.45), m('#1565c0')); s.position.set(0, 0.75, -3 + r * 1.6); boat.add(s); }

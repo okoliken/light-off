@@ -1338,7 +1338,7 @@ export function createGame(ctx) {
     for (const s of world.shops || []) out.push({ name: s.name, x: s.x, z: s.z, kind: 'shop' });
     for (const s of TR.stops) out.push({ name: s.name + ' bus stop', x: s.x, z: s.z, kind: 'bus' });
     for (const j of game.ferry.jetties) out.push({ name: j.name + ' (ferry)', x: j.x, z: j.z, kind: 'bus' });
-    for (const [n, x, z] of <any[]>[['Idumota Market', -60, -1296], ['Balogun Market', 60, -1296], ['Adeniji Adele Interchange', 0, -1170], ['Lagos Island danfo park', -35, -1222]]) out.push({ name: n, x, z, kind: 'place' });
+    for (const [n, x, z] of <any[]>[['Idumota Market', -60, -1296], ['Balogun Market', 60, -1296], ['Adeniji Adele Interchange', 0, -1170], ['Lagos Island danfo park', -35, -1222], ['Idumota Clock Tower', -18, -1300], ['Tafawa Balewa Square', 138, -1298], ['Obalende Motor Park', 135, -1192], ['Iga Idunganran (Oba\'s Palace)', -131, -1382], ['Cathedral Church of Christ', -19, -1390], ['Lagos City Hall', 27, -1392], ['Tinubu Square', -60, -1328], ['Central Mosque', 40, -1328], ['CMS BRT Terminal', 40, -1209], ['Isale Eko', -130, -1300], ['First Bank, Marina', 41, -1175]]) out.push({ name: n, x, z, kind: 'place' });
     const seen = new Set(); for (const v of world.vendors) { if (seen.has(v.label)) continue; seen.add(v.label); out.push({ name: v.label, x: v.x, z: v.z, kind: 'food' }); }
     for (const p of out) p.area = world.areaAt(p.x, p.z);
     return out;

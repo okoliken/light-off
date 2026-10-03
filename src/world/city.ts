@@ -570,15 +570,104 @@ export function buildCity(scene, opt: any = {}) {
   const ISL_KEEP: any[] = [[-68, -1344, -52, -1326], [26, -1354, 54, -1326], [22, -1218, 58, -1206]]; // Tinubu Square, the mosque, the BRT terminal
   const inRoad = (x0, z0, x1, z1) => [...ISL_ROADS, ...ISL_KEEP].some(([a, b, c, d]) => x1 > a - 3 && x0 < c + 3 && z1 > b - 3 && z0 < d + 3);
   const islB: any[] = [];
-  for (let z = C.z0 + 10; z < C.z1 - 26; z += 26) for (let x = C.x0 + 10; x < C.x1 - 10; x += 22) {
-    const w = 15 + R() * 5, d = 17 + R() * 6, x0 = x, z0 = z, x1 = x + w, z1 = z + d;
+  // landmarks get their ground first; the ordinary blocks fill in around them
+  const LM: any = {
+    palace: [-150, -1418, -112, -1384], cathedral: [-30, -1416, -8, -1392], cityhall: [12, -1416, 42, -1394], tbs: [110, -1360, 166, -1300],
+    clock: [-26, -1312, -10, -1302], obalende: [104, -1240, 166, -1196],
+  };
+  for (const r of Object.values(LM) as any[]) ISL_KEEP.push(r);
+  const BRAND: any[] = [['MTN · EVERYWHERE YOU GO', '#ffcc00', '#111'], ['GLO · UNLIMITED', '#2e7d32', '#fff'], ['INDOMIE · MAMA DO GOOD', '#c62828', '#fff'], ['PEAK MILK · IT\'S IN YOU', '#0d47a1', '#fff'],
+    ['FIRST BANK · SINCE 1894', '#0d2b5c', '#f2b705'], ['GTBANK · ORANGE', '#e65100', '#fff'], ['DANGOTE CEMENT', '#b71c1c', '#fff'], ['OPAY · SEND MONEY', '#1db954', '#fff'], ['MILO · ENERGY', '#1b5e20', '#ffeb3b'],
+    ['EKO O NI BAJE · LASG', '#004d40', '#fff'], ['STAR LAGER · SHINE', '#d32f2f', '#fff'], ['JUMIA · DELIVERED', '#f57c00', '#fff'], ['AIRTEL · DATA', '#e40000', '#fff'], ['DSTV · DON\'T MISS', '#1565c0', '#fff']];
+  const PASTEL = ['#d9a6a0', '#a8c5a0', '#e6d2a0', '#9fbfd6', '#d6b0d9', '#e8c39e', '#f2e2b8', '#b9d4c4'];
+  let brandI = 0;
+  for (let z = C.z0 + 10; z < C.z1 - 26; z += 24) for (let x = C.x0 + 8; x < C.x1 - 8; x += 20) {
+    const isale = x < -92, marina = z > -1250, east = x > 96;
+    const w = (isale ? 9 : 14) + R() * 5, d = (isale ? 10 : 16) + R() * 5, x0 = x, z0 = z, x1 = x + w, z1 = z + d;
     if (inRoad(x0, z0, x1, z1) || (Math.abs(x0 + w / 2) < 24 && z1 > -1215)) continue; // keep the landing open
-    const tower = x0 > 30 && R() < 0.3, fl = tower ? 9 + Math.floor(R() * 10) : 3 + Math.floor(R() * 4);
-    addBuilding(x0, z0, x1, z1, fl, pick(PAINT), R() < 0.4, [0, 1], false);
+    if (isale) { // Isale Eko: old two- and three-storey family houses, pastel paint, tight together, with a second one squeezed beside
+      for (const [ax, aw] of <any[]>[[x0, w / 2 - 0.4], [x0 + w / 2 + 0.4, w / 2 - 0.4]]) { addBuilding(ax, z0, ax + aw, z1, 2 + Math.floor(R() * 2), pick(PASTEL), R() < 0.5, [0, 1], false); world.mapRects.push({ x0: ax, z0, x1: ax + aw, z1, color: '#3a3e4a' }); islB.push({ x0: ax, z0, x1: ax + aw, z1 }); }
+      continue;
+    }
+    const tower = (marina && R() < 0.75) || (east && R() < 0.4) || R() < 0.15;
+    const fl = tower ? 10 + Math.floor(R() * 14) : 3 + Math.floor(R() * 4);
+    addBuilding(x0, z0, x1, z1, fl, tower ? pick(['#8fa3b8', '#b0bec5', '#cfd8dc', '#90a4ae', '#a7b8c9']) : pick(PAINT), R() < 0.5, [0, 1], false);
     world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' }); islB.push({ x0, z0, x1, z1 });
+    // a billboard on the roof, facing the road
+    if (tower || R() < 0.45) { const [t, bg, fg] = BRAND[brandI++ % BRAND.length], y = CURB + fl * 3.2 + 3.2; sign3(t, bg, fg, Math.min(12, w - 1), 2.6, (x0 + x1) / 2, y, z1 + 0.05, 0); B.metal.box(0.2, 3, 0.2, { p: [(x0 + x1) / 2, y - 1.6, z1 - 0.4] }, '#555'); }
+    // ground-floor shop signs
+    if (!tower && R() < 0.6) sign3(pick(['PROVISIONS · WHOLESALE', 'PHONE & ACCESSORIES', 'GOLD & JEWELLERY', 'FABRICS · ANKARA · LACE', 'CHEMIST', 'BUREAU DE CHANGE', 'SHOES & BAGS', 'ELECTRONICS · ORIGINAL']), pick(['#b71c1c', '#0d47a1', '#1b5e20', '#4a148c', '#e65100']), '#fff', Math.min(7, w - 1), 0.9, (x0 + x1) / 2, CURB + 3.4, z1 + 0.06, 0);
   }
+  world.island = { hangouts: [], blocks: islB };
+  // Broad Street / Marina: a run of bank towers along the lagoon front
+  for (const [i, [n, bg]] of (<any[]>[['FIRST BANK', '#0d2b5c'], ['UNION BANK', '#00a3e0'], ['ACCESS BANK', '#f47920']]).entries()) {
+    const x0 = 30 + i * 36, z0 = -1196, x1 = x0 + 22, z1 = z0 + 20;
+    if (inRoad(x0, z0, x1, z1)) continue;
+    addBuilding(x0, z0, x1, z1, 18 + i * 4, '#9fb3c8', false, [0, 1], false); world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' }); islB.push({ x0, z0, x1, z1 });
+    sign3(n, bg, '#ffffff', 14, 2.2, (x0 + x1) / 2, CURB + (18 + i * 4) * 3.2 - 3, z1 + 0.06, 0);
+    sign3(n, bg, '#ffffff', 10, 1.4, (x0 + x1) / 2, CURB + 4.2, z1 + 0.06, 0);
+  }
+  { // Iga Idunganran, the Oba's palace: red-brick walls, a low gate, a compound
+    const [x0, z0, x1, z1] = LM.palace;
+    for (const [a, b2, c, d] of <any[]>[[x0, z0, x1, z0 + 1], [x0, z1 - 1, x1, z1], [x0, z0, x0 + 1, z1], [x1 - 1, z0, x1, z1]]) { B.misc.box(c - a, 3, d - b2, { p: [(a + c) / 2, 1.5, (b2 + d) / 2] }, '#8d3b2e'); S.add(a, 0, b2, c, 3, d, 'wall'); }
+    addBuilding(x0 + 8, z0 + 6, x1 - 8, z1 - 12, 2, '#b85c3c', false, [0, 1], false);
+    sign3('IGA IDUNGANRAN · PALACE OF THE OBA OF LAGOS', '#4e1d12', '#ffd54f', 14, 1.5, (x0 + x1) / 2, 4, z1 + 0.1, 0);
+    world.mapRects.push({ x0, z0, x1, z1, color: '#5a2c22' });
+  }
+  { // Cathedral Church of Christ, Marina: a long nave and a tall spire
+    const [x0, z0, x1, z1] = LM.cathedral;
+    addBuilding(x0, z0 + 4, x1, z1, 4, '#d8cfc0', false, [0, 1], false);
+    B.misc.box(6, 26, 6, { p: [(x0 + x1) / 2, 13, z1 - 3] }, '#d8cfc0'); B.misc.add(new THREE.ConeGeometry(4.2, 10, 4), { p: [(x0 + x1) / 2, 31, z1 - 3], ry: Math.PI / 4 }, '#6d6a64');
+    S.add((x0 + x1) / 2 - 3, 0, z1 - 6, (x0 + x1) / 2 + 3, 26, z1, 'tower');
+    sign3('CATHEDRAL CHURCH OF CHRIST', '#3e2723', '#fff', 10, 1.2, (x0 + x1) / 2, 4, z1 + 0.1, 0);
+    world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' });
+  }
+  { // City Hall
+    const [x0, z0, x1, z1] = LM.cityhall;
+    addBuilding(x0, z0, x1, z1, 5, '#e8e2d4', false, [0, 1], false);
+    for (let k = 0; k < 6; k++) B.misc.cyl(0.5, 0.5, 6, { p: [x0 + 3 + k * 4.8, CURB + 3, z1 + 1.2] }, '#f2efe8', 10);
+    sign3('LAGOS CITY HALL', '#004d40', '#fff', 10, 1.2, (x0 + x1) / 2, 7.2, z1 + 1.9, 0);
+    world.mapRects.push({ x0, z0, x1, z1, color: '#3a3e4a' });
+  }
+  { // Tafawa Balewa Square: a huge open square, the white horses over the gate, the grandstand
+    const [x0, z0, x1, z1] = LM.tbs, cx = (x0 + x1) / 2;
+    G.walk.flat(x0, z0, x1, z1, 0.02, color('#8f8a80'), 10);
+    for (const dx of [-6, -2, 2, 6]) { B.misc.box(2.6, 1.6, 0.9, { p: [cx + dx, 4.4, z1 + 1] }, '#f5f5f5'); B.misc.box(0.8, 1.2, 0.6, { p: [cx + dx + 1.2, 5.6, z1 + 1] }, '#f5f5f5'); for (const lx of [-0.9, 0.9]) B.misc.box(0.25, 1.4, 0.25, { p: [cx + dx + lx, 2.9, z1 + 1] }, '#f5f5f5'); }
+    B.misc.box(18, 2.2, 1.6, { p: [cx, 1.1, z1 + 1] }, '#cfc8bb'); S.add(cx - 9, 0, z1 + 0.2, cx + 9, 2.2, z1 + 1.8, 'gate');
+    B.misc.box(x1 - x0 - 8, 5, 6, { p: [cx, 2.5, z0 + 4] }, '#bdb6a8'); S.add(x0 + 4, 0, z0 + 1, x1 - 4, 5, z0 + 7, 'stand');
+    sign3('TAFAWA BALEWA SQUARE', '#1b5e20', '#fff', 10, 1.2, cx, 3, z1 + 1.85, 0);
+    world.mapRects.push({ x0, z0, x1, z1, color: '#4a4740' });
+  }
+  { // Idumota: the clock tower in the middle of the market crush
+    const [x0, z0, x1, z1] = LM.clock, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    B.misc.box(3, 14, 3, { p: [cx, 7, cz] }, '#cfc8bb'); S.add(cx - 1.5, 0, cz - 1.5, cx + 1.5, 14, cz + 1.5, 'tower');
+    for (const [dx, dz, ry] of <any[]>[[0, 1.52, 0], [0, -1.52, Math.PI], [1.52, 0, Math.PI / 2], [-1.52, 0, -Math.PI / 2]]) { const m = new THREE.Mesh(new THREE.CircleGeometry(1.1, 20), new THREE.MeshStandardMaterial({ color: '#fffde7', emissive: '#fff59d', emissiveIntensity: 0.4 })); m.position.set(cx + dx, 12, cz + dz); m.rotation.y = ry; world.extraMeshes.push(m); }
+    B.misc.add(new THREE.ConeGeometry(2.4, 3, 4), { p: [cx, 15.5, cz], ry: Math.PI / 4 }, '#8d3b2e');
+    // an Eyo masquerade statue: all white, the wide agbada and the hat
+    B.misc.cyl(0.9, 1.4, 2.6, { p: [cx + 5, 1.3, cz] }, '#fafafa', 12); B.misc.cyl(0.6, 0.6, 0.15, { p: [cx + 5, 2.8, cz] }, '#fafafa', 12); B.misc.cyl(0.2, 0.35, 0.9, { p: [cx + 5, 3.3, cz] }, '#c62828', 10);
+    sign3('IDUMOTA', '#b71c1c', '#fff59d', 5, 0.9, cx, 9, cz + 1.53, 0);
+    world.mapRects.push({ x0, z0, x1, z1, color: '#6b5328' });
+  }
+  { // Obalende motor park: danfos lined up, conductors, everybody shouting
+    const [x0, z0, x1, z1] = LM.obalende;
+    G.walk.flat(x0, z0, x1, z1, 0.02, color('#5a554c'), 8);
+    for (let k = 0; k < 8; k++) world.parked.push({ type: k % 4 === 3 ? 'brt' : 'danfo', x: x0 + 6 + k * 7.2, z: z0 + 12, yaw: 0 });
+    sign3('OBALENDE MOTOR PARK', '#f9a825', '#111', 10, 1.4, (x0 + x1) / 2, 4, z1 + 0.1, 0);
+    world.mapRects.push({ x0, z0, x1, z1, color: '#4d3b26' });
+  }
+  // Island food: buka, suya, puff-puff, roasted corn, all where people gather
+  for (const [label, bg, food, price, fill, x, z] of <any[]>[['BUKA', '#1565c0', 'Amala & ewedu', 1200, 50, -40, -1279], ['SUYA', '#4e342e', 'Suya', 1000, 40, 70, -1279], ['PUFF-PUFF', '#f9a825', 'Puff-puff', 400, 20, -15, -1363],
+    ['MAMA PUT', '#2e7d32', 'Rice & stew', 1300, 55, 120, -1235], ['BOLI', '#bf360c', 'Boli & groundnut', 500, 25, -120, -1290], ['CORN', '#827717', 'Roasted corn', 300, 15, 60, -1160]]) {
+    B.misc.box(1.4, 0.9, 0.8, { p: [x, 0.45, z] }, '#5d4037'); B.lamp.box(0.9, 0.04, 0.35, { p: [x, 0.92, z] }, '#ffffff');
+    B.metal.cyl(0.03, 0.03, 2.2, { p: [x - 0.6, 1.1, z] }, '#666'); B.misc.add(new THREE.ConeGeometry(1.4, 0.5, 8, 1, true), { p: [x - 0.6, 2.3, z] }, bg);
+    S.add(x - 0.7, 0, z - 0.4, x + 0.7, 0.95, z + 0.4, 'vendor');
+    const st = T.textSign(label, bg, '#fff', 512, 120); const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.33), new THREE.MeshStandardMaterial({ map: st, emissiveMap: st, emissive: 0xffffff, emissiveIntensity: 0.6 }));
+    sm.position.set(x, 0.6, z + 0.42); world.extraMeshes.push(sm);
+    (world.vendors ||= []).push({ x, z: z + 1.3, sx: x, sz: z - 0.9, nx: 0, nz: 1, label, food, price, fill });
+    for (let k = 0; k < 4; k++) world.island.hangouts.push({ x: x + (R() - 0.5) * 4, z: z + 1.5 + R() * 2 });
+  }
+  for (const [x0, z0, x1, z1, n] of <any[]>[[110, -1300, 166, -1290, 14], [104, -1196, 166, -1190, 20], [-30, -1300, 0, -1290, 16], [-30, -1390, 40, -1384, 12], [-150, -1380, -112, -1376, 8]]) for (let k = 0; k < n; k++) world.island.hangouts.push({ x: x0 + R() * (x1 - x0), z: z0 + R() * (z1 - z0) });
   // Idumota-style market along Adeniji Adele Road: stalls, umbrellas, goods
-  world.island = { hangouts: [] };
   for (let x = C.x0 + 14; x < C.x1 - 14; x += 3.4) {
     if (Math.abs(x) < 16 || Math.abs(x + 92) < 5 || Math.abs(x - 92) < 5) continue;
     for (const side of [-1, 1]) {
@@ -826,7 +915,7 @@ export function buildCity(scene, opt: any = {}) {
   }
 
   // ---------- food: suya, akara, mama put, bukka ----------
-  world.vendors = [];
+  world.vendors ||= []; // (the Island already added its own)
   {
     const kinds: any[] = [['SUYA', '#4e342e', 'Suya', 900, 40], ['AKARA', '#f9a825', 'Akara & pap', 500, 25], ['MAMA PUT', '#2e7d32', 'Rice & stew', 1200, 55], ['BUKKA', '#1565c0', 'Amala & ewedu', 1000, 50]];
     const used: any[] = [];
@@ -1125,7 +1214,16 @@ export function buildCity(scene, opt: any = {}) {
   world.roadNamesX = ['Ojuelegba Road', 'Adeniran Ogunsanya Street', 'Stadium Road', 'Bode Thomas Street', 'Akerele Street', 'Ogunlana Drive', 'Aguda Road']; // constant z
   world.roadNamesZ = ['Randle Avenue', 'Lawanson Road', 'Itire Road', 'Western Avenue', 'Adelabu Street', 'Masha Road', 'Eric Moore Road'];   // constant x
   world.areaAt = (x, z) => {
-    if (z < CAMPUS.z1) return Math.abs(z + 1290) < 16 ? 'Idumota, Lagos Island' : 'Adeniji Adele, Lagos Island';
+    if (z < CAMPUS.z1) {
+      if (x < -92) return x < -110 && z < -1376 ? 'Iga Idunganran, Isale Eko' : 'Isale Eko, Lagos Island';
+      if (x > 104 && z > -1250) return 'Obalende, Lagos Island';
+      if (x > 104 && z < -1290 && z > -1365) return 'Tafawa Balewa Square';
+      if (z > -1215) return x > 20 ? 'Marina, Lagos Island' : 'Adeniji Adele, Lagos Island';
+      if (z < -1380) return 'Broad Street, Lagos Island';
+      if (Math.abs(z + 1290) < 16) return x > 20 ? 'Balogun Market, Lagos Island' : 'Idumota, Lagos Island';
+      if (Math.abs(x + 60) < 14 && Math.abs(z + 1336) < 14) return 'Tinubu Square';
+      return x > 0 ? 'Balogun, Lagos Island' : 'Idumota, Lagos Island';
+    }
     if (z < UNI.z1 + 2 && x > UNI.x0 - 4 && z > UNI.z0 - 4) return 'UNILAG, Akoka';
     if (z < -HALF - ROAD / 2 - 6) return 'Third Mainland Bridge';
     if (Math.abs(x - FLY.x) < FLY.clear && Math.abs(z) < HALF + 6) return 'Under Ojuelegba Bridge';

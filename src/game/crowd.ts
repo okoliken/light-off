@@ -73,6 +73,17 @@ export function createCrowd(scene, world, count = 230) {
     peds.push(p);
   }
   for (const k of PARTS) mesh[k].instanceColor.needsUpdate = true;
+  // everywhere people can walk a loop: mainland blocks and the Island's buildings
+  const walkRects: any[] = blocks.map(b => { const r = blockRect(b.bi, b.bj), inset = WALK * 0.5; return { x0: r.x0 + inset, x1: r.x1 - inset, z0: r.z0 + inset, z1: r.z1 - inset }; });
+  for (const b of world.island?.blocks || []) walkRects.push({ x0: b.x0 - 1.6, x1: b.x1 + 1.6, z0: b.z0 - 1.6, z1: b.z1 + 1.6 });
+  // people far behind the camera quietly move to wherever Bolaji is now (so the Island isn't empty)
+  const relocate = (p, cx, cz) => {
+    const near = (o, a, b) => { const d = (o.x - cx) ** 2 + (o.z - cz) ** 2; return d > a * a && d < b * b; };
+    if (p.stand) { const c = hangouts.filter(h => near(h, 70, 150)); if (c.length) { const h = c[Math.floor(Math.random() * c.length)]; p.pos.set(h.x + (Math.random() - 0.5), 0.15, h.z + (Math.random() - 0.5)); return true; } return false; }
+    const c = walkRects.filter(r => near({ x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 }, 70, 155)); if (!c.length) return false;
+    const r = c[Math.floor(Math.random() * c.length)];
+    p.rect = r; p.W = r.x1 - r.x0; p.H = r.z1 - r.z0; p.P = 2 * (p.W + p.H); p.u = Math.random() * p.P; const [x, z] = at(p, p.u); p.pos.set(x, 0.15, z); return true;
+  };
 
   const at = (p, u) => {
     const { rect, W, H } = p; u = ((u % p.P) + p.P) % p.P;
@@ -93,7 +104,9 @@ export function createCrowd(scene, world, count = 230) {
       for (let i = 0; i < peds.length; i++) {
         const p = peds[i];
         if ((night && p.dayOnly) || ((cam.x - p.pos.x) ** 2 + (cam.z - p.pos.z) ** 2 > 170 * 170 && p.pos.lengthSq() > 0)) { // off-screen: keep walking, skip the drawing
-          hide(i); if (!p.stand) { p.u += p.dir * p.speed * dt; const [x, z] = at(p, p.u); p.pos.set(x, 0.15, z); } continue;
+          hide(i); if (!p.stand) { p.u += p.dir * p.speed * dt; const [x, z] = at(p, p.u); p.pos.set(x, 0.15, z); }
+          p.farT = (p.farT || 0) + dt; if (p.farT > 1.5 + (i % 7) * 0.4) { p.farT = 0; if (!(night && p.dayOnly)) relocate(p, cam.x, cam.z); }
+          continue;
         }
         let scared = false;
         for (const d of danger) if ((p.pos.x - d.x) ** 2 + (p.pos.z - d.z) ** 2 < d.r * d.r) { scared = true; break; }
