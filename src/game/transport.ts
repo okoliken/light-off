@@ -59,7 +59,7 @@ export function createTransport(game) {
     if (!v) { hud.toast('No driver is going that way right now.', 'red'); return false; }
     L.wallet -= fare;
     T.ride = { v, to, mode, t: 0, lineT: 1.5 };
-    player.startRide(v, mode === 'okada');
+    player.startRide(v, mode === 'okada'); game.chatter?.startRide(mode === 'okada' ? 'Okada man' : mode === 'keke' ? 'Keke driver' : 'Conductor');
     hud.say(mode === 'okada' ? 'Okada man' : mode === 'keke' ? 'Keke driver' : 'Conductor', mode === 'danfo' ? `${to.name}! ${to.name}! Enter, enter!` : `${to.name}? Oya climb.`, 2.5);
     audio.horn?.(player.pos);
     return true;
@@ -71,12 +71,12 @@ export function createTransport(game) {
     player.endRide(x, z);
     v.ai.done = true; v.kind = 'traffic'; setTimeout(() => traffic.remove(v), 20000); // it drives off into normal traffic
     if (s) { hud.notice(s.name.toUpperCase(), world.areaAt(s.x, s.z), 'white', 1.8); game.addRespect(10); }
-    T.ride = null;
+    T.ride = null; game.chatter?.stopRide();
   };
   T.update = (dt, input) => {
     const r = T.ride; if (!r) return;
     r.t += dt; r.lineT -= dt;
-    if (r.lineT <= 0) { r.lineT = 7 + Math.random() * 6; hud.say(r.mode === 'okada' ? 'Okada man' : r.mode === 'keke' ? 'Keke driver' : 'Conductor', MODES[r.mode].lines[Math.floor(Math.random() * MODES[r.mode].lines.length)], 3); }
+    if (false && r.lineT <= 0) { r.lineT = 7 + Math.random() * 6; hud.say(r.mode === 'okada' ? 'Okada man' : r.mode === 'keke' ? 'Keke driver' : 'Conductor', MODES[r.mode].lines[Math.floor(Math.random() * MODES[r.mode].lines.length)], 3); }
     if (r.v.ai.arrived) T.getOff(true);
     else if (input.pressed.act) T.getOff(false);
   };

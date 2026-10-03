@@ -14,6 +14,7 @@ import { createTransport } from './transport.ts';
 import { createCheckpoints } from './police.ts';
 import { createActivities } from './activities.ts';
 import { createRadio } from './radio.ts';
+import { createChatter } from './chatter.ts';
 import { nightStart } from './nightreport.ts';
 import { OUTFITS, Rig, Pose } from '../player/rig.ts';
 import { textSign } from '../core/textures.ts';
@@ -198,6 +199,7 @@ export function createGame(ctx) {
   game.radio = createRadio(game);
   game.activities = createActivities(game, { spot: findSpot, victim: spawnVictim, thug: spawnThug, giveItem: api.giveItem, gunman: api.gunman });
   const DAY = game.day, TR = game.transport;
+  game.chatter = createChatter(game);
 
   // ---------- lookouts following him home ----------
   function spawnTails(n) {
@@ -1058,6 +1060,7 @@ export function createGame(ctx) {
     updateDaySuit(dt);
     updatePick(dt, input);
     game.activities?.update(sdt);
+    game.chatter.update(dt);
     game.story.update(sdt);
     L.update(sdt);
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
