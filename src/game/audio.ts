@@ -29,9 +29,9 @@ export function createAudio() {
     const white = noiseBuffer(2), brown = noiseBuffer(3, true);
     L.white = white;
     L.city = loop(brown, 'lowpass', 380);
-    L.roll = loop(white, 'bandpass', 700, 0.7);
+    L.roll = loop(brown, 'lowpass', 220, 0.7); // wheels: low rumble, not hiss
     L.grind = loop(white, 'bandpass', 2800, 4);
-    L.wind = loop(white, 'highpass', 900, 0.5);
+    L.wind = loop(brown, 'bandpass', 500, 0.4);
     // generators: a low sawtooth chugging through an LFO-driven gain
     const gen = ctx.createOscillator(); gen.type = 'sawtooth'; gen.frequency.value = 52;
     const genF = ctx.createBiquadFilter(); genF.type = 'lowpass'; genF.frequency.value = 240;
@@ -77,10 +77,12 @@ export function createAudio() {
     const onBoard = p.mode === 'board' && p.onGround, spd = Math.hypot(p.vel.x, p.vel.z);
     set(L.city, 0.05 + 0.1 * game.power);
     set(L.gen, 0.015 + 0.09 * (1 - game.power));
-    set(L.roll, onBoard ? Math.min(0.5, spd / 25) : p.mode === 'skitch' ? 0.35 : 0);
-    L.roll.f.frequency.setTargetAtTime(400 + spd * 45, now(), 0.1);
+    set(L.roll, onBoard ? Math.min(0.3, 0.06 + spd / 45) : p.mode === 'skitch' ? 0.22 : 0, 0.15);
+    L.roll.f.frequency.setTargetAtTime(160 + Math.min(spd, 30) * 8, now(), 0.2);
+    // pavement seams: a soft tick every ~1.8 m of rolling
+    if (onBoard || p.mode === 'skitch') { L.seam = (L.seam || 0) + spd / 60; if (L.seam > 1.8) { L.seam = 0; burst('lowpass', 700 + Math.random() * 200, 0.03, 0.05 + Math.min(0.05, spd / 400)); } }
     set(L.grind, p.mode === 'grind' ? 0.22 : 0, 0.03);
-    set(L.wind, Math.max(0, (spd - 8) / 30) + (p.onGround ? 0 : Math.min(0.15, -p.vel.y / 80)));
+    set(L.wind, Math.min(0.14, Math.max(0, (spd - 12) / 70) + (p.onGround ? 0 : Math.min(0.06, -p.vel.y / 200))), 0.3);
     let sirV = 0;
     for (const v of game.traffic.vehicles) if (v.police?.siren) sirV = Math.max(sirV, vol(v.pos, 140));
     set(L.siren, sirV * 0.1);
