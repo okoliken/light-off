@@ -24,16 +24,17 @@ export function createLife(game) {
     const p = game.player;
     if (L.inside) return;
     L.clock += dt * (L.phase === 'day' ? DAY_RATE : NIGHT_RATE);
+    if (L.phase === 'day' && game.mode === 'patrol' && L.clock >= NIGHT_START) { L.phase = 'night'; L.dawnWarned = true; game.hud.notice(L.timeStr(), 'Night. The suit is in your bag (U to change where nobody sees).', 'blue', 3); }
     if (L.phase === 'day') {
-      if (!L.eveningWarned && L.clock > 18 * 60) { L.eveningWarned = true; game.hud.notice('6:00 PM', 'Mama is back from the market. Go home for dinner.', 'white', 3); }
-      if (!L.lateHome && L.clock > 20 * 60) { L.lateHome = true; L.suspicion = Math.min(100, L.suspicion + 10); game.hud.toast('Mama is asking where you are. <b>Go home.</b>', 'red'); }
+      if (game.mode !== 'patrol' && !L.eveningWarned && L.clock > 18 * 60) { L.eveningWarned = true; game.hud.notice('6:00 PM', 'Mama is back from the market. Go home for dinner.', 'white', 3); }
+      if (game.mode !== 'patrol' && !L.lateHome && L.clock > 20 * 60) { L.lateHome = true; L.suspicion = Math.min(100, L.suspicion + 10); game.hud.toast('Mama is asking where you are. <b>Go home.</b>', 'red'); }
     }
     const spd = Math.hypot(p.vel.x, p.vel.z), fighting = p.mode === 'act' || p.fightingNear;
     L.hunger = Math.max(0, L.hunger - dt * (0.045 + (spd > 7 ? 0.03 : 0) + (fighting ? 0.05 : 0)));
     L.energy = Math.max(0, L.energy - dt * (0.03 + (spd > 7 && p.mode === 'foot' ? 0.06 : 0) + (fighting ? 0.09 : 0) + (p.mode === 'climb' || p.mode === 'wallrun' ? 0.08 : 0)));
     p.eff = L.eff(); p.energy = L.energy;
     if (L.hunger <= 0 && p.hp > 20 && Math.random() < dt * 0.05) { p.hp -= 3; game.hud.toast('You\'re starving. <b>Eat something.</b>', 'red'); }
-    if (L.phase === 'night' && !L.dawnWarned && L.clock > 28 * 60 + 45) { L.dawnWarned = true; game.hud.notice('4:45 AM', 'Mama wakes at 5:30 for the market. Get home.', 'white', 3); }
+    if (L.phase === 'night' && game.mode !== 'patrol' && !L.dawnWarned && L.clock > 28 * 60 + 45) { L.dawnWarned = true; game.hud.notice('4:45 AM', 'Mama wakes at 5:30 for the market. Get home.', 'white', 3); }
     if (L.phase === 'night' && !L.caught && L.clock >= NIGHT_END) { L.caught = true; game.onDawn?.(); }
   };
   L.eat = (fill, label) => { const p = game.player; L.hunger = Math.min(100, L.hunger + fill); p.injury = Math.max(0, p.injury - 4); p.hp = Math.min(p.cap(), p.hp + 8); game.hud.popup(`${label} <b>+${fill}</b>`); game.audio.pickup(); };
@@ -41,7 +42,7 @@ export function createLife(game) {
   L.daylight = () => {
     if (L.phase === 'night') return 0;
     if (L.clock < DUSK) return 1;
-    return Math.max(0.12, 1 - (L.clock - DUSK) / (EVENING - DUSK) * 0.88);
+    return Math.max(game.mode === 'patrol' && L.clock > EVENING + 60 ? 0.04 : 0.12, 1 - (L.clock - DUSK) / (EVENING - DUSK) * 0.88);
   };
   L.label = () => `${L.phase === 'day' ? 'DAY' : 'NIGHT'} ${L.night}`;
   // after dinner, Mama and Tobi fall asleep: night begins

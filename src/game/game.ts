@@ -571,9 +571,9 @@ export function createGame(ctx) {
     game.onSleep?.();
   };
   game.onDawn = () => {
-    if (game.mode === 'patrol') { // patrol never ends: dawn just rolls into the next night
-      L.caught = false; L.clock = 22.5 * 60; L.night++; L.hunger = Math.min(100, L.hunger + 10);
-      hud.notice(`NIGHT ${L.night}`, 'The sky goes grey, then dark again. Surulere never sleeps, and neither do you.', 'blue'); nightStart(game); game.save(); return;
+    if (game.mode === 'patrol') { // free roam: dawn just becomes the next day
+      L.caught = false; L.phase = 'day'; L.clock = 5.5 * 60; L.night++; L.eveningWarned = true; L.lateHome = true;
+      hud.notice('5:30 AM', `Day ${L.night}. The sky goes grey and Lagos wakes up.`, 'white'); applyLights(true); game.save(); return;
     }
     if (L.inside) return;
     hud.notice('5:30 AM', 'Mama is up for the market... and your mat is empty.', 'red', 4);
@@ -987,9 +987,9 @@ export function createGame(ctx) {
     else if (so) hud.objective(so);
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()}</small>`);
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
-    else if (game.mode === 'patrol') hud.objective(`Patrol · Night ${L.night} · <b>${game.rank().name}</b><small>J: PATROL BOARD · N: RADIO · THIRD MAINLAND IS NORTH</small>`);
+    else if (game.mode === 'patrol') hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>M: MAP · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
-    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' && !L.inside ? game.patrolTracker() : game.story.tracker()));
+    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? null : game.story.tracker()));
   };
 
   // ---------- navigation ----------
@@ -1140,15 +1140,17 @@ export function createGame(ctx) {
 
   // ---------- patrol mode: endless free roam, separate from the story ----------
   game.mode = 'story';
-  const RANKS: any[] = [[0, 'Nobody'], [2000, 'Street rumour'], [6000, 'The boy in black'], [15000, "Surulere's protector"], [35000, 'Legend of Lagos']];
+  const RANKS: any[] = [[0, 'Nobody'], [2000, 'Known face'], [6000, 'Street name'], [15000, 'Talk of Surulere'], [35000, 'Lagos legend']];
   game.rank = () => { let r = RANKS[0], next = null; for (const q of RANKS) { if (game.respect >= q[0]) r = q; else { next = q; break; } } return { name: r[1], next: next ? next[1] : null, toNext: next ? next[0] - game.respect : 0 }; };
+  // free roam: the clock just runs, day into night into day. He goes where he likes.
   game.startPatrol = () => {
-    L.toNight(); nightStart(game); setOccupants(true);
-    L.suit = true; player.setOutfit(OUTFITS.bolaji); reattachBag();
+    L.phase = 'day'; L.clock = 10 * 60; setOccupants(false);
+    L.suit = false; L.bag = true; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack();
     game.leaveHome(false);
-    hud.notice('PATROL', `Night ${L.night} · ${game.rank().name} · J for the Patrol Board`, 'blue');
+    hud.notice('LAGOS', 'Go anywhere. <b>M</b> for the map: pick a place and how to get there.', 'white', 4);
     game.save();
   };
+  game.wakeUp = () => { L.inside = true; L.phase = 'day'; L.clock = 8 * 60; L.suit = false; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack(); setOccupants(false); game.leaveHome(false); game.save(); };
   // everything happening right now that he could go and deal with, nearest first
   game.patrolBoard = () => {
     const d = (x, z) => Math.round(Math.hypot(x - player.pos.x, z - player.pos.z));

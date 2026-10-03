@@ -78,7 +78,7 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   state = 'play'; input.lock();
   if (game.pendingResume) { const id = game.pendingResume; game.pendingResume = null; setTimeout(() => game.story.resumePending(id), 800); }
   else if (game.interrupted) { hud.notice('MISSION INTERRUPTED', `"${game.interrupted}" was cut short. Start it again from your door tonight.`, 'blue'); game.interrupted = null; }
-}, { quality: settings.quality, presets: PRESETS, patrol: patrolSaved ? { night: patrolSaved.night, respect: patrolSaved.respect } : null });
+}, { quality: settings.quality, presets: PRESETS, patrol: patrolSaved ? { night: patrolSaved.night, phase: patrolSaved.phase, respect: patrolSaved.respect } : null });
 
 // menus opened from inside the game pause it
 function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(() => { state = 'play'; input.lock(); }); }
@@ -105,7 +105,7 @@ function endNight(ending) {
   state = 'overlay'; document.exitPointerLock?.(); hud.setHudVisible(false);
   hud.nightOver(nightReport(game, ending), () => {
     L.newNight(); hud.setHudVisible(true);
-    if (game.mode === 'patrol') game.startPatrol(); else { game.startDay(); game.save(); }
+    if (game.mode === 'patrol') game.wakeUp(); else { game.startDay(); game.save(); }
     state = 'play'; input.lock();
   });
 }
@@ -159,7 +159,6 @@ function frame() {
   if (state === 'play') {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
     if (inp.pressed.map) { state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
-    if (inp.pressed.patrolBoard && !game.life.inside) { document.exitPointerLock?.(); pause(true); }
     if (inp.pressed.help) hud.help();
     game.update(dt, inp);
     camera.update(dt, inp, player);

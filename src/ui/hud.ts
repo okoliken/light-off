@@ -462,18 +462,13 @@ export function createHUD(root, world) {
     let q = o.quality;
     const start = (fresh) => { M.destroy(); onStart({ quality: q, fresh }); };
     const items: any[] = [];
-    if (save) items.push({ label: 'Continue', sub: `Story · ${save.phase === 'night' ? 'Night' : 'Day'} ${save.night}${save.mission ? ' · ' + save.mission : ''}${save.respect ? ` · ${save.respect.toLocaleString()} respect` : ''}`, attr: 'data-start', action: () => start(false) });
-    items.push({ label: save ? 'New story' : 'Story', sub: save ? 'Start Chapter 1 from the beginning' : 'Chapter 1 · The Red Caps · 10 missions', attr: save ? 'data-new' : 'data-start', action: (m) => {
-      if (!save) return start(true);
-      m.open('START OVER?', '<p class="mm-note big">Your saved game will be erased: missions, respect, money, everything. This can\'t be undone.</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
-        (p) => { p.querySelector('[data-yes]').onclick = () => start(true); p.querySelector('[data-no]').onclick = m.close; });
-    } });
-    items.push({ label: 'Patrol', sub: o.patrol ? `Endless · Night ${o.patrol.night} · ${o.patrol.respect.toLocaleString()} respect` : 'Endless free roam · separate from the story', attr: 'data-patrol', action: (m) => {
-      const go = (fresh) => { M.destroy(); onStart({ quality: q, fresh, mode: 'patrol' }); };
-      m.open('PATROL', `<p class="mm-story">No missions, no ending. Just Surulere at night and everything that goes wrong in it: beatings, robberies, levy collectors, police roger, phone snatchers, rooftop runs.</p>
-        <p class="mm-note big">Press <kbd>J</kbd> in the game for the <b>Patrol Board</b>: everything happening near you, and a waypoint to any of it. Respect raises your street rank. Patrol has its own save and never touches your story.</p>
-        <div class="mm-row">${o.patrol ? '<button class="mm-btn hot" data-nav data-pgo data-default>Continue patrol</button><button class="mm-btn" data-nav data-pnew>New patrol</button>' : '<button class="mm-btn hot" data-nav data-pnew data-default>Start patrolling</button>'}</div>`,
-        (p) => { p.querySelector('[data-pgo]')?.addEventListener('click', () => go(false)); p.querySelector('[data-pnew]').onclick = () => go(true); });
+    // free roam is the whole game for now: no missions, no board, just Lagos
+    const go = (fresh) => { M.destroy(); onStart({ quality: q, fresh, mode: 'patrol' }); };
+    if (o.patrol) items.push({ label: 'Continue', sub: `${o.patrol.phase === 'night' ? 'Night' : 'Day'} ${o.patrol.night}`, attr: 'data-start', action: () => go(false) });
+    items.push({ label: o.patrol ? 'New game' : 'Play', sub: 'Free roam · Surulere, Yaba, Mushin, the bridge', attr: o.patrol ? 'data-new' : 'data-start', action: (m) => {
+      if (!o.patrol) return go(true);
+      m.open('START OVER?', '<p class="mm-note big">Your saved game will be erased: money, items, everything.</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
+        (p) => { p.querySelector('[data-yes]').onclick = () => go(true); p.querySelector('[data-no]').onclick = m.close; });
     } });
     items.push({ label: 'The story', action: (m) => m.open('THE STORY SO FAR', storyPanel()) });
     items.push({ label: 'Controls', action: (m) => m.open('CONTROLS', controlsPanel()) });
@@ -493,7 +488,6 @@ export function createHUD(root, world) {
     };
     const items = [
       { label: 'Resume', attr: 'data-go', action: resume },
-      { label: 'Patrol board', sub: 'What\'s happening near you · J', attr: 'data-board', action: boardPanel },
       opts.mode !== 'patrol' && { label: 'Missions', sub: `${done} of ${missions.length} complete`, attr: 'data-ms', action: (m) => m.open('CHAPTER 1 · MISSIONS',
         `<div class="mm-missions">${missions.map((ms, i) => `<div class="mmr ${ms.done ? 'done' : ms.current ? 'cur' : 'locked'}"><span class="n">${i + 1}</span><span class="t"><b>${ms.current || ms.done ? ms.title : 'Locked'}</b><i>${ms.done ? 'Completed' : ms.current ? (ms.unlocked ? 'Current · ready tonight' : 'Current · listen to the radio for a lead') : 'Finish the current mission first'}</i></span>${ms.done ? `<button class="mm-btn" data-nav data-m="${i}">Replay</button>` : ms.current ? `<button class="mm-btn hot" data-nav data-m="${i}">Play now</button>` : '<span class="lock">LOCKED</span>'}</div>`).join('')}</div>`,
         (p) => p.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { M.destroy(); onJump(+b.dataset.m); })) },
@@ -502,11 +496,11 @@ export function createHUD(root, world) {
       { label: 'Quit to title', sub: 'Progress is saved', action: (m) => m.open('QUIT TO TITLE?', '<p class="mm-note big">Your progress is saved at the last checkpoint (waking up, going home, finishing a mission).</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Quit to title</button><button class="mm-btn" data-nav data-no data-default>Keep playing</button></div>',
         (p) => { p.querySelector('[data-yes]').onclick = () => location.reload(); p.querySelector('[data-no]').onclick = m.close; }) },
     ];
-    const M = menuShell({ kind: 'pause', header: `<div class="mm-logo small"><div class="mm-kicker">LIGHT-OFF${opts.mode === 'patrol' ? ' · PATROL' : ''}</div><h1>PAUSED</h1></div>`, items: items.filter(Boolean) });
+    const M = menuShell({ kind: 'pause', header: `<div class="mm-logo small"><div class="mm-kicker">LIGHT-OFF</div><h1>PAUSED</h1></div>`, items: items.filter(Boolean) });
     M.back = resume;
     if (opts.openBoard) boardPanel(M);
   };
-  H.help = () => { if (el.overlays.innerHTML) return false; H.toast('F strike · C counter/dodge · G launch · V pounce · N radio · J patrol board · Space jump/flip · R board · E skitch · M map', 'blue'); return true; };
+  H.help = () => { if (el.overlays.innerHTML) return false; H.toast('F strike · C counter/dodge · G launch · V pounce · N radio · Space jump/flip · R board · E skitch · M map', 'blue'); return true; };
   H.end = (stats, onContinue) => {
     const S = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
     el.overlays.innerHTML = `<div class="overlay"><div class="card">
