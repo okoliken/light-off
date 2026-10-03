@@ -132,7 +132,7 @@ export function createStory(game, api) {
         { label: 'Get the cash box', text: () => 'Pick up <b>Baba Ade\'s cash box</b>', target: () => api.droppedPos(), check: c => api.carrying('Baba Ade\'s cash box'), enter: c => { c.victim.mood = 'idle'; c.victim.faceTarget = P(); } },
         { label: 'Return it', text: () => 'Give the cash box back to <b>Baba Ade</b>', target: c => c.victim.pos, check: c => c.returned },
         {
-          home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
+          home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
             B('Baba Ade', 'Whoever you are... God will reward you.'),
             B('Baba Ade', 'But hear me. These boys are not afraid of police. Every week their bagman takes an envelope to the checkpoint by Ojuelegba. The police collect from the danfos, and from the Red Caps too.'),
@@ -198,7 +198,7 @@ export function createStory(game, api) {
         },
         { label: 'Lose the police', text: () => '<b>Lose the police</b>', sub: () => 'BREAK LINE OF SIGHT · CLIMB · SKITCH A DANFO', target: () => null, check: () => game.heat === 0, enter: () => { api.addHeat(2, 'Inspector Okafor: "GET HIM! Nobody leaves with that envelope!"'); } },
         {
-          home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
+          home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: () => api.scene([
             'Bolaji opens the envelope under a dead streetlight. Cash, and a list in blue biro.',
             'OKAFOR ₦250,000 · DIVISION ₦100,000 · "UNDER BRIDGE: IYA SADE, MAMA CHIOMA, OGA EMEKA. HOLD TILL MARKET PAYS."',
@@ -240,7 +240,7 @@ export function createStory(game, api) {
         { label: 'Free the traders', text: c => `Free the traders <b>(${c.freed}/3)</b>`, sub: () => 'POUNCE (V) ON THE BOTTLE THROWER · MACHETES (RED "!") CAN\'T BE COUNTERED: DODGE', target: c => c.captives.find(v => v.mood === 'captive')?.pos, check: c => c.freed >= 3 },
         { label: 'Clear the camp', text: c => `Clear out the Red Caps <b>(${alive(c.group)} left)</b>`, target: c => c.group.find(t => t.alive)?.pos, check: c => alive(c.group) === 0 },
         {
-          home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
+          home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
             B('Iya Sade', 'You are the boy in black. God bless your mother.'),
             B('Iya Sade', 'Hear this. Every Thursday night they collect the levy from every market in Surulere and drive it to the Chairman in one car.'),
@@ -322,7 +322,7 @@ export function createStory(game, api) {
           check: c => c.changed },
         { label: 'Return it to the market women', text: () => 'Take the clean money back to <b>the market women</b> at Adelabu', target: c => c.women.pos, check: c => c.returned },
         {
-          home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
+          home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
             B('Market woman', 'Sixty thousand! All of it! Sisters, come and see!'),
             B('Market woman', 'But be careful, my son. This morning a man in Egúngún cloth came asking for YOU. He says Surulere needs a real protector, and it is him.'),
@@ -401,7 +401,7 @@ export function createStory(game, api) {
         },
         { label: 'Free Kayode', text: () => 'Free <b>Kayode</b>', sub: () => 'TAKE THE TYRE OFF HIM · F', target: c => c.kayode.pos, check: c => c.kayode.mood !== 'captive', done: c => { game.scene.remove(c.tyre); for (const v of c.crowd) { v.mood = 'run'; v.runHome?.(v.pos.x + (Math.random() - 0.5) * 60, v.pos.z + 40); } } },
         {
-          home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
+          home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
             B('Kayode', 'I work at Baba Kolade\'s workshop. I didn\'t steal anything, I swear.'),
             B('Kayode', 'Bros... I know where the Red Caps keep their weapons. The old National Stadium. I saw them carry crates of axes and machetes up the stands.'),
@@ -460,7 +460,7 @@ export function createStory(game, api) {
             'Under the last crate, a school notebook. Names, and next to one of them, in red biro: "KOLADE. MECHANIC. FIXES THE BOY IN BLACK\'S BOARD."',
             B('Bolaji', 'They know about Baba Kolade.'),
           ], c.stash, null, 'THE NOTEBOOK') },
-        { home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home, enter: c => api.tails(c.alarm ? c.tails + 1 : c.tails) },
+        { home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home, enter: c => api.tails(c.alarm ? c.tails + 1 : c.tails) },
       ],
       finish: 'The Red Caps\' weapons are scattered across the stadium track. But their notebook had a name in it: Baba Kolade.',
     },
@@ -514,7 +514,7 @@ export function createStory(game, api) {
         },
         { label: 'Free Baba Kolade', text: () => 'Free <b>Baba Kolade</b>', target: c => c.kolade.pos, check: c => c.kolade.mood !== 'captive' },
         {
-          home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
+          home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
             B('Baba Kolade', 'Bolaji. I know it is you. I know my own board.'),
             B('Baba Kolade', 'If the police are coming to Aguda, they are coming for your street. Your mother\'s street.'),
@@ -578,7 +578,7 @@ export function createStory(game, api) {
           check: c => c.freed >= 3 },
         { label: 'Lose the police', text: () => '<b>Lose the police</b>', sub: () => 'BREAK LINE OF SIGHT · CLIMB · SKITCH', target: () => null, check: () => game.heat === 0, enter: c => { if (!c.seen) api.addHeat(1, 'Okafor: "The boys are gone! Search the street!"'); } },
         {
-          home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
+          home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
             B('Chuks', '(at the corner, out of breath) Whoever you are... thank you.'),
             B('Chuks', 'One more thing. The masquerade man was watching the raid from a roof. He said: "Tonight Adelabu burns, and the Red Caps who sleep in it."'),
@@ -644,7 +644,7 @@ export function createStory(game, api) {
               'A burst of coloured cloth, and he is gone over the stalls.',
             ], at, () => { if (!e.removed) { game.fx.burst(e.pos.x, e.pos.y + 1, e.pos.z, 0x9e9e9e, 30, 4); e.remove(); } }, 'THE EGÚNGÚN');
           } },
-        { home: true, label: 'Get home unseen', text: () => game.homeObjective(), target: () => api.home, check: c => c.home, enter: c => api.tails(c.tails) },
+        { home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home, enter: c => api.tails(c.tails) },
       ],
       finish: 'Adelabu is saved. The Egúngún stepped aside, and told you where to find every Red Cap in Lagos: Friday, Ojuelegba.',
     },
@@ -722,7 +722,7 @@ export function createStory(game, api) {
             B('The Chairman, on the phone', '(finally) Find out who he is. Find his mother.'),
           ], c.paint || { x: c.pole.position.x, z: c.pole.position.z }, null, 'THE MESSAGE'),
         },
-        { home: true, label: 'Go home', text: () => game.homeObjective(), target: () => api.home, check: c => c.home },
+        { home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home },
       ],
       finish: 'The Red Caps are broken in Surulere. The Chairman has lost his street, and now he wants a name.',
     },
@@ -839,7 +839,8 @@ export function createStory(game, api) {
     const m = dm || S.next(); if (!m || S.active) return;
     cleanup();
     const c = m.setup();
-    S.active = { m, c, i: 0, startT: game.time };
+    S.active = { m, c, i: 0, startT: game.time, s0: { ...game.stats, respect: game.respect, hits: game.hitsTaken || 0, best: game.combat.best, wanted: game.life.wanted, rank: game.rank?.().name } };
+    game.missionMoves = new Set(); game.combat.best = 0;
     if (m.recon) { if (S.recon[m.id]) { m.recon.intel?.(c); api.notice('INTEL', m.recon.notes, 'blue'); } else api.notice('GOING IN BLIND', 'You never looked at the place in daylight. No intel tonight.', 'red'); }
     const focus = m.focus?.(c) || m.steps[0].target?.(c);
     api.scene(m.scene?.(c), focus ? { x: focus.x, y: focus.y || 0, z: focus.z } : null, () => m.steps[0].enter?.(c), m.day ? `DAYTIME · ${m.title.toUpperCase()}` : `MISSION ${S.index + 1} · ${m.title.toUpperCase()}`);
@@ -879,10 +880,23 @@ export function createStory(game, api) {
     api.banner('MISSION FAILED', msg, 'red', 5);
     game.addRespect(0);
   };
+  // after a reload: if the job was already done and only "get home" was left, count it now
+  S.resumePending = (hp) => {
+    if (typeof hp === 'string') hp = { id: hp };
+    const i = MISSIONS.findIndex(m => m.id === hp.id); if (i < 0 || i !== S.index) return false;
+    const m = MISSIONS[i];
+    const s0 = hp.s0 || { ...game.stats, respect: game.respect, rank: game.rank?.().name };
+    s0.hits = (game.hitsTaken || 0) - (hp.hits || 0);
+    S.active = { m, c: { home: true }, i: m.steps.length - 1, startT: game.time - (hp.secs || 0), s0 };
+    game.missionMoves = new Set(hp.moves || []); game.combat.best = hp.best || 0; complete(); return true;
+  };
   function complete() {
+    S.homePending = null;
     const a = S.active;
+    const report = missionReport(a);
+    setTimeout(() => game.onMissionComplete?.(report), 1800); // a beat to breathe, then the debrief
     if (a.m.morning) S.morning = a.m.id; // the city reacts the next morning
-    api.banner('MISSION COMPLETE', a.m.finish, 'green', 5);
+    api.banner('MISSION COMPLETE', '', 'green', 1.6);
     game.logNight?.('mission', { id: a.m.id, title: a.m.title });
     if (a.m.day) { // daytime missions run alongside the story
       game.addRespect(500, a.m.title.toUpperCase()); if (a.m.reward) game.life.wallet += a.m.reward;
@@ -890,6 +904,7 @@ export function createStory(game, api) {
       return;
     }
     game.addRespect(1000, a.m.title.toUpperCase());
+    game.calmUntil = game.time + 240; // four quiet minutes after a story mission: breathe
     game.life.wanted = Math.min(3, game.life.wanted + 1);
     S.active = null; S.index++;
     if (S.saved) { S.index = Math.max(S.index, S.saved.index); S.unlocked = Math.max(S.unlocked, S.saved.unlocked); S.saved = null; }
@@ -925,6 +940,29 @@ export function createStory(game, api) {
     const R = game.world.room;
     api.scene(m.morning(S.flags), { x: R.x, y: 0, z: R.z }, null, 'THE MORNING AFTER');
   };
+  // ---- the debrief: what you did, how well, what's next ----
+  const PAR = { babaade: 240, roger: 360, bridge: 300, levyrun: 420, egungun: 300, stadium: 420, kolade: 360, blackmaria: 300, fire: 360, showdown: 540 };
+  const SIGS = ['CAT DROP', 'ROOFTOP AMBUSH', 'CAT CHAIN', 'WALL SPRING', 'CAT SWEEP', 'ALLEY CAT FLURRY', 'SILENT TAKEDOWN', 'FLYING KNEE', 'AXE KICK', 'TACKLED', 'NINE LIVES'];
+  function missionReport(a) {
+    const s0 = a.s0, st = game.stats, secs = game.time - a.startT;
+    const kos = st.knockdowns - s0.knockdowns, hits = (game.hitsTaken || 0) - s0.hits, returned = st.returned - s0.returned, best = game.combat.best;
+    const moves = [...(game.missionMoves || [])].filter(m => SIGS.includes(m));
+    const par = PAR[a.m.id] || 300, fast = secs < par, scouted = a.m.recon ? !!S.recon[a.m.id] : null;
+    const well = [], better = [];
+    if (hits <= 2) well.push('Barely touched: ' + (hits ? `only ${hits} hit${hits > 1 ? 's' : ''} taken.` : 'not a scratch.')); else if (hits > 8) better.push(`You took ${hits} hits. Watch for the "!" and counter (C), dodge the red ones.`);
+    if (moves.length) well.push('Signature moves: ' + moves.slice(0, 4).map(m => m.toLowerCase()).join(', ') + '.'); else better.push('Try a signature move: drop from a roof for a Cat Drop, pounce (V) from above, chain pounces.');
+    if (secs < 5) {} else if (fast) well.push(`Quick: done in ${fmt(secs)} (par ${fmt(par)}).`); else better.push(`Took ${fmt(secs)}. Skitch, skate or ride a danfo to get there faster.`);
+    if (scouted === true) well.push('You scouted it in daylight first.'); else if (scouted === false) better.push('Next time look at the place in daylight first: the intel makes the night easier.');
+    if (best >= 10) well.push(`A ${best}-hit combo.`);
+    if (returned > 0) well.push(`₦${returned.toLocaleString()} back where it belongs.`);
+    const stars = Math.max(1, Math.min(3, 1 + (hits <= 4 ? 1 : 0) + (moves.length || (fast && secs >= 5) ? 1 : 0)));
+    const rank = game.rank?.().name, nx = MISSIONS[S.index + 1];
+    const unlocks = [`+${(game.respect - s0.respect + (a.m.day ? 500 : 1000)).toLocaleString()} respect`];
+    if (rank && rank !== s0.rank) unlocks.push(`New street rank: ${rank}`);
+    if (!a.m.day && nx) unlocks.push(`Next: listen to the radio for "${nx.title}"`);
+    if (!a.m.day && !nx) unlocks.push('Chapter 1 complete');
+    return { title: a.m.title, sub: a.m.day ? 'Daytime mission' : `Chapter 1 · Mission ${S.index + 1} of ${MISSIONS.length}`, finish: a.m.finish, stars, time: secs < 5 ? '-' : fmt(secs), kos, hits, best, returned, well, better, unlocks };
+  }
   S.update = (dt) => {
     updateRecon(dt);
     const a = S.active;
@@ -937,12 +975,15 @@ export function createStory(game, api) {
         st.done?.(a.c);
         a.i++;
         if (a.i >= a.m.steps.length) complete();
-        else step().enter?.(a.c);
+        else {
+          step().enter?.(a.c);
+          if (step().home) { S.homePending = { id: a.m.id, s0: a.s0, secs: game.time - a.startT, moves: [...(game.missionMoves || [])], hits: (game.hitsTaken || 0) - a.s0.hits, best: game.combat.best }; api.banner('JOB DONE', 'Now get home without being followed to finish the mission.', 'white', 3.5); game.save?.(); }
+        }
       }
     }
     // side events: a beating in progress somewhere nearby
     if (game.life.phase === 'night' && !S.complete) S.nextSide -= dt;
-    if (!S.side && S.nextSide <= 0 && !game.player.fightingNear && !S.active && !game.carrying && !game.dropped) {
+    if (!S.side && S.nextSide <= 0 && !game.player.fightingNear && !S.active && !game.carrying && !game.dropped && !(game.activities?.anyActive?.() && !S.side)) {
       const spot = api.spot(70, 170);
       if (spot) {
         const outfit = TRADERS[Math.floor(Math.random() * TRADERS.length)], name = VICTIM_NAMES[Math.floor(Math.random() * VICTIM_NAMES.length)];

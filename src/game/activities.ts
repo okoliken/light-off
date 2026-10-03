@@ -52,7 +52,7 @@ export function createActivities(game, h) {
   function updateSnatch(dt) {
     const s = A.snatch;
     if (!s) {
-      if (!L.inside && !game.story.active && !player.fightingNear && player.mode !== 'ride' && !game.carrying) A.nextSnatch -= dt;
+      if (!L.inside && !game.story.active && !player.fightingNear && player.mode !== 'ride' && !game.carrying && !A.anyActive()) A.nextSnatch -= dt;
       if (A.nextSnatch <= 0) { A.nextSnatch = 120 + Math.random() * 90; startSnatch(); }
       return;
     }
@@ -114,7 +114,7 @@ export function createActivities(game, h) {
   function updateRobbery(dt) {
     const r = A.robbery;
     if (!r) {
-      if (!L.inside && !game.story.active && L.phase !== 'day' && !player.fightingNear && player.mode !== 'ride' && !game.carrying && !game.dropped) A.nextRobbery -= dt * (game.mode === 'patrol' ? 1.6 : 1);
+      if (!L.inside && !game.story.active && L.phase !== 'day' && !player.fightingNear && player.mode !== 'ride' && !game.carrying && !game.dropped && !A.anyActive()) A.nextRobbery -= dt * (game.mode === 'patrol' ? 1.6 : 1);
       if (A.nextRobbery <= 0) { A.nextRobbery = 200 + Math.random() * 120; startRobbery(); }
       return;
     }
@@ -274,8 +274,8 @@ export function createActivities(game, h) {
     A.hitCd -= dt;
     if (!A.hit) {
       const fails = game.story.flags.policeFails || 0;
-      if (A.hitCd <= 0 && fails >= 1 && fails < 3 && game.respect >= 2000 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 300 + Math.random() * 200; startPoliceHit(); return; }
-      if (A.hitCd <= 0 && fails >= 3 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !player.fightingNear && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 360 + Math.random() * 240; startHit(); }
+      if (A.hitCd <= 0 && !A.anyActive() && fails >= 1 && fails < 3 && game.respect >= 2000 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 300 + Math.random() * 200; startPoliceHit(); return; }
+      if (A.hitCd <= 0 && !A.anyActive() && fails >= 3 && L.phase !== 'day' && L.suit && !L.inside && !game.story.active && !player.fightingNear && !game.carrying && !player.cuffed && player.mode !== 'ride') { A.hitCd = 360 + Math.random() * 240; startHit(); }
       return;
     }
     const H = A.hit; H.t += dt;
@@ -312,7 +312,7 @@ export function createActivities(game, h) {
   }
   function updateBlockade(dt) {
     A.blockCd -= dt;
-    if (!A.block) { if (A.blockCd <= 0 && !game.story.active && !game.carrying && !player.cuffed && !L.inside) { A.blockCd = 420 + Math.random() * 300; startBlockade(); } return; }
+    if (!A.block) { if (A.blockCd <= 0 && !A.anyActive() && !game.story.active && !game.carrying && !player.cuffed && !L.inside) { A.blockCd = 420 + Math.random() * 300; startBlockade(); } return; }
     const B2 = A.block;
     for (const m of B2.props) game.fx && Math.random() < dt * 4 && game.fx.burst(m.position.x, 0.8, m.position.z, 0x333333, 2, 1);
     if (B2.cult.every(t => !t.alive) && B2.hostages.every(v => v.mood !== 'captive')) {
@@ -340,7 +340,7 @@ export function createActivities(game, h) {
   }
   function updateFake(dt) {
     A.fakeCd -= dt;
-    if (!A.fake) { if (A.fakeCd <= 0 && game.respect >= 3000 && L.phase !== 'day' && !L.inside && !game.story.active && !game.carrying && !player.cuffed) { A.fakeCd = 420 + Math.random() * 300; startFake(); } return; }
+    if (!A.fake) { if (A.fakeCd <= 0 && !A.anyActive() && game.respect >= 3000 && L.phase !== 'day' && !L.inside && !game.story.active && !game.carrying && !player.cuffed) { A.fakeCd = 420 + Math.random() * 300; startFake(); } return; }
     const F = A.fake; F.t += dt;
     if (F.t > 150 && F.fake.alive) { // he got away with it: the city now thinks the boy in black extorts people
       game.respect = Math.max(0, game.respect - 600); hud.notice('THE NAME TAKES A HIT', `People in ${F.area} now say the boy in black takes money from traders.`, 'red');
@@ -357,6 +357,8 @@ export function createActivities(game, h) {
     }
     if (F.unmasked && F.crew.every(t => !t.alive) && !(game.carrying?.owner === F.trader || game.dropped?.item.owner === F.trader)) A.fake = null;
   }
+  // only one piece of trouble at a time, and a quiet stretch after each story mission
+  A.anyActive = () => !!(A.snatch || A.robbery || A.block || A.hit || A.fake || A.goslow || game.story.side) || game.time < (game.calmUntil || 0);
   A.update = (dt) => {
     updateBlockade(dt); updateFake(dt);
     updateHit(dt); updateSnatch(dt); updateJob(dt); updateSkate(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); updateSprint(dt); };

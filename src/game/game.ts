@@ -51,7 +51,7 @@ export function createGame(ctx) {
   };
   game.logNight = (k, o: any = {}) => (game.nightLog ||= []).push({ k, ...o });
   game.say = (npc, text, who = 'Red Cap', range = 45) => { if (!npc || !npc.pos || npc.pos.distanceTo(player.pos) < range) hud.say(who, text); };
-  game.addRespect = (n, label) => { if (n <= 0) return; game.respect += Math.round(n); if (label) hud.popup(`${label} <b>+${Math.round(n)}</b>`); };
+  game.addRespect = (n, label) => { if (label && game.missionMoves) game.missionMoves.add(String(label).replace(/ X?\d+.*$/, '').replace(/^\d+-HIT /, '')); if (n <= 0) return; game.respect += Math.round(n); if (label) hud.popup(`${label} <b>+${Math.round(n)}</b>`); };
   game.life = createLife(game);
   game.combat = createCombat(game);
   const L = game.life, combat = game.combat;
@@ -1095,7 +1095,7 @@ export function createGame(ctx) {
       case 'grind': game.grindLen = 0; audio.grab(); break;
       case 'grindEnd': if (game.grindLen > 3) game.addRespect(game.grindLen * 6, `GRIND ${game.grindLen.toFixed(0)}M`); break;
       case 'bail': audio.bail(); camera.shake = 0.5; break;
-      case 'hurt': audio.hurt(); env.grade.uniforms.hurt.value = 1; combat.hit(); break;
+      case 'hurt': game.hitsTaken = (game.hitsTaken || 0) + 1; audio.hurt(); env.grade.uniforms.hurt.value = 1; combat.hit(); break;
       case 'carhit': hud.toast(`Hit by a ${ev.v.spec.label.toLowerCase()}!`, 'red'); break;
       case 'skitch': audio.grab(); if (ev.v.type === 'danfo') hud.say('Conductor', ['Ehn? Who dey hold my motor?', 'Oya! Oshodi, Oshodi!', 'Wetin you dey do for back there?'][Math.floor(R() * 3)], 2); break;
       case 'conductor': hud.say('Conductor', 'Comot for my motor! You wan die?!', 1.8); audio.horn(player.pos); break;
@@ -1177,7 +1177,7 @@ export function createGame(ctx) {
     try {
       const data = {
         v: 1, night: L.night, phase: L.phase,
-        story: { index: game.story.progress(), unlocked: Math.max(game.story.unlocked, game.story.saved?.unlocked ?? 0), dayDone: game.story.dayDone, dayUnlocked: game.story.dayUnlocked, recon: game.story.recon, flags: game.story.flags, places: game.story.places },
+        story: { homePending: game.story.homePending || null, midMission: game.story.active && !game.story.active.m.day ? game.story.active.m.title : null, index: game.story.progress(), unlocked: Math.max(game.story.unlocked, game.story.saved?.unlocked ?? 0), dayDone: game.story.dayDone, dayUnlocked: game.story.dayUnlocked, recon: game.story.recon, flags: game.story.flags, places: game.story.places },
         respect: game.respect, stats: game.stats,
         life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy },
         player: { injury: player.injury, hp: player.hp },
@@ -1199,6 +1199,7 @@ export function createGame(ctx) {
   game.loadSave = (m) => { try { return JSON.parse(localStorage.getItem(saveKey(m)) || 'null'); } catch { return null; } };
   game.clearSave = (m) => { try { localStorage.removeItem(saveKey(m)); } catch { /* ignore */ } };
   game.applySave = (d) => {
+    game.pendingResume = d.story?.homePending || null; game.interrupted = !d.story?.homePending && d.story?.midMission;
     L.night = d.night; L.phase = d.phase === 'night' ? 'night' : 'day';
     game.story.index = d.story.index; game.story.unlocked = d.story.unlocked; game.story.dayDone = d.story.dayDone || 0; game.story.dayUnlocked = !!d.story.dayUnlocked; game.story.recon = d.story.recon || {}; game.story.flags = d.story.flags || {}; game.story.places = d.story.places || {};
     game.respect = d.respect; Object.assign(game.stats, d.stats);

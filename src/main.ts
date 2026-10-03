@@ -76,11 +76,15 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); game.restoreSnap(saved.snap); }
   else { game.clearSave(); game.startDay(); }
   state = 'play'; input.lock();
+  if (game.pendingResume) { const id = game.pendingResume; game.pendingResume = null; setTimeout(() => game.story.resumePending(id), 800); }
+  else if (game.interrupted) { hud.notice('MISSION INTERRUPTED', `"${game.interrupted}" was cut short. Start it again from your door tonight.`, 'blue'); game.interrupted = null; }
 }, { quality: settings.quality, presets: PRESETS, patrol: patrolSaved ? { night: patrolSaved.night, respect: patrolSaved.respect } : null });
 
 // menus opened from inside the game pause it
 function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(() => { state = 'play'; input.lock(); }); }
 game.onRideMenu = (stop) => openMenu(done => hud.rideMenu(stop, game.transport.options(stop), (to, mode) => { done(); game.transport.board(stop, to, mode); }, done));
+game.onMissionComplete = (r) => { if (state === 'play') openMenu(done => hud.missionReport(r, done)); else pendingReports.push(r); };
+const pendingReports: any[] = [];
 game.onShop = (shop) => openMenu(done => hud.shop(shop, () => game.shopItems(), () => game.life.wallet, (id) => game.buy(id), done));
 game.onNewspaper = (heads) => openMenu(done => hud.newspaper(heads, done));
 
@@ -148,6 +152,7 @@ function frame() {
   const dt = Math.min(now - last, 1 / 20); last = now;
   if (state === 'play' && cinema.active) state = 'scene';                // never leave a scene half-open behind a menu
   if (state === 'play' && pendingScenes.length) game.playScene(...pendingScenes.shift());
+  else if (state === 'play' && pendingReports.length) game.onMissionComplete(pendingReports.shift());
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
   const inp = input.poll();

@@ -582,6 +582,24 @@ export function createHUD(root, world) {
       <button class="btn" data-go>Fold the paper</button></div></div>`;
     el.overlays.querySelector('[data-go]').onclick = () => { el.overlays.innerHTML = ''; onClose?.(); };
   };
+  H.missionReport = (r, onDone) => {
+    const S = (v, l) => `<div class="rs"><b>${v}</b><span>${l}</span></div>`;
+    el.overlays.innerHTML = `<div class="overlay mm mm-report green"><div class="mm-shade"></div>
+      <div class="rp-left">
+        <div class="mm-kicker">${r.sub}</div>
+        <h1 class="rp-title">${r.title}</h1>
+        <div class="stars">${[1, 2, 3].map(i => `<i class="${i <= r.stars ? 'on' : ''}">★</i>`).join('')}</div>
+        <p class="rp-story">${r.finish}</p>
+        <div class="rp-stats">${S(r.time, 'Time')}${S(r.kos, 'Down')}${S(r.hits, 'Hits taken')}${S(r.best ? 'x' + r.best : '–', 'Best combo')}${S('₦' + r.returned.toLocaleString(), 'Returned')}</div>
+        <div class="dbf">${r.well.length ? `<div><b class="ok">WHAT YOU DID WELL</b>${r.well.map(x => `<p>✓ ${x}</p>`).join('')}</div>` : ''}${r.better.length ? `<div><b class="tip">DO BETTER NEXT TIME</b>${r.better.map(x => `<p>→ ${x}</p>`).join('')}</div>` : ''}</div>
+        <div class="unl">${r.unlocks.map(u => `<span>${u}</span>`).join('')}</div>
+        <div class="rp-foot"><button class="mm-btn hot" data-go>Continue</button></div>
+      </div></div>`;
+    const go = () => { document.removeEventListener('keydown', key); el.overlays.innerHTML = ''; onDone(); };
+    const key = (e) => { if (e.code === 'Enter') { e.preventDefault(); go(); } };
+    document.addEventListener('keydown', key);
+    (el.overlays.querySelector('[data-go]') as any).onclick = go;
+  };
   H.shop = (shop, items, wallet, onBuy, onClose) => {
     const draw = (msg = '') => {
       el.overlays.innerHTML = `<div class="overlay"><div class="card ridemenu">
