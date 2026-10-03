@@ -16,8 +16,8 @@ function cloth(color, sheen = '#56637f') {
 
 export const OUTFITS = {
   // his everyday clothes: faded tee, shorts, bathroom slippers
-  bolajiDay: { scale: 0.95, skin: '#5b3a26', top: '#9c3d2f', bottom: '#3b4a5c', sock: '#5b3a26', sole: '#1f3d7a', glove: null, hood: false, shorts: true, boardOnBack: false, sheen: '#886655' },
-  bolaji: { scale: 0.95, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#6a7898', cat: true },
+  bolajiDay: { scale: 1.04, skin: '#5b3a26', top: '#e65100', bottom: '#2b2f36', sock: '#2b2f36', sole: '#1f1f22', glove: null, hood: false, shorts: false, cap: '#e65100', boardOnBack: false, sheen: '#886655' }, // a grown man in his SwiftDrop rider shirt and cap
+  bolaji: { scale: 1.04, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#6a7898', cat: true },
   agbero: { skin: '#4a2e1f', top: '#2e7d32', bottom: '#263238', sock: '#4e342e', sole: '#3e2723', glove: null, hood: false, shorts: false, singlet: true, cap: '#b71c1c', scale: 1.08, sheen: '#445544' },
   agbero2: { skin: '#3f2618', top: '#f9a825', bottom: '#1a1a1a', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, singlet: true, cap: null, scale: 1.1, sheen: '#665533' },
   // the Red Caps: an agbero cult. Red berets, black clothes, red bandanas

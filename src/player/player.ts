@@ -287,7 +287,8 @@ export function createPlayer(scene, world, traffic) {
     }
     if (inp.pressed.roll && !p.onGround) p.rollBuf = 0;
     if (inp.pressed.roll && p.onGround) { p.mode = 'roll'; p.rollT = 0; const d = mag > 0.1 ? Math.atan2(w.x, w.z) : p.yaw; p.yaw = d; p.vel.x = Math.sin(d) * 9.5; p.vel.z = Math.cos(d) * 9.5; p.invuln = 0.45; emit('roll'); return; }
-    if (inp.pressed.board && p.onGround && !p.boardLost && !p.cuffed) { toBoard(); return; }
+    if (inp.pressed.board && p.onGround && p.noBoard) emit('noBoard'); // by day the board stays hidden with the suit
+    else if (inp.pressed.board && p.onGround && !p.boardLost && !p.cuffed) { toBoard(); return; }
     if (inp.pressed.skitch && p.onGround && !p.boardLost && !p.cuffed) { const v = traffic.nearestSkitch(p.pos); if (v) { toBoard(); startSkitch(v); return; } }
 
     const ph = physics(dt, { snap: 0.4 });
@@ -753,7 +754,7 @@ export function createPlayer(scene, world, traffic) {
     // board
     const flying = p.mode === 'bail' && p.boardFly;
     board.visible = onBoard || !!flying;
-    if (rig.backBoard) rig.backBoard.visible = !board.visible && !p.boardLost;
+    if (rig.backBoard) rig.backBoard.visible = !board.visible && !p.boardLost && !p.noBoard;
     if (onBoard) {
       board.position.set(p.pos.x, p.pos.y, p.pos.z);
       let ry = 0, rz = 0;

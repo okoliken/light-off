@@ -72,23 +72,24 @@ function applyQuality(q) {
 
 hud.setHudVisible(false);
 const saved = game.loadSave();
-const patrolSaved = game.loadSave('patrol');
+const lifeSaved = game.loadSave('story'), freeSaved = game.loadSave('free');
 hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.missions[saved.story.index]?.title, respect: saved.respect } : null, ({ fresh, quality, mode }: any) => {
   if (quality && quality !== settings.quality) applyQuality(quality);
   audio.start();
   hud.setHudVisible(true);
-  if (mode === 'patrol') { // endless free roam, its own save
-    game.mode = 'patrol';
-    if (patrolSaved && !fresh) game.applySave(patrolSaved); else game.clearSave('patrol');
-    game.startPatrol(!(patrolSaved && !fresh));
-    if (patrolSaved && !fresh) game.restoreSnap(patrolSaved.snap);
+  if (mode === 'story' || mode === 'free') { // story: Bolaji's life + the General · free: endless patrol. Each has its own save
+    game.mode = 'patrol'; game.sub = mode;
+    const sv = mode === 'free' ? freeSaved : lifeSaved;
+    if (sv && !fresh) game.applySave(sv); else game.clearSave(mode);
+    game.startPatrol(!(sv && !fresh));
+    if (sv && !fresh) game.restoreSnap(sv.snap);
   } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); game.restoreSnap(saved.snap); }
   else { game.clearSave(); game.startDay(); }
   state = 'play'; input.lock();
   if (!tutorial.done()) setTimeout(() => tutorial.start(), 1200); // first time: learn by doing
   if (game.pendingResume) { const id = game.pendingResume; game.pendingResume = null; setTimeout(() => game.story.resumePending(id), 800); }
   else if (game.interrupted) { hud.notice('MISSION INTERRUPTED', `"${game.interrupted}" was cut short. Start it again from your door tonight.`, 'blue'); game.interrupted = null; }
-}, { quality: settings.quality, presets: PRESETS, patrol: patrolSaved ? { night: patrolSaved.night, phase: patrolSaved.phase, respect: patrolSaved.respect } : null });
+}, { quality: settings.quality, presets: PRESETS, life: lifeSaved ? { night: lifeSaved.night, phase: lifeSaved.phase, wallet: lifeSaved.life?.wallet } : null, free: freeSaved ? { night: freeSaved.night } : null });
 
 function showControls(first = false) { openMenu(done => hud.controlsCard(done, first)); }
 hud.onHelpBar((k) => { if (state !== 'play') return; if (k === 'pause') { document.exitPointerLock?.(); pause(); } else if (k === 'controls') showControls(); else { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); } });
@@ -175,7 +176,7 @@ function frame() {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
     if (inp.pressed.map) { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.help) showControls();
-    if (inp.pressed.patrolBoard && game.mode === 'patrol') openMenu(done => hud.jobSheet(game.job.sheet(), done));
+    if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub !== 'free') tutorial.event('job'), openMenu(done => hud.jobSheet(game.job.sheet(), done));
     game.update(dt, inp);
     tutorial.update(dt, inp);
     if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit

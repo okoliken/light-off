@@ -11,17 +11,19 @@ const STEPS: Step[] = [
   { id: 'look', title: 'Look around', how: { kb: 'Move the <b>mouse</b>', touch: 'Drag on the <b>right side</b> of the screen', pad: 'Right stick to look' }, done: s => s.looked > 1.2 },
   { id: 'sprint', title: 'Run', how: { kb: 'Hold <kbd>Shift</kbd> while moving', touch: 'Push the joystick <b>all the way out</b>', pad: 'Hold <kbd>RT</kbd> while moving' }, done: s => s.sprinted > 0.8 },
   { id: 'jump', title: 'Jump', how: { kb: 'Press <kbd>Space</kbd>', touch: 'Tap <b>JUMP</b>', pad: 'Press <kbd>A</kbd> / <kbd>✕</kbd>' }, done: s => s.jumped },
-  { id: 'board', title: 'Get on your board', how: { kb: 'Press <kbd>R</kbd>', touch: 'Tap <b>BOARD</b>', pad: 'Press <kbd>Y</kbd> / <kbd>△</kbd>' }, done: s => s.mode === 'board' },
-  { id: 'ride', title: 'Skate fast', how: { kb: 'Hold <kbd>W</kbd> and <kbd>Shift</kbd> to push', touch: 'Push the joystick forward, all the way', pad: 'Left stick forward, hold <kbd>RT</kbd>' }, done: s => s.mode === 'board' && s.speed > 9 },
-  { id: 'ollie', title: 'Ollie', how: { kb: 'Press <kbd>Space</kbd> while skating', touch: 'Tap <b>JUMP</b> while skating', pad: 'Press <kbd>A</kbd> / <kbd>✕</kbd> while skating' }, done: s => s.ollied },
-  { id: 'flip', title: 'Do a flip', how: { kb: 'Ollie, then <kbd>Space</kbd> again in the air (pull back for a backflip)', touch: 'Tap <b>JUMP</b>, then <b>JUMP</b> again in the air', pad: '<kbd>A</kbd>, then <kbd>A</kbd> again in the air' }, done: s => s.flipped },
-  { id: 'off', title: 'Strap the board on your back', how: { kb: 'Press <kbd>R</kbd> again', touch: 'Tap <b>BOARD</b> again', pad: 'Press <kbd>Y</kbd> / <kbd>△</kbd> again' }, done: s => s.mode === 'foot' && s.wasBoard },
+  { id: 'job', title: 'Check your job sheet', how: { kb: 'Press <kbd>J</kbd>: today\'s parcels, your rating, rent. <kbd>J</kbd> closes it', touch: 'Tap <b>JOB</b> at the top', pad: 'Keyboard J (pad: coming)' }, done: s => s.jobbed || s.free },
   { id: 'map', title: 'Open the map', how: { kb: 'Press <kbd>M</kbd>. Search a place, pick how to get there. <kbd>M</kbd> closes it', touch: 'Tap <b>MAP</b>. Search a place, pick how to get there', pad: 'Press <kbd>View</kbd>' }, done: s => s.mapped },
   { id: 'pause', title: 'Pause the game', how: { kb: 'Press <kbd>Esc</kbd>, then Resume', touch: 'Tap <b>❚❚</b> at the top, then Resume', pad: 'Press <kbd>Start</kbd>, then Resume' }, done: s => s.paused },
 ];
 
 // the boy in black: the night skills (taught the first time he's out in the suit)
 const NIGHT: Step[] = [
+  { id: 'board', title: 'Get on your board', how: { kb: 'Press <kbd>R</kbd>', touch: 'Tap <b>BOARD</b>', pad: 'Press <kbd>Y</kbd> / <kbd>△</kbd>' }, done: s => s.mode === 'board' },
+  { id: 'ride', title: 'Skate fast', how: { kb: 'Hold <kbd>W</kbd> and <kbd>Shift</kbd> to push', touch: 'Push the joystick forward, all the way', pad: 'Left stick forward, hold <kbd>RT</kbd>' }, done: s => s.mode === 'board' && s.speed > 9 },
+  { id: 'ollie', title: 'Ollie', how: { kb: 'Press <kbd>Space</kbd> while skating', touch: 'Tap <b>JUMP</b> while skating', pad: 'Press <kbd>A</kbd> / <kbd>✕</kbd> while skating' }, done: s => s.ollied },
+  { id: 'flip', title: 'Board flip', how: { kb: 'Ollie, then <kbd>Space</kbd> again in the air (pull back for a backflip)', touch: 'Tap <b>JUMP</b>, then <b>JUMP</b> again in the air', pad: '<kbd>A</kbd>, then <kbd>A</kbd> again in the air' }, done: s => s.flipped },
+  { id: 'belly', title: 'Belly-board', how: { kb: 'Going fast, press <kbd>X</kbd> to lie flat (hard to spot). <kbd>X</kbd> again to get up', touch: 'Going fast, tap <b>BELLY</b>', pad: 'Going fast, lie flat (keyboard X)' }, done: s => s.ev.has('proneOn') },
+  { id: 'off', title: 'Strap the board on your back', how: { kb: 'Press <kbd>R</kbd> again', touch: 'Tap <b>BOARD</b> again', pad: 'Press <kbd>Y</kbd> / <kbd>△</kbd> again' }, done: s => s.mode === 'foot' && s.wasBoard },
   { id: 'climb', title: 'Climb a wall', how: { kb: 'Run at a wall and press <kbd>Space</kbd>. Keep <kbd>W</kbd> held to climb', touch: 'Run at a wall and tap <b>JUMP</b>. Keep pushing up', pad: 'Run at a wall, press <kbd>A</kbd>, keep pushing' }, done: s => s.ev.has('climb') || s.mode === 'climb' },
   { id: 'roof', title: 'Get onto a roof', how: { kb: 'Climb to the top: he pulls himself over', touch: 'Keep climbing to the top', pad: 'Keep climbing to the top' }, done: s => s.ev.has('mantle') || s.highUp },
   { id: 'catdrop', title: 'Drop like a cat', how: { kb: 'Jump off the roof. He lands on his feet (no damage)', touch: 'Walk off the roof. He lands on his feet', pad: 'Jump off the roof' }, done: s => s.ev.has('catDrop') || s.ev.has('landRoll') || !!s.landedLow },
@@ -65,7 +67,7 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
     T.active = false; game.tutorialOn = false; document.body.classList.remove('tut-on'); game.outT = 0; el.classList.add('hidden'); try { localStorage.setItem(kind === 'night' ? NKEY : KEY, '1'); } catch { /* */ }
     if (finished) game.hud.banner(kind === 'night' ? 'THE BOY IN BLACK' : 'YOU\'RE READY', kind === 'night' ? 'The rooftops are yours. The police will chase the suit on sight: stay quick.' : 'Lagos is yours. Go anywhere: press M for the map.', 'green', 3.5);
   };
-  T.event = (e: string) => { if (!T.active) return; if (e === 'map') s.mapped = true; if (e === 'pause') s.paused = true; };
+  T.event = (e: string) => { if (!T.active) return; if (e === 'map') s.mapped = true; if (e === 'job') s.jobbed = true; if (e === 'pause') s.paused = true; };
   T.update = (dt: number, inp: any) => {
     if (!T.active) return;
     const hs = Math.hypot(player.vel.x, player.vel.z);
@@ -74,6 +76,7 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
     if (inp.held.sprint && hs > 5.5) s.sprinted += dt;
     if (player.mode === 'foot' && !player.onGround) s.jumped = true;
     s.mode = player.mode; s.speed = player.speed || hs;
+    s.free = game.sub === 'free';
     for (const e of player.events || []) s.ev.add(e.e);
     if (game.sense) s.sensed += dt;
     s.onGround = player.onGround; if (player.pos.y > 4 && player.onGround) { s.highUp = true; s.wasHigh = true; }

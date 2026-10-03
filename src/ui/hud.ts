@@ -495,7 +495,10 @@ export function createHUD(root, world) {
   const settingsPanel = (o: any) => `<div class="mm-quality">${Object.entries(o.presets).map(([k, p]: [string, any]) => `<button class="qcard ${k === o.quality ? 'on' : ''}" data-q="${k}" data-nav><b>${k.toUpperCase()}</b><span>${p.label.split(' · ')[1] || ''}</span>
       <ul><li>${p.fps} fps cap</li><li>${p.shadows ? `Shadows ${p.shadowSize}` : 'No shadows'}</li><li>${p.bloom ? 'Glow on' : 'No glow'}</li><li>${p.crowd} people</li></ul></button>`).join('')}</div>
     <p class="mm-note">Resolution, shadows, glow and frame rate change right away. The crowd size and street lights change the next time the game loads. If your laptop runs hot, pick Low.</p>`;
-  const storyPanel = () => `<p class="mm-story">The <em>Red Caps</em>, a cult of agberos, have taken over Surulere from under Ojuelegba Bridge: beating traders, taking what little they have, holding people who refuse to pay.</p>
+  const storyPanel = () => `<p class="mm-story">Bolaji is a grown man trying to survive Lagos. By day he rides for <em>SwiftDrop Dispatch</em> with no bike of his own: parcels, deadlines, angry customers, rent every week.</p>
+    <p class="mm-story">By night he's <em>the boy in black</em>. And the city is filling up with other men in black: the armed boys of <em>the General</em>, a former soldier who owns half the streets and some of the police. The police can't tell Bolaji from them.</p>
+    <p class="mm-story">Find out who the General is. Find what he's hiding. <em>Bring him down.</em></p>`;
+  const storyPanelOld = () => `<p class="mm-story">The <em>Red Caps</em>, a cult of agberos, have taken over Surulere from under Ojuelegba Bridge: beating traders, taking what little they have, holding people who refuse to pay.</p>
     <p class="mm-story">Bolaji is a street kid who lives with his mother and little brother in Aguda. By day he runs errands and hustles. At night, when Mama is asleep, he pulls on the black hoodie, straps his board to his back, and trusts gifts he doesn't understand: he moves like a cat: he climbs anything, lands on his feet, slips away from anyone, and feels danger before it comes.</p>
     <p class="mm-story">Nobody can know who he is. <em>Not even Mama.</em></p>`;
 
@@ -574,13 +577,16 @@ export function createHUD(root, world) {
     let q = o.quality;
     const start = (fresh) => { M.destroy(); onStart({ quality: q, fresh }); };
     const items: any[] = [];
-    // free roam is the whole game for now: no missions, no board, just Lagos
-    const go = (fresh) => { M.destroy(); onStart({ quality: q, fresh, mode: 'patrol' }); };
-    if (o.patrol) items.push({ label: 'Continue', sub: `${o.patrol.phase === 'night' ? 'Night' : 'Day'} ${o.patrol.night}`, attr: 'data-start', action: () => go(false) });
-    items.push({ label: o.patrol ? 'New game' : 'Play', sub: 'Free roam · Surulere, Yaba, Mushin, the bridge', attr: o.patrol ? 'data-new' : 'data-start', action: (m) => {
-      if (!o.patrol) return go(true);
-      m.open('START OVER?', '<p class="mm-note big">Your saved game will be erased: money, items, everything.</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
-        (p) => { p.querySelector('[data-yes]').onclick = () => go(true); p.querySelector('[data-no]').onclick = m.close; });
+    // two ways to play: Story (Bolaji's life and the hunt for the General, always continues where you left
+    // off; no level select) and Patrol (endless free roam in the suit). Each keeps its own save.
+    const go = (mode, fresh) => { M.destroy(); onStart({ quality: q, fresh, mode }); };
+    const confirm = (m, mode) => m.open('START OVER?', '<p class="mm-note big">Your saved ' + (mode === 'free' ? 'patrol' : 'story') + ' will be erased: money, job, progress, everything.</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
+      (p) => { p.querySelector('[data-yes]').onclick = () => go(mode, true); p.querySelector('[data-no]').onclick = m.close; });
+    if (o.life) items.push({ label: 'Continue', sub: `Story · ${o.life.phase === 'night' ? 'Night' : 'Day'} ${o.life.night}${o.life.wallet != null ? ' · ₦' + o.life.wallet.toLocaleString() : ''}`, attr: 'data-start', action: () => go('story', false) });
+    items.push({ label: o.life ? 'New story' : 'Story', sub: 'A delivery rider by day, the boy in black by night. Find the General.', attr: o.life ? 'data-new' : 'data-start', action: (m) => o.life ? confirm(m, 'story') : go('story', true) });
+    items.push({ label: 'Patrol', sub: o.free ? `Endless free roam · Night ${o.free.night}` : 'Endless free roam in the suit · no job, no story', attr: 'data-patrol', action: (m) => {
+      m.open('PATROL', `<p class="mm-story">No job, no rent, no story. Just Lagos and the boy in black: rooftops, the board, police on your tail.</p><div class="mm-row">${o.free ? '<button class="mm-btn hot" data-nav data-pgo data-default>Continue patrol</button><button class="mm-btn" data-nav data-pnew>New patrol</button>' : '<button class="mm-btn hot" data-nav data-pnew data-default>Start patrol</button>'}</div>`,
+        (p) => { p.querySelector('[data-pgo]')?.addEventListener('click', () => go('free', false)); p.querySelector('[data-pnew]').onclick = () => go('free', true); });
     } });
     items.push({ label: 'The story', action: (m) => m.open('THE STORY SO FAR', storyPanel()) });
     items.push({ label: 'Controls', action: (m) => m.open('CONTROLS', controlsPanel()) });

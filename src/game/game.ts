@@ -33,7 +33,7 @@ const TIPS: any[] = [
   [14, 'Fighting: <span class="key">F</span> strikes whoever you push toward, <span class="key">C</span> counters when <b>"!"</b> flashes over someone, <span class="key">G</span> launches them into the air (then <span class="key">F</span> to juggle).'],
   [30, '<span class="key">V</span> <b>pounces</b> onto an enemy up to 15 m away, like a cat on a rat. With no target it\'s a huge leap.'],
   [40, '<span class="key">T</span> picks up street junk (stones, bottles, pure water, buckets, tyres) and throws it. With nothing in reach, T throws your <b>board</b> (then go and get it).'],
-  [46, 'Watch your <b>hunger</b> and <b>energy</b>. Low means slower, weaker, no flips. Eat at suya / akara / mama-put stands, or Mama\'s pot at home.'],
+  [46, 'Watch your <b>hunger</b> and <b>energy</b>. Low means slower, weaker, no flips. Eat at suya / akara / mama-put stands, or cook at home.'],
   [62, '<b>Street Sense</b> wakes up by itself when danger starts: time slows and a green trail shows the way out.'],
   [80, 'Get home before <b>5:30 AM</b>. And never lead anyone to your gate.'],
 ];
@@ -74,7 +74,7 @@ export function createGame(ctx) {
     if (game.exposure >= 100) {
       game.exposure = 35; game.recognisedAt = game.time;
       game.life.suspicion = Math.min(100, game.life.suspicion + 30);
-      hud.banner('RECOGNISED', 'People saw Bolaji from Aguda fight like the boy in black. Mama will hear about this.', 'red', 4);
+      hud.banner('RECOGNISED', 'People saw Bolaji the SwiftDrop rider fight like the boy in black. Word will spread.', 'red', 4);
       addHeat(1, 'Police: "You! Aguda boy! Come here, we want to ask you questions."');
     }
   };
@@ -464,7 +464,7 @@ export function createGame(ctx) {
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
     if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
     const dopt = DAY.interactOption(); if (dopt) return dopt;
-    if (game.mode === 'patrol') { const jo = game.job.option(); if (jo) return jo; }
+    if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo) return jo; }
     const fo = game.ferry.option(); if (fo) return fo;
     const stop = TR.stopNear(player.pos);
     if (stop && !player.fightingNear) return { kind: 'bus', stop, text: `<span class="key">F</span>Take a ride from <b>${stop.name}</b> bus stop` };
@@ -490,7 +490,8 @@ export function createGame(ctx) {
       if (L.watched()) return { kind: 'none', text: '<b>Someone is watching you.</b> Lose them before you go in.' };
       if (player.fightingNear) return { kind: 'none', text: '<b>Deal with the Red Caps first.</b> Don\'t fight at your own gate.' };
       if (player.boardLost) return { kind: 'none', text: 'Your board is still out there. Go and get it.' };
-      if (player.cuffed) return { kind: 'none', text: 'You can\'t walk in on Mama in <b>handcuffs</b>. Get them cut at Baba Kolade\'s workshop.' };
+      if (player.cuffed) return { kind: 'none', text: game.mode === 'patrol' ? 'Not in <b>handcuffs</b>: the neighbours will see. Get them cut at Baba Kolade\'s workshop.' : 'You can\'t walk in on Mama in <b>handcuffs</b>. Get them cut at Baba Kolade\'s workshop.' };
+      if (game.mode === 'patrol') return { kind: 'home', text: '<span class="key">F</span>Go into your room' };
       return { kind: 'home', text: L.phase === 'day' ? '<span class="key">F</span>Go inside (nobody is home)' : '<span class="key">F</span>Go inside quietly (Mama is asleep)' };
     }
     const v = world.vendors.find(q => dist2(q, player.pos) < 2.4 * 2.4);
@@ -1066,6 +1067,8 @@ export function createGame(ctx) {
       if (input.pressed.torch) toggleTorch();
     }
 
+    player.noBoard = !L.suit; // the board belongs to the boy in black; by day he walks and pays for rides
+    if (player.noBoard && ['board', 'grind'].includes(player.mode)) { player.mode = 'foot'; player.prone = false; }
     player.update(sdt, input, camera.yaw, game.time);
     for (const e of player.events) handleEvent(e);
     traffic.update(sdt, game);
@@ -1121,7 +1124,7 @@ export function createGame(ctx) {
     updatePick(dt, input);
     game.activities?.update(sdt);
     game.chatter.update(dt);
-    if (game.mode === 'patrol') game.job.update(dt);
+    if (game.mode === 'patrol' && game.sub !== 'free') game.job.update(dt);
     game.story.update(sdt);
     L.update(sdt);
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
@@ -1170,7 +1173,7 @@ export function createGame(ctx) {
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
     else if (game.mode === 'patrol') hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>OPEN THE MAP (M) · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
-    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? game.job.tracker() : game.story.tracker()));
+    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? null : game.job.tracker()) : game.story.tracker()));
   };
 
   // ---------- navigation ----------
@@ -1234,7 +1237,7 @@ export function createGame(ctx) {
     const dstr = (x, z) => Math.round(Math.hypot(x - player.pos.x, z - player.pos.z)) + 'm';
     DAY.markers(M, MM, dstr);
     game.police.markers(M, MM, dstr);
-    if (game.mode === 'patrol') game.job.markers(M, MM, dstr);
+    if (game.mode === 'patrol' && game.sub !== 'free') game.job.markers(M, MM, dstr);
     { const rc = game.story.reconTarget(); if (rc) { M.push({ x: rc.x, y: 3, z: rc.z, kind: 'story', label: `LOOK · ${rc.label.toUpperCase()} · ${dstr(rc.x, rc.z)}` }); MM.push({ x: rc.x, z: rc.z, color: '#ffd54f' }); } }
     { const ds = game.story.dayStart(); if (ds) { const d = game.story.dayAvailable(); M.push({ x: ds.x, y: 3, z: ds.z, kind: 'story', label: `DAYTIME · ${d.title.toUpperCase()} · ${dstr(ds.x, ds.z)}` }); MM.push({ x: ds.x, z: ds.z, color: '#ffd54f' }); } }
     game.activities?.markers(M, MM, dstr);
@@ -1271,6 +1274,7 @@ export function createGame(ctx) {
 
   function handleEvent(ev) {
     switch (ev.e) {
+      case 'noBoard': if (!game.noBoardT || game.time - game.noBoardT > 15) { game.noBoardT = game.time; hud.toast('No board by day: it stays hidden with the suit. <b>Walk, run, or pay for a danfo, keke or okada.</b> The board comes out with the boy in black.', 'blue'); } break;
       case 'bikeOn': audio.horn?.(player.pos); break;
       case 'bikeOff': if (ev.crash) { audio.land(1); camera.shake = 0.6; hud.popup('CRASHED'); } break;
       case 'jump': audio.ollie(); if (ev.power > 0.6) { fx.dust(player.pos.x, player.pos.y + 0.05, player.pos.z, 10); camera.shake = 0.2; } break;
@@ -1330,8 +1334,10 @@ export function createGame(ctx) {
   game.startPatrol = (fresh = true) => {
     L.phase = 'day'; L.clock = 7.5 * 60; setOccupants(false);
     L.suit = false; L.bag = true; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack();
+    if (game.sub === 'free') { L.phase = 'night'; L.clock = 22.5 * 60; L.suit = true; L.bag = false; player.setOutfit(OUTFITS.bolaji); reattachBag(); updateBackpack(); }
     game.leaveHome(false);
-    if (fresh) { hud.notice('DAY 1', 'Your first week as a SwiftDrop rider. Clock in at the office in Ojuelegba before noon.', 'white', 5); setTimeout(() => game.job.routeNext?.(), 600); }
+    if (fresh && game.sub === 'free') hud.notice('PATROL', 'Endless free roam in the suit. No job, no story: just Lagos at night.', 'blue', 4);
+    else if (fresh) { hud.notice('DAY 1', 'Your first week as a SwiftDrop rider. Clock in at the office in Ojuelegba before noon.', 'white', 5); setTimeout(() => game.job.routeNext?.(), 600); }
     game.save();
   };
   game.wakeUp = () => { L.inside = true; L.phase = 'day'; L.clock = 7 * 60; L.suit = false; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack(); setOccupants(false); game.leaveHome(false); game.save(); };
@@ -1371,7 +1377,8 @@ export function createGame(ctx) {
   };
 
   // ---------- saving: progress survives a page refresh ----------
-  const saveKey = (m = game.mode) => m === 'patrol' ? 'light-off-patrol-v1' : 'light-off-save-v1';
+  game.sub = 'story'; // 'story': Bolaji's life and the hunt for the General · 'free': endless patrol
+  const saveKey = (m = game.sub) => m === 'free' ? 'light-off-free-v1' : 'light-off-patrol-v1';
   game.save = () => {
     try {
       const data = {
