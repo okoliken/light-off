@@ -364,7 +364,7 @@ export function createActivities(game, h) {
     updateHit(dt); updateSnatch(dt); updateJob(dt); updateSkate(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); updateSprint(dt); };
   A.option = () => {
     if (L.inside || !['foot', 'board'].includes(player.mode)) return null;
-    if (!A.job && L.phase === 'day' && d2(stall, player.pos) < 3.2 * 3.2) return { kind: 'activity', what: 'job', text: '<span class="key">F</span>Take a delivery job from Mama Nkechi (paid, timed)' };
+    if (!A.job && game.mode !== 'patrol' && L.phase === 'day' && d2(stall, player.pos) < 3.2 * 3.2) return { kind: 'activity', what: 'job', text: '<span class="key">F</span>Take a delivery job from Mama Nkechi (paid, timed)' };
     if (!A.skate && d2({ x: pitch.x, z: pitch.z - 6 }, player.pos) < 4 * 4) return { kind: 'activity', what: 'skate', text: '<span class="key">F</span>Start the skate challenge (45 seconds: tricks, grinds, flips)' };
     return null;
   };
@@ -414,7 +414,7 @@ export function createActivities(game, h) {
     if (game.mode === 'patrol' && !L.inside) { const p = A.sprint ? SPRINT.end : SPRINT.start; MM.push({ x: p.x, z: p.z, color: '#69f0ae' }); if (A.sprint || d2(p, player.pos) < 80 * 80) M.push({ x: p.x, y: 5, z: p.z, kind: 'escape', label: `${A.sprint ? 'FINISH' : 'BRIDGE SPRINT'} · ${dstr(p.x, p.z)}`, edge: !!A.sprint }); }
     if (A.course) { const r0 = A.course.rings[0]; if (!A.run) { MM.push({ x: r0.x, z: r0.z, color: '#69f0ae' }); if (d2(r0, player.pos) < 60 * 60) M.push({ x: r0.x, y: r0.y + 2.6, z: r0.z, kind: 'escape', label: `ROOFTOP RUN · ${dstr(r0.x, r0.z)}`, edge: false }); } else { const r = A.course.rings[A.run.i]; M.push({ x: r.x, y: r.y + 2.6, z: r.z, kind: 'escape', label: `RING ${A.run.i} · ${dstr(r.x, r.z)}` }); MM.push({ x: r.x, z: r.z, color: '#69f0ae' }); } }
     if (A.robbery) { const r = A.robbery, v = r.stage === 'chase' ? r.car : r.crew.find(g => g.alive && g.item); if (v) { M.push({ x: v.pos.x, y: v.pos.y + 2.4, z: v.pos.z, kind: 'site', label: `ROBBERS · ${dstr(v.pos.x, v.pos.z)}` }); MM.push({ x: v.pos.x, z: v.pos.z, color: '#ff3d3d' }); } }
-    if (L.phase === 'day') { MM.push({ x: stall.x, z: stall.z, color: '#ff9800' }); if (d2(stall, player.pos) < 50 * 50) M.push({ x: stall.x, y: 3.2, z: stall.z, kind: 'errand', label: 'DELIVERY JOBS', edge: false }); }
+    if (L.phase === 'day' && game.mode !== 'patrol') { MM.push({ x: stall.x, z: stall.z, color: '#ff9800' }); if (d2(stall, player.pos) < 50 * 50) M.push({ x: stall.x, y: 3.2, z: stall.z, kind: 'errand', label: 'DELIVERY JOBS', edge: false }); }
     MM.push({ x: pitch.x, z: pitch.z, color: '#42a5f5' });
     if (d2(pitch, player.pos) < 60 * 60 && !A.skate) M.push({ x: pitch.x, y: 3.2, z: pitch.z - 6, kind: 'errand', label: 'SKATE CHALLENGE', edge: false });
     if (A.job) { M.push({ x: A.job.to.x, y: 2.6, z: A.job.to.z, kind: 'errand', label: `${A.job.name.toUpperCase()} · ${dstr(A.job.to.x, A.job.to.z)}` }); MM.push({ x: A.job.to.x, z: A.job.to.z, color: '#80deea' }); }
@@ -434,7 +434,7 @@ export function createActivities(game, h) {
       out.push({ kind: 'run', title: 'Third Mainland sprint', desc: `Skate the bridge to the Adeniji Adele interchange on Lagos Island. Gold under ${SPRINT.gold}s.${game.stats.bridgeBest ? ` Best: ${game.stats.bridgeBest.toFixed(1)}s.` : ''}`, x: SPRINT.start.x, z: SPRINT.start.z, reward: 'Up to ₦2,500' });
     }
     out.push({ kind: 'run', title: 'Skate challenge', desc: 'Score trick points at the Area Pitch in 45 seconds.', x: pitch.x, z: pitch.z - 6, reward: 'Up to ₦1,500' });
-    if (L.phase === 'day') out.push({ kind: 'job', title: 'Delivery job', desc: "Mama Nkechi pays for hot food, delivered fast.", x: stall.x, z: stall.z, reward: '₦1,000+' });
+    if (L.phase === 'day' && game.mode !== 'patrol') out.push({ kind: 'job', title: 'Delivery job', desc: "Mama Nkechi pays for hot food, delivered fast.", x: stall.x, z: stall.z, reward: '₦1,000+' });
     return out;
   };
   return A;
