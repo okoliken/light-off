@@ -720,6 +720,22 @@ export function createHUD(root, world) {
     };
     draw();
   };
+  // J: the SwiftDrop job sheet. Today's parcels, reviews, the weekly race against the other riders, rent
+  H.jobSheet = (j, onClose) => {
+    const wrap = document.createElement('div'); wrap.className = 'overlay ccard';
+    const ord = j.orders.length ? j.orders.map(o => `<div class="js-o ${o.status}"><b>${o.status === 'pending' ? (o.late ? '⚠' : '○') : o.status === 'failed' ? '✕' : '✓'}</b><span><b>${o.who}</b> · ${o.item}<i>${o.place.name}${o.place.area ? ' · ' + o.place.area : ''}</i></span><em>${o.status === 'pending' ? (o.late ? 'LATE' : 'by ' + o.dueStr) : o.status.toUpperCase()}</em></div>`).join('')
+      : `<p class="cc-note">${j.employed ? (j.clockedIn ? '' : 'No parcels yet. Clock in at the SwiftDrop office (Ojuelegba) before noon.') : 'You don\'t work at SwiftDrop right now.'}</p>`;
+    wrap.innerHTML = `<div class="cc-box"><div class="cc-k">SWIFTDROP DISPATCH · DAY ${j.day}</div><h1>JOB SHEET</h1>
+      <div class="js-top"><div><b>${j.stars}</b><i>RATING ${j.rating.toFixed(1)}</i></div><div><b>₦${j.weekEarned.toLocaleString()}</b><i>THIS WEEK · PAYDAY DAY ${j.payDay}</i></div><div><b>₦${j.rent.toLocaleString()}</b><i>RENT DUE DAY ${j.rentDue}</i></div></div>
+      <div class="cc-grid"><section style="grid-column: span 2"><h3>Today's parcels</h3>${ord}</section>
+      <section><h3>Riders this week</h3>${j.rivals.map((r, k) => `<div class="js-r ${r.me ? 'me' : ''}"><b>${k + 1}</b><span>${r.name}</span><em>${r.week} · ★${r.rating.toFixed(1)}</em></div>`).join('')}</section>
+      <section><h3>Latest reviews</h3>${j.reviews.length ? j.reviews.map(r => `<div class="js-v"><b>${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</b><span>${r.who}: "${r.text}"</span></div>`).join('') : '<p class="cc-note">No reviews yet.</p>'}</section></div>
+      <button class="cc-go">Back to work</button></div>`;
+    el.overlays.appendChild(wrap);
+    const done = () => { wrap.remove(); removeEventListener('keydown', key, true); onClose?.(); };
+    const key = (e) => { if (['Escape', 'KeyJ', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); done(); } };
+    addEventListener('keydown', key, true); wrap.querySelector<HTMLElement>('.cc-go').onclick = done;
+  };
   H.rideMenu = (from, opts, onPick, onCancel) => {
     const LBL = { danfo: 'Danfo', keke: 'Keke', okada: 'Okada' };
     el.overlays.innerHTML = `<div class="overlay"><div class="card ridemenu">

@@ -16,6 +16,7 @@ import { createActivities } from './activities.ts';
 import { createRadio } from './radio.ts';
 import { createChatter } from './chatter.ts';
 import { createFerry } from './ferry.ts';
+import { createJob } from './job.ts';
 import { nightStart } from './nightreport.ts';
 import { OUTFITS, Rig, Pose } from '../player/rig.ts';
 import { textSign } from '../core/textures.ts';
@@ -203,6 +204,7 @@ export function createGame(ctx) {
   const DAY = game.day, TR = game.transport;
   game.chatter = createChatter(game);
   game.ferry = createFerry(game);
+  game.job = createJob(game);
   // a danfo pulls in at a stop near you: the conductor shouts the route, someone squeezes on
   const ROUTES = ['Ojuelegba! Ojuelegba! Enter with your change!', 'CMS! Obalende! Oya oya!', 'Oshodi-Oke! Oshodi! Last two!', 'Yaba! Sabo! Yaba!', 'Mushin! Idi-Araba! Enter!', 'Stadium! Stadium! One chance!', 'Ikeja along! Ikeja! Shift o!'];
   game.onBusStop = (v, st) => {
@@ -346,6 +348,16 @@ export function createGame(ctx) {
   // ---------- interactions (F) ----------
   const R0 = world.room;
   function roomOption() {
+    if (game.mode === 'patrol') { // his own rented room: nobody else lives here
+      const near = (q, r = 1.3) => dist2(q, player.pos) < r * r;
+      if (near(R0.door, 1.2)) return { kind: 'out', story: false, text: '<span class="key">F</span>Go out' };
+      if (near(R0.drum, 1.2)) return L.suit ? { kind: 'suit', text: '<span class="key">F</span>Take off the suit and hide it in the drum' } : { kind: 'bag', text: L.bag ? '<span class="key">F</span>Leave the suit in the drum' : '<span class="key">F</span>Pack the suit in your backpack' };
+      if (near(R0.pot, 1.1)) return { kind: 'cook', text: '<span class="key">F</span>Cook noodles and egg (₦500)' };
+      if (near(R0.chair, 1.0)) return { kind: 'rest', text: '<span class="key">F</span>Sit and rest a while (30 min)' };
+      if (near(R0.radio, 0.8)) return { kind: 'radio', text: '<span class="key">F</span>Turn on the radio' };
+      if (near(R0.mat, 1.0) || near(R0.mamaSpot, 1.4)) return { kind: 'sleep', text: '<span class="key">F</span>Sleep till morning' };
+      return null;
+    }
     const near = (q, r = 1.3) => dist2(q, player.pos) < r * r;
     const isDay = L.phase === 'day';
     if (isDay) {
@@ -452,6 +464,7 @@ export function createGame(ctx) {
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
     if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
     const dopt = DAY.interactOption(); if (dopt) return dopt;
+    if (game.mode === 'patrol') { const jo = game.job.option(); if (jo) return jo; }
     const fo = game.ferry.option(); if (fo) return fo;
     const stop = TR.stopNear(player.pos);
     if (stop && !player.fightingNear) return { kind: 'bus', stop, text: `<span class="key">F</span>Take a ride from <b>${stop.name}</b> bus stop` };
@@ -492,6 +505,7 @@ export function createGame(ctx) {
       case 'deliver': deliver(); return true;
       case 'mount': player.mountBike(player.bike.yaw); return true;
       case 'ferry': game.ferry.board(opt.j); return true;
+      case 'job': return game.job.act(opt);
       case 'steal': stealOkada(opt.v); return true;
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
@@ -528,6 +542,7 @@ export function createGame(ctx) {
         hud.say('Tobi', lines[Math.floor(R() * lines.length)], 7); return true;
       }
       case 'sleep': game.sleep(); return true;
+      case 'cook': if (L.wallet < 500) { hud.toast('Not even ₦500 for noodles. Payday can\'t come soon enough.', 'red'); return true; } L.wallet -= 500; L.eat(45, 'Noodles & egg'); return true;
       case 'note': { const e = DAY.errand; hud.say("Mama's note", e ? `"${e.text}. ${e.money ? `I left ₦${e.money.toLocaleString()} on the table.` : ''} Don't go and play football all day. — Mama"` : '"Stay out of trouble. — Mama"', 7); if (L.meals) { L.meals--; L.eat(30, 'LEFTOVER RICE'); } return true; }
       case 'wait': game.toNight(); return true;
       case 'paper': case 'errand': return DAY.doInteraction(opt);
@@ -651,8 +666,9 @@ export function createGame(ctx) {
     player.dropHeld();
     L.inside = true;
     player.respawn(R0.door.x, R0.door.z - 0.5, Math.PI); player.pos.y = 0; camera.snapBehind(Math.PI);
-    if (L.phase === 'day') { DAY.errandHome(); hud.notice('HOME', 'Nobody home. Mama is at the market.', 'white', 1.8); }
-    else hud.notice('HOME', 'Quietly now. Mama is asleep.', 'white', 1.8);
+    if (game.mode === 'patrol') hud.notice('HOME', 'Your one room in Aguda. Rent due day ' + game.job.rentDue + '.', 'white', 2);
+    else if (L.phase === 'day') { DAY.errandHome(); hud.notice('HOME', 'Nobody home. Mama is at the market.', 'white', 1.8); }
+    else if (game.mode !== 'patrol') hud.notice('HOME', 'Quietly now. Mama is asleep.', 'white', 1.8);
     game.save();
     game.onEnterHome?.();
   };
@@ -666,7 +682,7 @@ export function createGame(ctx) {
   };
   game.sleep = () => {
     game.sleptInSuit = L.suit;
-    if (L.suit) { L.suspicion = Math.min(100, L.suspicion + 30); hud.toast('You fell asleep in the suit. <b>Mama saw the black hoodie in the morning.</b>', 'red'); }
+    if (L.suit && game.mode !== 'patrol') { L.suspicion = Math.min(100, L.suspicion + 30); hud.toast('You fell asleep in the suit. <b>Mama saw the black hoodie in the morning.</b>', 'red'); }
     game.onSleep?.();
   };
   game.onDawn = () => {
@@ -688,6 +704,7 @@ export function createGame(ctx) {
     if (!L.inside) return;
     const spd = Math.hypot(player.vel.x, player.vel.z);
     L.noise = Math.max(0, L.noise + (spd > 4.5 || player.mode === 'act' || !player.onGround ? dt * 0.7 : -dt * 0.35));
+    if (game.mode === 'patrol') L.noise = 0;
     if (L.noise >= 1 && mamaAwakeT <= 0) {
       L.noise = 0; mamaAwakeT = 4; L.suspicion = Math.min(100, L.suspicion + (L.suit ? 35 : 12));
       hud.say('Mama', L.suit ? 'Bolaji?! What is that black thing you are wearing?! ...hmm. Go and sleep.' : 'Bolaji? Why are you walking up and down this night? Lie down!', 4);
@@ -1104,6 +1121,7 @@ export function createGame(ctx) {
     updatePick(dt, input);
     game.activities?.update(sdt);
     game.chatter.update(dt);
+    if (game.mode === 'patrol') game.job.update(dt);
     game.story.update(sdt);
     L.update(sdt);
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
@@ -1152,7 +1170,7 @@ export function createGame(ctx) {
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
     else if (game.mode === 'patrol') hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>OPEN THE MAP (M) · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
-    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? null : game.story.tracker()));
+    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? game.job.tracker() : game.story.tracker()));
   };
 
   // ---------- navigation ----------
@@ -1216,6 +1234,7 @@ export function createGame(ctx) {
     const dstr = (x, z) => Math.round(Math.hypot(x - player.pos.x, z - player.pos.z)) + 'm';
     DAY.markers(M, MM, dstr);
     game.police.markers(M, MM, dstr);
+    if (game.mode === 'patrol') game.job.markers(M, MM, dstr);
     { const rc = game.story.reconTarget(); if (rc) { M.push({ x: rc.x, y: 3, z: rc.z, kind: 'story', label: `LOOK · ${rc.label.toUpperCase()} · ${dstr(rc.x, rc.z)}` }); MM.push({ x: rc.x, z: rc.z, color: '#ffd54f' }); } }
     { const ds = game.story.dayStart(); if (ds) { const d = game.story.dayAvailable(); M.push({ x: ds.x, y: 3, z: ds.z, kind: 'story', label: `DAYTIME · ${d.title.toUpperCase()} · ${dstr(ds.x, ds.z)}` }); MM.push({ x: ds.x, z: ds.z, color: '#ffd54f' }); } }
     game.activities?.markers(M, MM, dstr);
@@ -1308,14 +1327,14 @@ export function createGame(ctx) {
   const RANKS: any[] = [[0, 'Nobody'], [2000, 'Known face'], [6000, 'Street name'], [15000, 'Talk of Surulere'], [35000, 'Lagos legend']];
   game.rank = () => { let r = RANKS[0], next = null; for (const q of RANKS) { if (game.respect >= q[0]) r = q; else { next = q; break; } } return { name: r[1], next: next ? next[1] : null, toNext: next ? next[0] - game.respect : 0 }; };
   // free roam: the clock just runs, day into night into day. He goes where he likes.
-  game.startPatrol = () => {
-    L.phase = 'day'; L.clock = 10 * 60; setOccupants(false);
+  game.startPatrol = (fresh = true) => {
+    L.phase = 'day'; L.clock = 7.5 * 60; setOccupants(false);
     L.suit = false; L.bag = true; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack();
     game.leaveHome(false);
-    hud.notice('LAGOS', 'Go anywhere. <b>M</b> for the map: pick a place and how to get there.', 'white', 4);
+    if (fresh) { hud.notice('DAY 1', 'Your first week as a SwiftDrop rider. Clock in at the office in Ojuelegba before noon.', 'white', 5); setTimeout(() => game.job.routeNext?.(), 600); }
     game.save();
   };
-  game.wakeUp = () => { L.inside = true; L.phase = 'day'; L.clock = 8 * 60; L.suit = false; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack(); setOccupants(false); game.leaveHome(false); game.save(); };
+  game.wakeUp = () => { L.inside = true; L.phase = 'day'; L.clock = 7 * 60; L.suit = false; player.setOutfit(OUTFITS.bolajiDay); reattachBag(); updateBackpack(); setOccupants(false); game.leaveHome(false); game.save(); };
   // everything happening right now that he could go and deal with, nearest first
   game.patrolBoard = () => {
     const d = (x, z) => Math.round(Math.hypot(x - player.pos.x, z - player.pos.z));
@@ -1334,7 +1353,7 @@ export function createGame(ctx) {
   game.waypoint = null;
   // every named place he knows, for the map's place list
   game.places = () => {
-    const out: any[] = [{ name: 'Home (Aguda)', x: world.homeDoor.x, z: world.homeDoor.z, kind: 'home' }];
+    const out: any[] = [{ name: 'Home (Aguda)', x: world.homeDoor.x, z: world.homeDoor.z, kind: 'home' }, { ...game.job.officePlace(), kind: 'shop' }];
     for (const q of Object.values(DAY.pois as Record<string, any>)) out.push({ name: q.name, x: q.x, z: q.z, kind: 'place' });
     for (const s of world.shops || []) out.push({ name: s.name, x: s.x, z: s.z, kind: 'shop' });
     for (const s of TR.stops) out.push({ name: s.name + ' bus stop', x: s.x, z: s.z, kind: 'bus' });
@@ -1358,7 +1377,7 @@ export function createGame(ctx) {
       const data = {
         v: 1, night: L.night, phase: L.phase,
         story: { homePending: game.story.homePending || null, midMission: game.story.active && !game.story.active.m.day ? game.story.active.m.title : null, index: game.story.progress(), unlocked: Math.max(game.story.unlocked, game.story.saved?.unlocked ?? 0), dayDone: game.story.dayDone, dayUnlocked: game.story.dayUnlocked, recon: game.story.recon, flags: game.story.flags, places: game.story.places },
-        respect: game.respect, stats: game.stats,
+        respect: game.respect, stats: game.stats, job: game.job?.serialize(),
         life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy },
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois as Record<string, any>).filter(q => q.found).map(q => q.id),
@@ -1385,6 +1404,7 @@ export function createGame(ctx) {
     game.respect = d.respect; Object.assign(game.stats, d.stats);
     Object.assign(L, d.life); player.injury = d.player.injury; player.hp = Math.max(20, Math.min(player.cap(), d.player.hp));
     for (const id of d.pois || []) if (DAY.pois[id]) DAY.pois[id].found = true;
+    game.job?.load(d.job);
   };
 
   game.hudInfo = () => ({

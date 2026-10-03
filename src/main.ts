@@ -80,7 +80,7 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   if (mode === 'patrol') { // endless free roam, its own save
     game.mode = 'patrol';
     if (patrolSaved && !fresh) game.applySave(patrolSaved); else game.clearSave('patrol');
-    game.startPatrol();
+    game.startPatrol(!(patrolSaved && !fresh));
     if (patrolSaved && !fresh) game.restoreSnap(patrolSaved.snap);
   } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); game.restoreSnap(saved.snap); }
   else { game.clearSave(); game.startDay(); }
@@ -175,6 +175,7 @@ function frame() {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
     if (inp.pressed.map) { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.help) showControls();
+    if (inp.pressed.patrolBoard && game.mode === 'patrol') openMenu(done => hud.jobSheet(game.job.sheet(), done));
     game.update(dt, inp);
     tutorial.update(dt, inp);
     if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit

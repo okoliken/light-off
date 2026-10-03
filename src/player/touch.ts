@@ -22,6 +22,7 @@ const SMALL: Btn[] = [
 ];
 const TOP: Btn[] = [
   { id: 'map', label: 'MAP', key: 'map' },
+  { id: 'job', label: 'JOB', key: 'patrolBoard' },
   { id: 'radio', label: 'RADIO', key: 'radio' },
   { id: 'change', label: 'SUIT', key: 'change' },
   { id: 'torch', label: 'TORCH', key: 'torch' },

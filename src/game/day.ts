@@ -240,5 +240,6 @@ export function createDay(game) {
     const t = D.target();
     if (t) { M.push({ x: t.x, y: 2.6, z: t.z, kind: 'errand', label: `${t.label.toUpperCase()} · ${dstr(t.x, t.z)}` }); MM.push({ x: t.x, z: t.z, color: '#80deea' }); }
   };
+  D.takeSpot = takeSpot; D.sign = sign;
   return D;
 }
