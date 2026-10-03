@@ -11,9 +11,9 @@ export const MALL = { x: 1100, z: 1000, w: 44, d: 30, h: 7 };
 
 // what each shop sells (ids match game.shopItems) and who's behind the counter
 export const MALL_SHOPS = [
-  { id: 'electric', name: 'Bright Future Electricals', sign: 'BRIGHT FUTURE ELECTRICALS', bg: '#0d47a1', fg: '#ffeb3b', items: ['torch'], seller: 'Mr Emeka', line: 'Torch with battery inside, Chinese but strong. Take am.' },
+  { id: 'electric', name: 'Bright Future Electricals', sign: 'BRIGHT FUTURE ELECTRICALS', bg: '#0d47a1', fg: '#ffeb3b', items: ['torch', 'nails'], seller: 'Mr Emeka', line: 'Torch with battery inside, Chinese but strong. Take am.' },
   { id: 'pharmacy', name: 'GoodHealth Pharmacy', sign: 'GOODHEALTH PHARMACY', bg: '#1b5e20', fg: '#ffffff', items: ['meds'], seller: 'Pharmacist', line: 'Plaster and paracetamol. Who beat you like this?' },
-  { id: 'provisions', name: 'Mama Chi Provisions', sign: 'MAMA CHI PROVISIONS', bg: '#b71c1c', fg: '#ffffff', items: ['drink', 'pins'], seller: 'Mama Chi', line: 'My pikin, wetin you want? Energy drink? Hair pin?' },
+  { id: 'provisions', name: 'Mama Chi Provisions', sign: 'MAMA CHI PROVISIONS', bg: '#b71c1c', fg: '#ffffff', items: ['drink', 'pins', 'pepper', 'smoke'], seller: 'Mama Chi', line: 'My pikin, wetin you want? Energy drink? Hair pin?' },
   { id: 'food', name: 'Mr Bigs Food Court', sign: 'JOLLOF · CHICKEN · SMALL CHOPS', bg: '#e65100', fg: '#ffffff', items: ['jollof', 'chops'], seller: 'Server', line: 'Jollof and chicken? Na the best in Yaba.' },
 ];
 

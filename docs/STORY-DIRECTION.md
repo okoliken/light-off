@@ -52,3 +52,20 @@ Chapters unlock one per day or night, in order:
 6. **The General** (night): his Broad Street compound. Get through the guards, then fight Colonel (rtd) Gbenga Sowande himself, a big, trained boss who dodges plain strikes. Take the evidence to Commissioner Adaeze at City Hall. Then the ending and the newspapers.
 
 Leads appear in the **case file** on the job sheet (J).
+
+## Character pass (live)
+- **Grown man, not a kid.** By day: SwiftDrop shirt, cap and trousers. **No board by day.** The board is only for the boy in black.
+- **Background (light):** he grew up on the streets around Ojuelegba. **Coach Ayo**, an old gymnast, trained the street kids on the empty track at the National Stadium. He's still there (6 AM to 7 PM) and teaches moves for a fee and an hour of training:
+  - wire riding;
+  - breakfall (no fall damage);
+  - long wall-run;
+  - vanishing (longer smoke);
+  - big cat leap.
+- **The escape kit:**
+  - **1 pepper bomb:** blinds a group.
+  - **2 ash cloud:** police can't see into it.
+  - **3 nail plank:** a police car that runs over it is finished.
+  - **Ride the NEPA wires (E):** slide pole to pole along the street.
+  - **Bolekaja (E):** hang off the back of a danfo, then Space to climb onto the roof and ride it.
+  - Pull a transformer fuse for a blackout, as before.
+  - Refills: Mama Chi Provisions (pepper, ash) and Bright Future Electricals (nails) in the malls.

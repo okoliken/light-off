@@ -92,7 +92,7 @@ export function createFX(scene, world) {
       for (let i = 0; i < n; i++) sparks.emit(x, y, z, (Math.random() - 0.5) * speed, Math.random() * speed * 0.7, (Math.random() - 0.5) * speed, 0.25 + Math.random() * 0.3, color);
     },
     dust(x, y, z, n = 6) { for (let i = 0; i < n; i++) smoke.emit(x + (Math.random() - 0.5), y, z + (Math.random() - 0.5), (Math.random() - 0.5) * 1.5, 0.6 + Math.random(), (Math.random() - 0.5) * 1.5, 0.9, 0x6b6258, -0.3); },
-    cloud(x, y, z) { clouds.push({ x, y, z, r: 4.6, t: 0, life: 6.5 }); },
+    cloud(x, y, z, o: any = {}) { clouds.push({ x, y, z, r: o.r || 4.6, t: 0, life: o.life || 6.5, c1: o.c1 ?? 0xe64a19, c2: o.c2 ?? 0xff8a50, n: o.n || 3 }); },
     update(dt, hitTest, onHit) {
       for (let i = shots.length - 1; i >= 0; i--) {
         const s = shots[i];
@@ -117,7 +117,7 @@ export function createFX(scene, world) {
         const c = clouds[i]; c.t += dt;
         if (c.t > c.life) { clouds.splice(i, 1); continue; }
         const k = 1 - c.t / c.life;
-        for (let j = 0; j < 3; j++) { const a = Math.random() * 6.28, r = Math.random() * c.r * Math.min(1, c.t * 3); smoke.emit(c.x + Math.cos(a) * r, c.y + 0.3 + Math.random() * 1.6, c.z + Math.sin(a) * r, (Math.random() - 0.5) * 0.6, 0.2 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6, 1.4 * k + 0.3, Math.random() < 0.5 ? 0xe64a19 : 0xff8a50, -0.15); }
+        for (let j = 0; j < c.n; j++) { const a = Math.random() * 6.28, r = Math.random() * c.r * Math.min(1, c.t * 3); smoke.emit(c.x + Math.cos(a) * r, c.y + 0.3 + Math.random() * 1.6, c.z + Math.sin(a) * r, (Math.random() - 0.5) * 0.6, 0.2 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6, 1.4 * k + 0.3, Math.random() < 0.5 ? c.c1 : c.c2, -0.15); }
       }
       for (const f of flashes) { if (f.t > 0) { f.t -= dt; if (f.t <= 0) f.l.intensity = 0; } }
       for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.t -= dt; if (t.t <= 0) { scene.remove(t.l); t.l.geometry.dispose(); tracers.splice(i, 1); } }

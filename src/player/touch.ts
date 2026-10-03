@@ -19,6 +19,8 @@ const SMALL: Btn[] = [
   { id: 'gadget', label: 'LAUNCH', key: 'gadget' },
   { id: 'prone', label: 'BELLY', key: 'prone' },
   { id: 'sense', label: 'SENSE', key: 'sense' },
+  { id: 'g1', label: 'PEPPER', key: 'g1' },
+  { id: 'g2', label: 'SMOKE', key: 'g2' },
 ];
 const TOP: Btn[] = [
   { id: 'map', label: 'MAP', key: 'map' },

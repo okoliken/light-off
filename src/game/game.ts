@@ -18,6 +18,8 @@ import { createChatter } from './chatter.ts';
 import { createFerry } from './ferry.ts';
 import { createJob } from './job.ts';
 import { createGeneral } from './general.ts';
+import { createGadgets } from './gadgets.ts';
+import { createCoach } from './coach.ts';
 import { nightStart } from './nightreport.ts';
 import { OUTFITS, Rig, Pose } from '../player/rig.ts';
 import { textSign } from '../core/textures.ts';
@@ -208,6 +210,8 @@ export function createGame(ctx) {
   game.ferry = createFerry(game);
   game.job = createJob(game);
   game.general = createGeneral(game);
+  game.gadgets = createGadgets(game);
+  game.coach = createCoach(game);
   // a danfo pulls in at a stop near you: the conductor shouts the route, someone squeezes on
   const ROUTES = ['Ojuelegba! Ojuelegba! Enter with your change!', 'CMS! Obalende! Oya oya!', 'Oshodi-Oke! Oshodi! Last two!', 'Yaba! Sabo! Yaba!', 'Mushin! Idi-Araba! Enter!', 'Stadium! Stadium! One chance!', 'Ikeja along! Ikeja! Shift o!'];
   game.onBusStop = (v, st) => {
@@ -468,6 +472,7 @@ export function createGame(ctx) {
     if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
     const dopt = DAY.interactOption(); if (dopt) return dopt;
     if (game.mode === 'patrol') { const co = game.general.option(); if (co) return co; }
+    { const ca = game.coach.option(); if (ca) return ca; }
     if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo) return jo; }
     const fo = game.ferry.option(); if (fo) return fo;
     const stop = TR.stopNear(player.pos);
@@ -512,6 +517,7 @@ export function createGame(ctx) {
       case 'ferry': game.ferry.board(opt.j); return true;
       case 'job': return game.job.act(opt);
       case 'case': return game.general.act(opt);
+      case 'coach': game.onShop?.(game.coach.shop()); return true;
       case 'steal': stealOkada(opt.v); return true;
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
@@ -589,6 +595,9 @@ export function createGame(ctx) {
     { id: 'meds', name: 'Plaster & paracetamol', desc: 'Patches you up: heals some injury and health.', price: 800 },
     { id: 'drink', name: 'Energy drink', desc: '+35 energy.', price: 400 },
     { id: 'jollof', name: 'Jollof rice & chicken', desc: 'A proper plate. Fills you up.', price: 1500 },
+    { id: 'pepper', name: 'Pepper bombs (×3)', desc: `Ata rodo wrapped in paper. Throw (1) to blind a group. You have ${L.items.pepper || 0}.`, price: 600 },
+    { id: 'smoke', name: 'Ash pouches (×2)', desc: `Charcoal ash. Drop one (2) and vanish from the police. You have ${L.items.smoke || 0}.`, price: 800 },
+    { id: 'nails', name: 'Nail planks (×2)', desc: `Drop one (3) behind you: a police car that hits it is finished. You have ${L.items.nails || 0}.`, price: 900 },
     { id: 'chops', name: 'Small chops', desc: 'Puff-puff, samosa, spring roll.', price: 700 },
   ];
   game.buy = (id) => {
@@ -600,6 +609,9 @@ export function createGame(ctx) {
     if (id === 'meds') { player.injury = Math.max(0, player.injury - 18); player.hp = Math.min(player.cap(), player.hp + 30); }
     if (id === 'drink') L.energy = Math.min(100, L.energy + 35);
     if (id === 'jollof') L.eat(50, 'Jollof & chicken');
+    if (id === 'pepper') L.items.pepper = (L.items.pepper || 0) + 3;
+    if (id === 'smoke') L.items.smoke = (L.items.smoke || 0) + 2;
+    if (id === 'nails') L.items.nails = (L.items.nails || 0) + 2;
     if (id === 'chops') L.eat(22, 'Small chops');
     game.save(); return 'ok';
   };
@@ -805,11 +817,11 @@ export function createGame(ctx) {
       visT = 0.2;
       for (const v of pol) {
         const d = Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z);
-        v.police.sees = player.mode !== 'down' && !L.inside && d < game.policeRange && !col.blocked(v.pos.x, v.pos.y + 1.6, v.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2);
+        v.police.sees = player.mode !== 'down' && !L.inside && !game.gadgets.hidden(player.pos) && !v.flatT && d < game.policeRange && !col.blocked(v.pos.x, v.pos.y + 1.6, v.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2);
         if (v.police.sees) v.police.target.copy(player.pos);
       }
     }
-    const offSee = game.gunmen.some(o => o.alive && o.role === 'police' && Math.hypot(o.pos.x - player.pos.x, o.pos.z - player.pos.z) < game.policeRange * 0.7 && !col.blocked(o.pos.x, o.pos.y + 1.5, o.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2));
+    const offSee = !game.gadgets.hidden(player.pos) && game.gunmen.some(o => o.alive && o.role === 'police' && Math.hypot(o.pos.x - player.pos.x, o.pos.z - player.pos.z) < game.policeRange * 0.7 && !col.blocked(o.pos.x, o.pos.y + 1.5, o.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2));
     const seen = pol.some(v => v.police.sees) || offSee;
     if (seen && game.heat === 0 && game.carrying?.site) addHeat(1, 'Police spotted you with the levy bag. (The agberos pay them their cut.)');
     game.grudgeCd = (game.grudgeCd || 0) - dt;
@@ -1036,6 +1048,7 @@ export function createGame(ctx) {
       const v = traffic.nearestSkitch(player.pos);
       if (v) prompt = `<span class="key">E</span>Skitch the ${v.spec.label.toLowerCase()}`;
     }
+    if (!prompt && (!player.onGround || player.pos.y > 3) && player.wireNear?.()) prompt = '<span class="key">E</span>Ride the wire';
     game.prompt = prompt;
     if (game.arrest) { updateArrest(dt, input); input.pressed = {}; }
     else if (player.mode === 'ride') { if (game.ferry.ride) game.ferry.update(dt, input); else TR.update(dt, input); input.pressed = {}; }
@@ -1070,6 +1083,7 @@ export function createGame(ctx) {
       if (input.pressed.radio) game.radio.listen();
       if (input.pressed.change) changeClothes();
       if (input.pressed.torch) toggleTorch();
+      if (input.pressed.g1) game.gadgets.use(1); if (input.pressed.g2) game.gadgets.use(2); if (input.pressed.g3) game.gadgets.use(3);
     }
 
     player.noBoard = !L.suit; // the board belongs to the boy in black; by day he walks and pays for rides
@@ -1131,6 +1145,7 @@ export function createGame(ctx) {
     game.chatter.update(dt);
     if (game.mode === 'patrol' && game.sub !== 'free') game.job.update(dt);
     if (game.mode === 'patrol') game.general.update(sdt);
+    game.gadgets.update(sdt);
     game.story.update(sdt);
     L.update(sdt);
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
@@ -1372,6 +1387,7 @@ export function createGame(ctx) {
     for (const q of Object.values(DAY.pois as Record<string, any>)) out.push({ name: q.name, x: q.x, z: q.z, kind: 'place' });
     for (const s of world.shops || []) out.push({ name: s.name, x: s.x, z: s.z, kind: 'shop' });
     for (const s of TR.stops) out.push({ name: s.name + ' bus stop', x: s.x, z: s.z, kind: 'bus' });
+    out.push(game.coach.place());
     for (const j of game.ferry.jetties) out.push({ name: j.name + ' (ferry)', x: j.x, z: j.z, kind: 'bus' });
     for (const [n, x, z] of <any[]>[['Idumota Market', -60, -1296], ['Balogun Market', 60, -1296], ['Adeniji Adele Interchange', 0, -1170], ['Lagos Island danfo park', -35, -1222], ['Idumota Clock Tower', -18, -1300], ['Tafawa Balewa Square', 138, -1298], ['Obalende Motor Park', 135, -1192], ['Iga Idunganran (Oba\'s Palace)', -131, -1382], ['Cathedral Church of Christ', -19, -1390], ['Lagos City Hall', 27, -1392], ['Tinubu Square', -60, -1328], ['Central Mosque', 40, -1328], ['CMS BRT Terminal', 40, -1209], ['Isale Eko', -130, -1300], ['First Bank, Marina', 41, -1175]]) out.push({ name: n, x, z, kind: 'place' });
     const seen = new Set(); for (const v of world.vendors) { if (seen.has(v.label)) continue; seen.add(v.label); out.push({ name: v.label, x: v.x, z: v.z, kind: 'food' }); }
@@ -1420,13 +1436,13 @@ export function createGame(ctx) {
     game.respect = d.respect; Object.assign(game.stats, d.stats);
     Object.assign(L, d.life); player.injury = d.player.injury; player.hp = Math.max(20, Math.min(player.cap(), d.player.hp));
     for (const id of d.pois || []) if (DAY.pois[id]) DAY.pois[id].found = true;
-    game.job?.load(d.job); game.general?.load(d.general);
+    game.job?.load(d.job); game.general?.load(d.general); setTimeout(() => game.coach?.apply(), 0);
   };
 
   game.hudInfo = () => ({
     respect: game.respect, holding: player.holding ? (player.holding.kind === 'sachet' ? 'PURE WATER' : player.holding.kind.toUpperCase()) : null, boardLost: player.boardLost,
     hp: player.hp, cap: player.cap(), cuffed: player.cuffed, sweep: combat.sweepReady(), flurry: combat.flurryReady(), charge: player.charge, label: L.label(), inside: L.inside, noise: L.noise, suspicion: L.suspicion, suit: L.suit, critical: player.mode === 'crawl', downT: player.mode === 'down' ? player.downT : -1, aiming: player.aiming, combo: combat.combo, clock: L.timeStr(), night: L.night,
-    hunger: L.hunger, energy: L.energy, wallet: L.wallet, wanted: L.wanted, followed: L.followers().length > 0, watched: L.watched(),
+    hunger: L.hunger, energy: L.energy, wallet: L.wallet, kit: L.items, wanted: L.wanted, followed: L.followers().length > 0, watched: L.watched(),
   });
   return game;
 }

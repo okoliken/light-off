@@ -438,7 +438,7 @@ export function buildCity(scene, opt: any = {}) {
     const run = (pts, alongX, out, messy) => { // pts along one street side; out = unit step toward the houses
       pts.forEach(([x, z], k) => {
         pole(x, z, alongX);
-        if (k > 0) { const [px, pz] = pts[k - 1]; for (const o of [-0.7, 0, 0.7]) add(px + (alongX ? 0 : o), PH - 0.1, pz + (alongX ? o : 0), x + (alongX ? 0 : o), PH - 0.1, z + (alongX ? o : 0), 0.55 + R() * 0.25); }
+        if (k > 0) { const [px, pz] = pts[k - 1]; (world.wireSpans ||= []).push({ a: [px, PH - 0.1, pz], b: [x, PH - 0.1, z], sag: 0.65 }); for (const o of [-0.7, 0, 0.7]) add(px + (alongX ? 0 : o), PH - 0.1, pz + (alongX ? o : 0), x + (alongX ? 0 : o), PH - 0.1, z + (alongX ? o : 0), 0.55 + R() * 0.25); }
         const drops = messy ? 3 + Math.floor(R() * 3) : 1 + Math.floor(R() * 2);
         for (let d = 0; d < drops; d++) { const sx = (R() - 0.5) * 9, ty = CURB + 3.2 + R() * 2.5; add(x, PH - 0.2, z, x + out[0] * (WALK + 0.2) + (alongX ? sx : 0), ty, z + out[1] * (WALK + 0.2) + (alongX ? 0 : sx), 0.3 + R() * 0.6); }
         if (messy && k > 0 && R() < 0.6) { const [px, pz] = pts[k - 1]; for (let q = 0; q < 3; q++) add(px, PH - 0.6 - R(), pz, x, PH - 0.6 - R(), z, 1 + R() * 1.4); }

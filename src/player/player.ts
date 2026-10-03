@@ -273,7 +273,7 @@ export function createPlayer(scene, world, traffic) {
       else if (inp.held.jump && p.charge < 0.6) { p.charge += dt; p.vel.x *= 1 - Math.min(1, dt * 6); p.vel.z *= 1 - Math.min(1, dt * 6); }
       else {
         const k = Math.max(0, Math.min(1, (p.charge - 0.08) / 0.5)), f = 0.8 + 0.2 * p.eff;
-        p.vel.y = (9.2 + 6.4 * k) * f;
+        p.vel.y = (9.2 + 6.4 * k) * f * (p.skills.leap2 ? 1.15 : 1);
         const hs = Math.hypot(p.vel.x, p.vel.z);
         if (hs > 2 || k > 0.3) { const boost = 1 + k * 0.6; p.vel.x = (hs > 2 ? p.vel.x : Math.sin(p.yaw) * 2) * boost; p.vel.z = (hs > 2 ? p.vel.z : Math.cos(p.yaw) * 2) * boost; }
         p.onGround = false; p.riding = null; p.charge = null; p.airFlips = 0;
@@ -289,7 +289,7 @@ export function createPlayer(scene, world, traffic) {
     if (inp.pressed.roll && p.onGround) { p.mode = 'roll'; p.rollT = 0; const d = mag > 0.1 ? Math.atan2(w.x, w.z) : p.yaw; p.yaw = d; p.vel.x = Math.sin(d) * 9.5; p.vel.z = Math.cos(d) * 9.5; p.invuln = 0.45; emit('roll'); return; }
     if (inp.pressed.board && p.onGround && p.noBoard) emit('noBoard'); // by day the board stays hidden with the suit
     else if (inp.pressed.board && p.onGround && !p.boardLost && !p.cuffed) { toBoard(); return; }
-    if (inp.pressed.skitch && p.onGround && !p.boardLost && !p.cuffed) { const v = traffic.nearestSkitch(p.pos); if (v) { toBoard(); startSkitch(v); return; } }
+    if (inp.pressed.skitch && p.onGround && (p.noBoard || !p.boardLost) && !p.cuffed) { const v = traffic.nearestSkitch(p.pos); if (v) { if (!p.noBoard) toBoard(); startSkitch(v); return; } }
 
     const ph = physics(dt, { snap: 0.4 });
     if (ph.landed) {
@@ -297,7 +297,7 @@ export function createPlayer(scene, world, traffic) {
       else if (p.flip) { emit('flipLand', { kind: p.flip.kind }); p.flip = null; }
       if (p.landVy < -10 && p.rollBuf < 0.35) { p.mode = 'roll'; p.rollT = 0; p.invuln = 0.4; emit('landRoll'); return; }
       // like a cat, he lands on his feet: only a really big drop hurts, and less than it would
-      if (p.landVy < -30) { p.hurt(Math.min(25, (-p.landVy - 28) * 4), p.pos.x, p.pos.z, 0); emit('hardland'); }
+      if (p.landVy < (p.skills.roll ? -60 : -30)) { p.hurt(Math.min(25, (-p.landVy - 28) * 4), p.pos.x, p.pos.z, 0); emit('hardland'); }
       else if (p.landVy < -15 && !p.cuffed) { emit('catDrop', { vy: p.landVy }); return; } // a big drop: the cat landing
     }
     // auto-vault low obstacles when running into them
@@ -465,12 +465,17 @@ export function createPlayer(scene, world, traffic) {
     s.lat = clamp(s.lat + (w.x * v.rt.x + w.z * v.rt.z) * 2.2 * dt, -0.95, 0.95);
     // no grip limit: he holds on as long as he likes (E or Space to let go)
     if (s.t > s.swatAt && !s.warned) { s.warned = true; emit('conductor'); }
-    const letGo = inp.pressed.skitch || inp.pressed.jump;
+    if (inp.pressed.jump && v.spec.platform) { // bolekaja: climb up onto the roof and ride it
+      const back = v.spec.len * 0.25;
+      p.mode = 'foot'; p.skitch = null; p.pos.set(v.pos.x - v.fwd.x * back, v.pos.y + v.spec.h + 0.05, v.pos.z - v.fwd.z * back);
+      p.vel.copy(v.vel); p.vel.y = 0; p.onGround = true; p.riding = v; p.yaw = v.yaw; emit('roofride'); return;
+    }
+    const letGo = inp.pressed.skitch || (inp.pressed.jump && !v.spec.platform);
     const lost = !traffic.vehicles.includes(v) || (v.speed < 1 && s.t > 4);
     // the conductor shouts, but he can't shake you off
     if (letGo || lost) {
-      p.mode = 'board'; p.skitch = null; p.riding = null;
-      p.heading = v.yaw; p.speed = v.speed + (letGo ? 2.5 : 0);
+      p.mode = p.noBoard ? 'foot' : 'board'; p.skitch = null; p.riding = null;
+      p.heading = v.yaw; p.yaw = v.yaw; p.speed = v.speed + (letGo ? 2.5 : 0);
       p.vel.set(Math.sin(p.heading) * p.speed, 0, Math.cos(p.heading) * p.speed);
       if (inp.pressed.jump) { p.vel.y = 7; p.onGround = false; emit('ollie'); }
       emit('skitchEnd', { sling: letGo });
@@ -480,7 +485,7 @@ export function createPlayer(scene, world, traffic) {
     const k = Math.min(1, dt * 14);
     p.pos.x += (_a.x - p.pos.x) * k; p.pos.z += (_a.z - p.pos.z) * k;
     const g = col.groundHeight(p.pos.x, p.pos.z, p.pos.y + 0.3);
-    p.pos.y = g.h; p.onGround = true;
+    p.pos.y = g.h + (p.noBoard ? 0.45 : 0); p.onGround = true; // on foot he hangs off the back ladder, feet up
     p.heading = v.yaw; p.speed = v.speed; p.vel.copy(v.vel);
   }
 
@@ -498,7 +503,7 @@ export function createPlayer(scene, world, traffic) {
   function wallrun(dt, inp) {
     const w = p.wallrun, s = w.s;
     w.t += dt; p.anim += dt * 14;
-    p.vel.y -= G * 0.32 * dt;
+    p.vel.y -= G * (p.skills.wallrun2 ? 0.2 : 0.32) * dt;
     p.pos.x += w.tx * w.speed * dt; p.pos.z += w.tz * w.speed * dt; p.pos.y += p.vel.y * dt;
     if (w.nx > 0) p.pos.x = s.maxx + R_BODY; else if (w.nx < 0) p.pos.x = s.minx - R_BODY;
     if (w.nz > 0) p.pos.z = s.maxz + R_BODY; else if (w.nz < 0) p.pos.z = s.minz - R_BODY;
@@ -513,7 +518,7 @@ export function createPlayer(scene, world, traffic) {
       p.flip = { kind: 'front', t: 0, dur: 0.6 }; p.airFlips = 1; emit('walljump'); return;
     }
     const g = col.groundHeight(p.pos.x, p.pos.z, p.pos.y);
-    if (w.t > 1.25 || offEdge || inp.pressed.roll || p.pos.y <= g.h + 0.05) { end(); if (p.pos.y <= g.h + 0.05) { p.pos.y = g.h; p.onGround = true; } }
+    if (w.t > (p.skills.wallrun2 ? 2.2 : 1.25) || offEdge || inp.pressed.roll || p.pos.y <= g.h + 0.05) { end(); if (p.pos.y <= g.h + 0.05) { p.pos.y = g.h; p.onGround = true; } }
   }
 
   // on the ground: mash Space / F for an adrenaline burst that throws him back on his feet
@@ -589,6 +594,7 @@ export function createPlayer(scene, world, traffic) {
     g.traverse(o => { if ((o as any).isMesh) o.castShadow = true; });
     g.visible = false; scene.add(g); return g;
   })();
+  p.skills = {}; // taught by Coach Ayo: wire, wallrun2, leap2, roll, smoke2
   p.bike = null; // { x, z, yaw } where the bike stands when he's not on it
   p.bikeMesh = bikeMesh;
   p.mountBike = (yaw) => { p.mode = 'bike'; p.heading = yaw ?? p.yaw; p.speed = Math.hypot(p.vel.x, p.vel.z) * 0.5; p.bike = null; p.lean = 0; p.dropHeld?.(); emit('bikeOn'); };
@@ -634,6 +640,41 @@ export function createPlayer(scene, world, traffic) {
     }
   }
 
+  // ---------------- riding the NEPA wires (a belt over the line, slide pole to pole) ----------------
+  const wireAt = (sp, t) => [sp.a[0] + (sp.b[0] - sp.a[0]) * t, sp.a[1] + (sp.b[1] - sp.a[1]) * t - sp.sag * 4 * t * (1 - t), sp.a[2] + (sp.b[2] - sp.a[2]) * t];
+  p.wireNear = () => {
+    if (!p.skills.wire || !['foot', 'climb', 'wallrun'].includes(p.mode)) return null;
+    let best = null, bd = 1.6;
+    for (const sp of world.wireSpans || []) {
+      const ax = sp.a[0], az = sp.a[2], dx = sp.b[0] - ax, dz = sp.b[2] - az, L2 = dx * dx + dz * dz;
+      const t = Math.max(0.04, Math.min(0.96, ((p.pos.x - ax) * dx + (p.pos.z - az) * dz) / L2));
+      const w = wireAt(sp, t), lat = Math.hypot(w[0] - p.pos.x, w[2] - p.pos.z), dy = w[1] - (p.pos.y + 2.0);
+      if (lat < bd && Math.abs(dy) < 1.4) { bd = lat; best = { sp, t }; }
+    }
+    return best;
+  };
+  p.startZip = (hit) => {
+    const sp = hit.sp, dx = sp.b[0] - sp.a[0], dz = sp.b[2] - sp.a[2], fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+    const dir = fx * dx + fz * dz >= 0 ? 1 : -1;
+    p.mode = 'zip'; p.zip = { sp, t: hit.t, dir, speed: Math.max(7, Math.hypot(p.vel.x, p.vel.z)), yaw: Math.atan2(dx * dir, dz * dir) };
+    p.onGround = false; p.riding = null; p.flip = null; emit('zip');
+  };
+  function zip(dt, inp) {
+    const z = p.zip, sp = z.sp, L = Math.hypot(sp.b[0] - sp.a[0], sp.b[2] - sp.a[2]);
+    z.speed = Math.min(17, z.speed + 6 * dt); z.t += z.dir * z.speed * dt / L;
+    const end = z.dir > 0 ? z.t >= 1 : z.t <= 0;
+    if (end) { // the next span along the same street, or let go
+      const ep = z.dir > 0 ? sp.b : sp.a, fx = Math.sin(z.yaw), fz = Math.cos(z.yaw);
+      const nx = (world.wireSpans || []).find(q => q !== sp && Math.hypot(q.a[0] - ep[0], q.a[2] - ep[2]) < 0.6 && ((q.b[0] - q.a[0]) * fx + (q.b[2] - q.a[2]) * fz) > 0);
+      if (nx) { z.sp = nx; z.t = 0.02; z.dir = 1; }
+      else { p.mode = 'foot'; p.zip = null; p.vel.set(Math.sin(z.yaw) * z.speed * 0.8, 3, Math.cos(z.yaw) * z.speed * 0.8); p.onGround = false; emit('zipEnd'); return; }
+    }
+    const w = wireAt(z.sp, Math.max(0, Math.min(1, z.t)));
+    p.vel.set(Math.sin(z.yaw) * z.speed, 0, Math.cos(z.yaw) * z.speed);
+    p.pos.set(w[0], w[1] - 2.05, w[2]); p.yaw = p.heading = z.yaw;
+    if (inp.pressed.jump || inp.pressed.skitch) { p.mode = 'foot'; p.zip = null; p.vel.y = 4.5; p.onGround = false; p.flip = { kind: 'front', t: 0, dur: 0.6 }; emit('zipEnd'); }
+  }
+
   // ---------------- main update ----------------
   p.update = (dt, inp, camYaw, time) => {
     p.events.length = 0;
@@ -646,6 +687,7 @@ export function createPlayer(scene, world, traffic) {
     p.leapCd -= dt;
     if (p.hurtT > 6 && p.hp < p.cap() && !['down', 'crawl'].includes(p.mode)) p.hp = Math.min(p.cap(), p.hp + dt * 2.2 * Math.max(0.6, p.eff)); // even hungry, he heals (slowly)
     p.adrenT = Math.max(0, (p.adrenT || 0) - dt);
+    if (inp.pressed.skitch && !p.cuffed && ['foot', 'climb', 'wallrun'].includes(p.mode) && (!p.onGround || p.pos.y > 3)) { const h = p.wireNear(); if (h) { p.climb = null; p.wallrun = null; p.startZip(h); inp.pressed.skitch = false; } }
     switch (p.mode) {
       case 'foot': foot(dt, inp, camYaw); break;
       case 'board': skate(dt, inp, camYaw); break;
@@ -656,6 +698,7 @@ export function createPlayer(scene, world, traffic) {
       case 'act': actUpdate(dt); break;
       case 'ride': { const v = p.ride.v; p.pos.set(v.pos.x - v.fwd.x * (v.type === 'okada' ? 0.45 : 0), v.pos.y + (v.type === 'okada' ? 0.55 : 0.2), v.pos.z - v.fwd.z * (v.type === 'okada' ? 0.45 : 0)); p.vel.copy(v.vel); p.heading = p.yaw = v.yaw; p.onGround = true; break; }
       case 'bike': bike(dt, inp, camYaw); break;
+      case 'zip': zip(dt, inp); break;
       case 'roll': roll(dt); break;
       case 'bail': bail(dt); break;
       case 'down': {
@@ -713,7 +756,8 @@ export function createPlayer(scene, world, traffic) {
         break;
       }
       case 'grind': Pose.grind(rig, time); bodyYaw = p.heading - Math.PI / 2; lift = 0.115; break;
-      case 'skitch': Pose.skitch(rig, time); bodyYaw = p.heading - 0.3; lift = 0.115; break;
+      case 'skitch': if (p.noBoard) { Pose.climb(rig, 0.4); bodyYaw = p.heading; lift = 0; } else { Pose.skitch(rig, time); bodyYaw = p.heading - 0.3; lift = 0.115; } break;
+      case 'zip': rig.reset(); rig.set('hipsY', HIP_H); rig.set('shLX', -3.05); rig.set('shRX', -3.05); rig.set('elLX', -0.15); rig.set('elRX', -0.15); rig.set('thLX', -0.9); rig.set('thRX', -0.7); rig.set('knLX', 1.3); rig.set('knRX', 1.1); rig.set('spineX', -0.15 + Math.sin(time * 8) * 0.04); bodyYaw = p.zip ? p.zip.yaw : p.yaw; rate = 16; break;
       case 'climb': Pose.climb(rig, p.anim); bodyYaw = p.yaw; break;
       case 'wallrun': Pose.wallrun(rig, p.anim, p.wallrun?.side || 1); bodyYaw = p.yaw; rate = 18; break;
       case 'act': Pose.strike(rig, p.act.kind, p.act.t / p.act.dur); bodyYaw = p.yaw; rate = 34; break;

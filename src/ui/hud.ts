@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.ts';
 import { buildStyledMap } from './mapstyle.ts';
 
-const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting', bike: 'Okada', ride: 'Riding' };
+const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting', bike: 'Okada', ride: 'Riding', zip: 'Wire ride' };
 
 const FILLER = [
   'Residents say the situation has gone on for too long. "We are tired," said one trader who asked not to be named.',
@@ -56,7 +56,7 @@ export function createHUD(root, world) {
     <div class="minimap"><canvas width="400" height="400"></canvas></div>
     <div class="power">GRID: ON</div>
     <div class="modebox">
-      <div class="gadgets"><span>POUNCE <i>V</i></span><span class="g-throw">THROW <b class="held"></b> <i>T</i></span><span>COUNTER <i>C</i></span><span class="g-launch">LAUNCH <i>G</i></span></div>
+      <div class="gadgets"><span>POUNCE <i>V</i></span><span class="g-throw">THROW <b class="held"></b> <i>T</i></span><span>COUNTER <i>C</i></span><span class="g-launch">LAUNCH <i>G</i></span></div><div class="gkit"></div>
       <div class="chargewrap hidden"><div class="meterlbl">CAT LEAP · RELEASE SPACE</div><div class="meter charge"><b></b></div></div>
       <div class="mode">On foot</div>
       <div class="gripwrap hidden"><div class="meterlbl">GRIP</div><div class="meter grip"><b></b></div></div>
@@ -434,6 +434,7 @@ export function createHUD(root, world) {
     if (hi.charge != null) el.chargeB.style.width = Math.min(100, (hi.charge - 0.08) / 0.5 * 100) + '%';
     el.held.textContent = hi.holding ? '· ' + hi.holding : hi.boardLost ? '· BOARD IS OUT THERE' : '';
     el.gThrow.classList.toggle('on', !!hi.holding);
+    { const k = hi.kit || {}, t = `<span>PEPPER ×${k.pepper || 0} <i>1</i></span><span>ASH ×${k.smoke || 0} <i>2</i></span><span>NAILS ×${k.nails || 0} <i>3</i></span>`; const gk = root.querySelector('.gkit'); if (gk && gk.innerHTML !== t) gk.innerHTML = t; }
     { const g = hi.flurry ? 'FLURRY' : hi.sweep ? 'SWEEP' : 'LAUNCH'; if (g !== el.gLaunch._sw) { el.gLaunch._sw = g; el.gLaunch.innerHTML = (g === 'FLURRY' ? 'ALLEY CAT FLURRY' : g === 'SWEEP' ? 'CAT SWEEP' : 'LAUNCH') + ' <i>G</i>'; el.gLaunch.classList.toggle('on', g !== 'LAUNCH'); } }
     el.roomM.classList.toggle('hidden', !hi.inside);
     if (hi.inside) { el.noise.style.width = Math.min(100, hi.noise * 100) + '%'; el.susp.style.width = hi.suspicion + '%'; }
@@ -468,6 +469,7 @@ export function createHUD(root, world) {
     ['Okada', [['Take one (get close, or catch it on the board)', 'F', 'X'], ['Ride · full throttle', 'W A S D · Shift', 'L-Stick · RT'], ['Brake', 'Space', 'A'], ['Get off', 'R', 'Y']]],
     ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
       ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
+    ['Escape kit', [['Pepper bomb · Ash cloud · Nail plank', '1 · 2 · 3', '—'], ['Hang on a danfo (Space: climb onto the roof)', 'E', 'RB'], ['Ride a NEPA wire (Coach Ayo teaches it)', 'E', 'RB'], ['Blackout: pull a transformer fuse', 'F', 'X']]],
     ['The street', [['Interact · buy · talk', 'F', 'X'], ['Change into / out of the suit (nobody watching)', 'U', '—'], ['Pocket radio', 'N', 'D-Pad →'], ['Torch', 'L', '—'], ['Street Sense (hold)', 'Q', 'LB']]],
   ];
   // the short version, shown the first time and on H
@@ -478,7 +480,7 @@ export function createHUD(root, world) {
       <div class="cc-grid">
         <section><h3>Move</h3>${row('W A S D', 'Move')}${row('Mouse', 'Look around')}${row('Space', 'Jump · climb')}${row('Shift', 'Sprint')}</section>
         <section><h3>Skate</h3>${row('R', 'Board on / off')}${row('Space', 'Ollie, then Space again to flip')}${row('F', 'Board trick in the air')}${row('X', 'Belly-board (when fast)')}${row('E', 'Grab a car')}</section>
-        <section><h3>Street</h3>${row('F', 'Hit · use · take an okada')}${row('C', 'Dodge · counter')}${row('M', 'Map: pick a place, pick a ride')}${row('U', 'Change into the suit')}</section>
+        <section><h3>Street</h3>${row('F', 'Hit · use · take an okada')}${row('C', 'Dodge · counter')}${row('M', 'Map: pick a place, pick a ride')}${row('U', 'Change into the suit')}${row('1 2 3', 'Pepper · ash cloud · nails')}${row('E', 'Grab a danfo · ride a wire')}</section>
         <section class="cc-hot"><h3>Menu</h3>${row('Esc', 'Pause (any time)')}${row('H', 'This card')}</section>
       </div>
       <button class="cc-go">${first ? 'Got it · click to play' : 'Back to the game'}</button><p class="cc-note">The mouse is captured while you play so it can turn the camera. Press <b>Esc</b> to get your cursor back (it pauses the game).</p></div>`;
