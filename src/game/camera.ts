@@ -37,7 +37,7 @@ export function createCamera(aspect, world) {
     c.yaw -= lx * 0.0024 * sensitivity;
     c.pitch = Math.max(-0.35, Math.min(1.2, c.pitch + ly * 0.0022 * sensitivity));
 
-    const onBoard = ['board', 'grind', 'skitch', 'ride'].includes(player.mode);
+    const onBoard = ['board', 'grind', 'skitch', 'ride', 'bike'].includes(player.mode);
     const hs = Math.hypot(player.vel.x, player.vel.z);
     // auto-follow: swing behind the direction of travel when the player isn't steering the camera
     if (c.idle > 1.1 && (onBoard || hs > 3) && player.mode !== 'climb' && !player.aiming) {

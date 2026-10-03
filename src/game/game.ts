@@ -83,7 +83,7 @@ export function createGame(ctx) {
   function moveDir(inp) {
     const m = inp.move, cy = camera.yaw;
     if (Math.hypot(m.x, m.y) > 0.2) { const x = Math.sin(cy) * m.y - Math.cos(cy) * m.x, z = Math.cos(cy) * m.y + Math.sin(cy) * m.x, l = Math.hypot(x, z); return [x / l, z / l]; }
-    const y = player.mode === 'board' ? player.heading : player.yaw; return [Math.sin(y), Math.cos(y)];
+    const y = ['board', 'bike'].includes(player.mode) ? player.heading : player.yaw; return [Math.sin(y), Math.cos(y)];
   }
   function findSpot(minD, maxD) {
     const c = world.spots.filter(s => { const d = Math.hypot(s.x - player.pos.x, s.z - player.pos.z); return d > minD && d < maxD && !(s.bi === 1 && s.bj === 1) && s.bi !== 4 && game.sites.every(q => dist2(q.spot, s) > 30 * 30) && world.vendors.every(v => dist2(v, s) > 15 * 15); });
@@ -359,6 +359,20 @@ export function createGame(ctx) {
     if (near(R0.mamaSpot, 1.2)) return { kind: 'none', text: 'Mama is asleep. Tread softly.' };
     return null;
   }
+  // taking an okada: the rider goes into the gutter shouting, and whoever saw it calls the police
+  function stealOkada(v) {
+    const yaw = v.yaw, x = v.pos.x, z = v.pos.z;
+    traffic.remove(v);
+    const c = new Civilian(scene, world, { x: x + Math.cos(yaw) * 1.4, z: z - Math.sin(yaw) * 1.4, yaw, outfit: { skin: '#4a2e1f', top: '#6d4c41', bottom: '#263238', sock: '#3e2723', sole: '#2b2b2b', cap: null, sheen: '#556070' } });
+    c.name = 'Okada man'; c.mood = 'scared'; game.civilians.push(c);
+    setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (Math.random() - 0.5) * 60, c.pos.z + 40); }, 2500);
+    if (player.mode === 'board') player.mode = 'foot';
+    player.pos.set(x, player.pos.y, z); player.mountBike(yaw);
+    audio.punch(); camera.shake = 0.3;
+    hud.say('Okada man', ['Ole! Ole! My okada!', 'Thief! Somebody hold am!', 'Na my daily bread you carry o!'][Math.floor(Math.random() * 3)], 3);
+    if (policeSeeing()) addHeat(1, 'Police saw you take the okada.');
+    else if (witnesses().length && Math.random() < 0.5) addHeat(1, 'Somebody is on the phone to the police.');
+  }
   function interactOption() {
     if (L.inside) return roomOption();
     if (!['foot', 'board'].includes(player.mode) || (player.mode === 'board' && !player.onGround)) return null;
@@ -366,6 +380,9 @@ export function createGame(ctx) {
     if (game.dropped && dist2(game.dropped.mesh.position, player.pos) < 2.4 * 2.4) return { kind: 'pickup', text: `<span class="key">F</span>Pick up ${game.dropped.item.label}` };
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 3.6 * 3.6) return { kind: 'deliver', text: `<span class="key">F</span>Give it back to ${game.delivery.name}` };
     if (busy) return null;
+    // okadas: his own (where he left it), or somebody else's
+    if (player.mode === 'foot' && !player.cuffed && player.nearBike()) return { kind: 'mount', text: '<span class="key">F</span>Get on the okada' };
+    if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && (v.speed < 8 || player.mode === 'board')); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
     const dopt = DAY.interactOption(); if (dopt) return dopt;
     const stop = TR.stopNear(player.pos);
@@ -405,6 +422,8 @@ export function createGame(ctx) {
     switch (opt.kind) {
       case 'pickup': { const it = game.dropped.item; scene.remove(game.dropped.mesh); game.dropped = null; startCarry(it); return true; }
       case 'deliver': deliver(); return true;
+      case 'mount': player.mountBike(player.bike.yaw); return true;
+      case 'steal': stealOkada(opt.v); return true;
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
       case 'home': game.enterHome(); return true;
@@ -866,7 +885,8 @@ export function createGame(ctx) {
     if (game.arrest) { updateArrest(dt, input); input.pressed = {}; }
     else if (player.mode === 'ride') { TR.update(dt, input); input.pressed = {}; }
     else if (game.pendingTrip && player.mode === 'foot') TR.checkPending();
-    if (game.respawnT <= 0 && player.mode !== 'down') {
+    if (player.mode === 'bike') prompt = game.prompt = '<span class="key">R</span>Get off · <span class="key">Space</span>Brake · <span class="key">Shift</span>Full throttle';
+    if (game.respawnT <= 0 && player.mode !== 'down' && player.mode !== 'bike') {
       if ((input.pressed.fire && player.aiming) || input.pressed.throw) { if (!L.inside) doThrow(dir); }
       else if (input.pressed.act && ['foot', 'board'].includes(player.mode) && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) {
         const t = game.thugs.filter(q => q.alive && q.state === 'run').sort((a, b) => dist2(a.pos, player.pos) - dist2(b.pos, player.pos))[0];
@@ -980,6 +1000,7 @@ export function createGame(ctx) {
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>NO FIGHTING, NO BOARD, NO CLIMBING · ALLEYS, CORNERS, CROWDS, SKITCHING IS OFF · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
+    else if (game.mode === 'patrol' && !L.inside) hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>M: MAP · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else if (so && game.story.active?.m.day) hud.objective(so);
     else if (!L.inside && game.story.reconObjective()) hud.objective(game.story.reconObjective());
     else if (L.phase === 'day' && !L.inside && L.clock >= 20 * 60) hud.objective('It\'s dark. <b>Go home</b>: Mama is back and dinner is waiting<small>NIGHT STARTS WHEN YOU\'RE HOME</small>');
@@ -1090,6 +1111,8 @@ export function createGame(ctx) {
 
   function handleEvent(ev) {
     switch (ev.e) {
+      case 'bikeOn': audio.horn?.(player.pos); break;
+      case 'bikeOff': if (ev.crash) { audio.land(1); camera.shake = 0.6; hud.popup('CRASHED'); } break;
       case 'jump': audio.ollie(); if (ev.power > 0.6) { fx.dust(player.pos.x, player.pos.y + 0.05, player.pos.z, 10); camera.shake = 0.2; } break;
       case 'ollie': audio.ollie(); break;
       case 'land': audio.land(Math.min(1, -ev.vy / 14)); if (ev.vy < -13) camera.shake = 0.35; break;

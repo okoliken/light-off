@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.ts';
 
-const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting' };
+const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting', bike: 'Okada' };
 
 const FILLER = [
   'Residents say the situation has gone on for too long. "We are tired," said one trader who asked not to be named.',
@@ -32,7 +32,7 @@ export function createHUD(root, world) {
       <div class="heat"><span class="lbl">HEAT</span><i class="star"></i><i class="star"></i><i class="star"></i></div>
       <div class="naira">₦0<span>RETURNED</span></div>
       <div class="wanted"><span class="lbl">RED CAPS</span><i></i><i></i><i></i></div>
-      <div class="respect"><span class="lbl">RESPECT</span> <b class="rv">0</b></div>
+      <div class="respect"><span class="lbl">REP</span> <b class="rv">0</b></div>
       <div class="needs">
         <div><span class="lbl">HUNGER</span><div class="meter hunger"><b></b></div></div>
         <div><span class="lbl">ENERGY</span><div class="meter energy"><b></b></div></div>
@@ -349,7 +349,7 @@ export function createHUD(root, world) {
     el.hbar.className = p.hp < 15 ? 'crit' : p.hp < 35 ? 'hurt' : '';
     el.hv.textContent = Math.ceil(Math.max(0, p.hp));
     el.stars.forEach((s, i) => s.classList.toggle('on', game.heat > i));
-    el.naira.innerHTML = `₦${game.stats.returned.toLocaleString()}<span>RETURNED</span>`;
+    el.naira.innerHTML = game.mode === 'patrol' ? `₦${game.life.wallet.toLocaleString()}<span>CASH</span>` : `₦${game.stats.returned.toLocaleString()}<span>RETURNED</span>`;
     const spd = Math.round(Math.hypot(p.vel.x, p.vel.z) * 3.6);
     el.mode.innerHTML = `${game.arrest ? 'Arrested' : p.cuffed && p.mode === 'foot' ? 'Handcuffed' : MODE_NAMES[p.mode] || p.mode}<small>${p.mode === 'grind' ? 'SPACE JUMP OFF · C HOP OFF' : spd + ' KM/H'}</small>`;
     const sk = p.mode === 'skitch' && p.skitch;
@@ -486,7 +486,7 @@ export function createHUD(root, world) {
     panel.querySelectorAll('[data-q]').forEach(x => x.classList.toggle('on', x === b)); o.quality = b.dataset.q; onPick(b.dataset.q);
   });
   const logo = (small) => `<div class="mm-logo ${small ? 'small' : ''}"><div class="mm-kicker">A BOLAJI STORY</div><h1><span class="fl">LIGHT</span><span class="dash">-</span><span class="fl2">OFF</span></h1>
-    <div class="mm-chapter">CHAPTER 1 <b>·</b> THE RED CAPS <b>·</b> SURULERE, LAGOS</div></div>`;
+    <div class="mm-chapter">SURULERE <b>·</b> YABA <b>·</b> MUSHIN <b>·</b> LAGOS</div></div>`;
 
   H.title = (save, onStart, opts) => {
     const o = opts || { quality: 'medium', presets: {} };

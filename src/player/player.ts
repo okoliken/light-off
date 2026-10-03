@@ -558,6 +558,66 @@ export function createPlayer(scene, world, traffic) {
     if (p.bailT > 1.15) { p.mode = 'foot'; p.boardFly = null; p.yaw = p.heading; emit('recover'); }
   }
 
+  // ---------------- okada (stolen) ----------------
+  // He rides it himself: throttle toward where you push, brake by pulling back, R to get off.
+  // A hard crash throws him off; the bike stays where it fell and he can pick it up again.
+  const bikeMesh = (() => {
+    const g = new THREE.Group(), m = (c, mt = 0.3) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: mt });
+    const col0 = ['#8e1b1b', '#1a237e', '#212121', '#bf360c'][Math.floor(Math.random() * 4)];
+    for (const z of [0.72, -0.7]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.11, 14), m('#111', 0)); w.rotation.z = Math.PI / 2; w.position.set(0, 0.33, z); g.add(w); }
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.35, 1.2), m(col0)); body.position.set(0, 0.62, 0); g.add(body);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.8), m('#111', 0)); seat.position.set(0, 0.86, -0.2); g.add(seat);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.05), m('#999', 0.8)); bar.position.set(0, 1.05, 0.62); g.add(bar);
+    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), m('#666', 0.8)); fork.position.set(0, 0.78, 0.66); fork.rotation.x = 0.3; g.add(fork);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.05), new THREE.MeshStandardMaterial({ color: '#fff4d6', emissive: '#fff4d6', emissiveIntensity: 1.5 })); lamp.position.set(0, 0.95, 0.83); g.add(lamp);
+    g.traverse(o => { if ((o as any).isMesh) o.castShadow = true; });
+    g.visible = false; scene.add(g); return g;
+  })();
+  p.bike = null; // { x, z, yaw } where the bike stands when he's not on it
+  p.bikeMesh = bikeMesh;
+  p.mountBike = (yaw) => { p.mode = 'bike'; p.heading = yaw ?? p.yaw; p.speed = Math.hypot(p.vel.x, p.vel.z) * 0.5; p.bike = null; p.lean = 0; p.dropHeld?.(); emit('bikeOn'); };
+  p.parkBike = (x, z, yaw) => { p.bike = { x, z, yaw }; bikeMesh.visible = true; bikeMesh.position.set(x, col.groundHeight(x, z, 2).h, z); bikeMesh.rotation.set(0, yaw, 0.25, 'YXZ'); };
+  p.nearBike = () => p.bike && Math.hypot(p.bike.x - p.pos.x, p.bike.z - p.pos.z) < 2.2;
+  function getOffBike(crash = false) {
+    const side = crash ? 0 : 0.9;
+    p.parkBike(p.pos.x, p.pos.z, p.heading);
+    p.pos.x -= Math.cos(p.heading) * side; p.pos.z += Math.sin(p.heading) * side;
+    if (crash) { p.vel.set(Math.sin(p.heading) * p.speed * 0.5, 4, Math.cos(p.heading) * p.speed * 0.5); startBail(4); }
+    else { p.mode = 'foot'; p.yaw = p.heading; p.vel.set(0, 0, 0); }
+    emit('bikeOff', { crash });
+  }
+  function bike(dt, inp, camYaw) {
+    const w = wishDir(inp, camYaw), mag = Math.min(1, w.length());
+    let steer = 0;
+    if (inp.pressed.board) { getOffBike(); return; }
+    if (mag > 0.2) {
+      const diff = wrap(Math.atan2(w.x, w.z) - p.heading);
+      if (Math.abs(diff) > 2.4) p.speed -= 16 * dt; // pull back: brake
+      else {
+        const rate = 2.6 - 1.4 * Math.min(1, p.speed / 26);
+        steer = clamp(diff, -rate * dt, rate * dt); p.heading += steer;
+        const top = inp.held.sprint ? 27 : 21, fwd = Math.cos(diff) * mag;
+        if (fwd > 0.2 && p.speed < top) p.speed += (p.speed < 8 ? 9 : 5) * fwd * dt;
+      }
+    }
+    if (inp.held.jump) p.speed -= 10 * dt; // Space: brake hard
+    p.speed -= (0.4 + p.speed * 0.01) * dt;
+    const cond = world.roadCond?.(p.pos.x, p.pos.z);
+    if (cond === 'flood') p.speed -= p.speed * 1.2 * dt; else if (cond === 'bad' && p.speed > 12) p.speed -= (p.speed - 12) * 1.5 * dt;
+    p.speed = Math.max(0, p.speed);
+    p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed;
+    p.lean += (clamp(-steer / Math.max(dt, 1e-3) * 0.18 * Math.min(1, p.speed / 10), -0.5, 0.5) - p.lean) * Math.min(1, dt * 6);
+    const before = p.speed;
+    const { contacts, hit } = physics(dt, { onBoard: true });
+    if (hit && hit.rel > 6) { vehicleHit(hit, false); if (p.mode !== 'bike') { p.parkBike(p.pos.x, p.pos.z, p.heading); emit('bikeOff', { crash: true }); } return; }
+    if (contacts.length) {
+      const c = contacts[0], into = -(Math.sin(p.heading) * c.nx + Math.cos(p.heading) * c.nz);
+      if (into > 0.6 && before > 13) { getOffBike(true); return; }
+      p.speed *= 1 - 0.6 * Math.max(0, into);
+      p.heading = Math.atan2(p.vel.x, p.vel.z) || p.heading;
+    }
+  }
+
   // ---------------- main update ----------------
   p.update = (dt, inp, camYaw, time) => {
     p.events.length = 0;
@@ -579,6 +639,7 @@ export function createPlayer(scene, world, traffic) {
       case 'wallrun': wallrun(dt, inp); break;
       case 'act': actUpdate(dt); break;
       case 'ride': { const v = p.ride.v; p.pos.set(v.pos.x - v.fwd.x * (v.type === 'okada' ? 0.45 : 0), v.pos.y + (v.type === 'okada' ? 0.55 : 0.2), v.pos.z - v.fwd.z * (v.type === 'okada' ? 0.45 : 0)); p.vel.copy(v.vel); p.heading = p.yaw = v.yaw; p.onGround = true; break; }
+      case 'bike': bike(dt, inp, camYaw); break;
       case 'roll': roll(dt); break;
       case 'bail': bail(dt); break;
       case 'down': {
@@ -639,6 +700,7 @@ export function createPlayer(scene, world, traffic) {
       case 'wallrun': Pose.wallrun(rig, p.anim, p.wallrun?.side || 1); bodyYaw = p.yaw; rate = 18; break;
       case 'act': Pose.strike(rig, p.act.kind, p.act.t / p.act.dur); bodyYaw = p.yaw; rate = 34; break;
       case 'ride': Pose.idle(rig, time, false); rig.set('hipsY', HIP_H - 0.35); rig.set('thLX', -1.4); rig.set('thRX', -1.4); rig.set('knLX', 1.3); rig.set('knRX', 1.3); rig.set('thLZ', 0.35); rig.set('thRZ', -0.35); rig.set('shLX', -0.8); rig.set('shRX', -0.8); rig.set('elLX', -0.6); rig.set('elRX', -0.6); bodyYaw = p.yaw; break;
+      case 'bike': Pose.idle(rig, time, false); rig.set('hipsY', HIP_H - 0.35); rig.set('thLX', -1.3); rig.set('thRX', -1.3); rig.set('knLX', 1.2); rig.set('knRX', 1.2); rig.set('thLZ', 0.3); rig.set('thRZ', -0.3); rig.set('spineX', 0.35); rig.set('shLX', -1.2); rig.set('shRX', -1.2); rig.set('elLX', -0.3); rig.set('elRX', -0.3); rig.set('hipsRZ', p.lean || 0); bodyYaw = p.heading; lift = 0.5; rate = 20; break;
       case 'roll': Pose.roll(rig, Math.min(1, p.rollT / 0.5)); rate = 40; break;
       case 'bail': Pose.tumble(rig, p.bailT); rate = 10; bodyYaw = p.heading; break;
       case 'down': Pose.down(rig); rate = 8; break;
@@ -660,6 +722,8 @@ export function createPlayer(scene, world, traffic) {
     rig.root.rotation.y = cur + wrap(bodyYaw - cur) * Math.min(1, dt * (onBoard ? 14 : 18));
     // flicker while invulnerable after a hit
     rig.root.visible = p.mode === 'ride' ? !!p.ride?.visible : !(p.invuln > 0 && p.hurtT < 1 && Math.floor(p.t * 20) % 2 === 0);
+    if (p.mode === 'bike') { bikeMesh.visible = true; bikeMesh.position.set(p.pos.x, p.pos.y, p.pos.z); bikeMesh.rotation.set(0, p.heading, -(p.lean || 0), 'YXZ'); }
+    else if (!p.bike) bikeMesh.visible = false;
     // board
     const flying = p.mode === 'bail' && p.boardFly;
     board.visible = onBoard || !!flying;
