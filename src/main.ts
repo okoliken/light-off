@@ -14,6 +14,7 @@ import { createNav } from './game/nav.ts';
 import { createHUD } from './ui/hud.ts';
 import { REGIONS } from './world/layout.ts';
 import { buildRoom } from './world/room.ts';
+import { buildMall } from './world/mall.ts';
 import { nightReport } from './game/nightreport.ts';
 import { createCinema } from './game/cinema.ts';
 import { loadSettings, saveSettings, preset, PRESETS } from './game/settings.ts';
@@ -38,6 +39,8 @@ const scene = new THREE.Scene();
 const t0 = performance.now();
 const world = buildCity(scene, { lights: Q.lights });
 buildRoom(scene, world);
+buildMall(scene, world);
+REGIONS.push(world.mall.region); // inside the mall
 REGIONS.push(world.room.region);    // Bolaji's room
 REGIONS.push(world.stadium.region); // the National Stadium grounds
 const traffic = createTraffic(scene, world);
@@ -95,7 +98,7 @@ function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(
 game.onRideMenu = (stop) => openMenu(done => hud.rideMenu(stop, game.transport.options(stop), (to, mode) => { done(); game.transport.board(stop, to, mode); }, done));
 game.onMissionComplete = (r) => { if (state === 'play') openMenu(done => hud.missionReport(r, done)); else pendingReports.push(r); };
 const pendingReports: any[] = [];
-game.onShop = (shop) => openMenu(done => hud.shop(shop, () => game.shopItems(), () => game.life.wallet, (id) => game.buy(id), done));
+game.onShop = (shop) => openMenu(done => hud.shop(shop, () => game.shopItems().filter((it: any) => !shop.items || shop.items.includes(it.id)), () => game.life.wallet, (id) => game.buy(id), done));
 game.onNewspaper = (heads) => openMenu(done => hud.newspaper(heads, done));
 
 // cutscenes (game/cinema.js): the camera frames whoever is talking, lines type and advance by themselves

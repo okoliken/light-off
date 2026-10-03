@@ -15,7 +15,8 @@ import { createCheckpoints } from './police.ts';
 import { createActivities } from './activities.ts';
 import { createRadio } from './radio.ts';
 import { nightStart } from './nightreport.ts';
-import { OUTFITS } from '../player/rig.ts';
+import { OUTFITS, Rig, Pose } from '../player/rig.ts';
+import { textSign } from '../core/textures.ts';
 import { blockRect, WALK, N, HALF, roadLine } from '../world/layout.ts';
 
 const FAMILIES: any[] = [
@@ -373,7 +374,34 @@ export function createGame(ctx) {
     if (policeSeeing()) addHeat(1, 'Police saw you take the okada.');
     else if (witnesses().length && Math.random() < 0.5) addHeat(1, 'Somebody is on the phone to the police.');
   }
+  // ---------- the mall: walk in through the door, shop at the counters, walk out ----------
+  game.inMall = false;
+  const mallOpen = () => L.phase === 'day' && L.clock >= 9 * 60 && L.clock < 21 * 60;
+  function enterMall(shop) {
+    if (!mallOpen()) { hud.toast(`<b>${shop.name}</b> is closed. Open 9 AM to 9 PM.`, 'red'); return; }
+    if (game.heat > 0) { hud.say('Security', 'Oga, police dey find you? Go back. You no dey enter here.', 3); return; }
+    if (player.mode === 'board') player.mode = 'foot';
+    game.mallFrom = { x: player.pos.x, z: player.pos.z, yaw: player.yaw + Math.PI, name: shop.name };
+    const M = world.mall; game.inMall = true; M.light.visible = true; M.light.intensity = 9;
+    player.respawn(M.spawn.x, M.spawn.z, M.spawn.yaw); player.pos.y = 0; camera.snapBehind(M.spawn.yaw);
+    audio.grab(); hud.notice(shop.name.toUpperCase(), 'Cold AC hits you at the door.', 'white', 2.2);
+    hud.say('Security', ['Welcome. No running inside o.', 'Bag check... ok, enter.', 'Small boy, you dey buy or you dey look?'][Math.floor(Math.random() * 3)], 2.6);
+  }
+  function leaveMall() {
+    const f = game.mallFrom || { x: world.homeDoor.x, z: world.homeDoor.z, yaw: 0 };
+    game.inMall = false; world.mall.light.visible = false;
+    player.respawn(f.x, f.z, f.yaw); camera.snapBehind(f.yaw); hud.notice('OUTSIDE', f.name || '', 'white', 1.6);
+  }
+  world.mall.light.visible = false;
+  function mallOption() {
+    const M = world.mall;
+    if (dist2(M.door, player.pos) < 2.6 * 2.6) return { kind: 'leaveMall', text: '<span class="key">F</span>Leave the mall' };
+    const sh = M.shops.find(q => dist2(q, player.pos) < 2.4 * 2.4);
+    if (sh) return { kind: 'mallshop', shop: sh, text: `<span class="key">F</span>Buy at <b>${sh.name}</b>` };
+    return null;
+  }
   function interactOption() {
+    if (game.inMall) return mallOption();
     if (L.inside) return roomOption();
     if (!['foot', 'board'].includes(player.mode) || (player.mode === 'board' && !player.onGround)) return null;
     const busy = game.thugs.some(t => t.alive && (t.state === 'windup' || t.state === 'strike') && dist2(t.pos, player.pos) < 9);
@@ -384,6 +412,7 @@ export function createGame(ctx) {
     if (player.mode === 'foot' && !player.cuffed && player.nearBike()) return { kind: 'mount', text: '<span class="key">F</span>Get on the okada' };
     if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && (v.speed < 8 || player.mode === 'board')); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
+    if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
     const dopt = DAY.interactOption(); if (dopt) return dopt;
     const stop = TR.stopNear(player.pos);
     if (stop && !player.fightingNear) return { kind: 'bus', stop, text: `<span class="key">F</span>Take a ride from <b>${stop.name}</b> bus stop` };
@@ -401,7 +430,7 @@ export function createGame(ctx) {
     if (player.cuffed && !game.arrest && L.items.pins > 0 && game.story.flags.canPick) return { kind: 'pickhint', text: `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
     const co = game.cuffOption(); if (co) return co;
     const shop = (world.shops || []).find(q => dist2(q, player.pos) < 4 * 4);
-    if (shop && !player.cuffed) return { kind: 'shop', shop, text: `<span class="key">F</span>Go into ${shop.name} (torchlight, pins, first aid)` };
+    if (shop && !player.cuffed) return { kind: 'shop', shop, text: mallOpen() ? `<span class="key">F</span>Go into <b>${shop.name}</b>` : `<b>${shop.name}</b> · closed (9 AM to 9 PM)` };
     const ro = game.police.option(); if (ro) return ro;
     const so = game.story.option?.(); if (so) return so;
     const ao = game.activities.option(); if (ao) return ao;
@@ -427,7 +456,14 @@ export function createGame(ctx) {
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
       case 'home': game.enterHome(); return true;
-      case 'shop': game.onShop?.(opt.shop); return true;
+      case 'shop': enterMall(opt.shop); return true;
+      case 'mallshop': hud.say(opt.shop.seller, opt.shop.line, 3); game.onShop?.(opt.shop); return true;
+      case 'leaveMall': leaveMall(); return true;
+      case 'nepaBribe': {
+        if (L.wallet < 1000) { hud.say('NEPA man', 'Wetin you hold? Comot here, small boy.', 3); return true; }
+        L.wallet -= 1000; audio.pickup(); hud.say('NEPA man', ['Ehen! I no see this street today.', 'You get sense. Oya, we dey go.', 'Tell your people make una pay bill o.'][Math.floor(R() * 3)], 3.5);
+        game.nepa.cut = true; game.nepa.t = 31; hud.toast('The crew packs up. <b>The light stays on</b>, for now.', 'green'); return true;
+      }
       case 'pickhint': return true;
       case 'uncuff': if (!game.story.flags.canPick) { game.story.flags.canPick = true; setTimeout(() => hud.toast('Baba Kolade showed you how: <b>a bent hair pin and two minutes of patience.</b> Buy pins at a mall, and next time you can <b>pick the cuffs yourself</b> (hold F where no police can see you).', 'blue'), 2500); }
         player.cuffed = false; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Baba Kolade: "I did not see you. I did not see these. Go home."', 'green'); game.addRespect(200, 'ESCAPED CUSTODY'); return true;
@@ -491,6 +527,8 @@ export function createGame(ctx) {
     { id: 'pins', name: 'Hair pins (×3)', desc: L.items.pins ? `You have ${L.items.pins}.` : 'For picking handcuffs, once someone shows you how.', price: 500 },
     { id: 'meds', name: 'Plaster & paracetamol', desc: 'Patches you up: heals some injury and health.', price: 800 },
     { id: 'drink', name: 'Energy drink', desc: '+35 energy.', price: 400 },
+    { id: 'jollof', name: 'Jollof rice & chicken', desc: 'A proper plate. Fills you up.', price: 1500 },
+    { id: 'chops', name: 'Small chops', desc: 'Puff-puff, samosa, spring roll.', price: 700 },
   ];
   game.buy = (id) => {
     const it = game.shopItems().find(q => q.id === id); if (!it || it.owned) return 'owned';
@@ -500,6 +538,8 @@ export function createGame(ctx) {
     if (id === 'pins') L.items.pins += 3;
     if (id === 'meds') { player.injury = Math.max(0, player.injury - 18); player.hp = Math.min(player.cap(), player.hp + 30); }
     if (id === 'drink') L.energy = Math.min(100, L.energy + 35);
+    if (id === 'jollof') L.eat(50, 'Jollof & chicken');
+    if (id === 'chops') L.eat(22, 'Small chops');
     game.save(); return 'ok';
   };
   let torch = null; game.torchOn = false;
@@ -623,11 +663,62 @@ export function createGame(ctx) {
     b.state = 'flickerOff'; b.t = 0; b.dur = dur; game.stats.blackouts++;
     if (fuse) hud.toast('You yanked the fuse. <b>The whole street goes dark.</b>', 'blue');
   }
+  // ---------- NEPA: a PHCN crew pulls up at a transformer and cuts the light ----------
+  // One man up the ladder, one watching from the pickup. At night the street goes dark when he's done.
+  // You can "settle" the one on the ground, or just watch Lagos happen.
+  const NEPA_FIT = { skin: '#4a2e1f', top: '#fdd835', bottom: '#1a237e', sock: '#3e2723', sole: '#2b2b2b', cap: '#1a237e', sheen: '#556070' };
+  game.nepa = null; game.nepaNext = 90 + R() * 60;
+  function startNepa(tf) {
+    const px = tf.x - 0.8, pz = tf.z - 0.9, parts: any[] = [];
+    const truck = new THREE.Group(), m = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.2 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.0, 4.6), m('#f5f5f5')); body.position.y = 0.95; truck.add(body);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.8, 1.9), m('#f5f5f5')); cab.position.set(0, 1.85, 0.9); truck.add(cab);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.22, 4.62), m('#1565c0')); stripe.position.y = 1.0; truck.add(stripe);
+    for (const [wx, wz] of [[-0.9, 1.4], [0.9, 1.4], [-0.9, -1.4], [0.9, -1.4]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.28, 12), m('#111')); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.38, wz); truck.add(w); }
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.45), new THREE.MeshBasicMaterial({ map: textSign('PHCN · NEPA', '#1565c0', '#ffeb3b', 512, 90) }));
+    sg.position.set(0.97, 1.35, -0.6); sg.rotation.y = Math.PI / 2; truck.add(sg);
+    const sg2 = sg.clone(); sg2.position.x = -0.97; sg2.rotation.y = -Math.PI / 2; truck.add(sg2);
+    truck.position.set(px - 1.5, 0.15, pz - 5.6); truck.rotation.y = Math.PI / 2; scene.add(truck); parts.push(truck);
+    // the ladder against the pole, and the man at the top of it
+    const lad = new THREE.Group();
+    for (const dx of [-0.25, 0.25]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.06, 4.6, 0.06), m('#b0bec5')); r.position.set(dx, 2.3, 0); lad.add(r); }
+    for (let k = 0; k < 11; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.05), m('#b0bec5')); r.position.set(0, 0.3 + k * 0.4, 0); lad.add(r); }
+    lad.position.set(px, 0.15, pz - 0.9); lad.rotation.x = 0.2; scene.add(lad); parts.push(lad);
+    const up = new Rig(NEPA_FIT); up.root.position.set(px, 2.9, pz - 0.6); up.root.rotation.y = 0; scene.add(up.root); parts.push(up.root);
+    const boss = new Civilian(scene, world, { x: px - 2.2, z: pz - 2.6, yaw: 0.6, outfit: { ...NEPA_FIT, top: '#1565c0' } });
+    boss.name = 'NEPA man'; boss.mood = 'idle'; game.civilians.push(boss);
+    game.nepa = { tf, x: px, z: pz, t: 0, parts, up, boss, told: false, cut: false, area: world.areaAt(px, pz) };
+    if (Math.hypot(px - player.pos.x, pz - player.pos.z) < 160) hud.toast(`<b>NEPA</b> pickup at ${game.nepa.area}. Somebody is about to lose light.`, 'blue');
+  }
+  function endNepa() { const n = game.nepa; if (!n) return; for (const o of n.parts) scene.remove(o); n.boss.remove(scene); game.nepa = null; game.nepaNext = 150 + R() * 120; }
+  function updateNepa(dt) {
+    const n = game.nepa;
+    if (!n) {
+      game.nepaNext -= dt;
+      if (game.nepaNext <= 0 && !L.inside && !game.inMall && game.power > 0.5 && game.blackout.state === 'on') {
+        const tf = world.transformers.map(t => ({ t, d: Math.hypot(t.x - player.pos.x, t.z - player.pos.z) })).filter(q => q.d > 35 && q.d < 150).sort((a, b) => a.d - b.d)[0];
+        if (tf) startNepa(tf.t); else game.nepaNext = 30;
+      }
+      return;
+    }
+    n.t += dt; Pose.climb(n.up, n.t * 2); n.up.update(dt, 10);
+    const d = Math.hypot(n.x - player.pos.x, n.z - player.pos.z);
+    if (!n.told && d < 40) { n.told = true; hud.say('Woman', ['NEPA! Una don come again?! We pay last month!', 'Ah! No cut am o! My freezer full!', 'Oga NEPA, abeg, my pikin dey write exam tomorrow!'][Math.floor(R() * 3)], 3.5); setTimeout(() => game.nepa && hud.say('NEPA man', ['Una street never pay. Na order from above.', 'Settle me, make I go another street.', 'Na estimated billing. No be my problem.'][Math.floor(R() * 3)], 3.5), 3800); }
+    if (!n.cut && Math.random() < dt * 3) fx.burst(n.x, CURB_Y + 4.3, n.z - 0.2, 0xfff2a0, 3, 2);
+    if (!n.cut && n.t > 20) {
+      n.cut = true; fx.burst(n.x, CURB_Y + 4.3, n.z, 0xfff2a0, 26, 5); audio.glass?.(); camera.shake = Math.max(camera.shake, d < 40 ? 0.2 : 0);
+      if (L.phase !== 'day' || L.daylight() < 0.5) startBlackout(55 + R() * 35);
+      else hud.notice('NEPA CUT THE LIGHT', `${n.area}: generators start coughing all over the street.`, 'white', 3);
+      game.blackout.next = Math.max(game.blackout.next, 200);
+    }
+    if (n.t > 30 && d > 25) endNepa();
+  }
+  const CURB_Y = 0.15;
   function updateBlackout(dt) {
     const b = game.blackout;
     b.t += dt;
     let p = game.power;
-    if (b.state === 'on') { p = 1; b.next -= dt; if (b.next <= 0) startBlackout(28 + R() * 14); }
+    if (b.state === 'on') { p = 1; b.next -= dt; if (b.next <= 0) { const near = !game.nepa && world.transformers.some(t => { const d = Math.hypot(t.x - player.pos.x, t.z - player.pos.z); return d > 35 && d < 150; }); if (near) { game.nepaNext = 0; b.next = 60; } else if (game.nepa) b.next = 30; else startBlackout(28 + R() * 14); } }
     else if (b.state === 'flickerOff') {
       p = b.t < 1.3 ? (Math.sin(b.t * 37) > 0.2 ? 1 : 0.15) * (1 - b.t / 1.6) : 0;
       if (b.t > 1.4) { b.state = 'off'; b.t = 0; audio.powerDown(); hud.notice('NEPA DON TAKE LIGHT!', 'The grid is down. Harder for anyone to see you. Generators start coughing.', 'white', 3); }
@@ -956,6 +1047,7 @@ export function createGame(ctx) {
     applyLights(false);
     for (const t of game.thugs) { const h = isDay && (t.role === 'collector' || (t.role === 'guard' && t.group?.some(o => o.site)) || t.role === 'patrol') && !t.engaged; if (h !== !!t.hidden) { t.hidden = h; t.rig.root.visible = !h; } }
     if (!isDay) updateBlackout(sdt);
+    updateNepa(sdt);
     updatePolice(sdt);
     if (!isDay) updatePatrols(sdt);
     DAY.update(dt);
@@ -983,7 +1075,8 @@ export function createGame(ctx) {
     if (!L.inside) game.outT = (game.outT || 0) + dt;
     game.autoT = (game.autoT || 0) + dt; if (game.autoT > 20 && !game.arrest && player.mode !== 'ride') { game.autoT = 0; game.save(); }
     if (!L.inside && game.tipI < TIPS.length && game.outT > TIPS[game.tipI][0]) hud.toast(TIPS[game.tipI++][1], 'blue');
-    const area = world.areaAt(player.pos.x, player.pos.z);
+    if (game.inMall && !mallOpen()) { hud.say('Security', 'We don close! Oya, everybody out.', 3); leaveMall(); }
+    const area = game.inMall ? (game.mallFrom?.name || 'Mall') : world.areaAt(player.pos.x, player.pos.z);
     if (area !== game.areaName) { if (game.areaName) hud.area?.(area); game.areaName = area; }
 
     game.dangers.length = 0;
@@ -1000,6 +1093,7 @@ export function createGame(ctx) {
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>NO FIGHTING, NO BOARD, NO CLIMBING · ALLEYS, CORNERS, CROWDS, SKITCHING IS OFF · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
+    else if (game.inMall) hud.objective(`<b>${game.mallFrom?.name || 'The mall'}</b> · ${L.timeStr()}<small>WALK UP TO A COUNTER AND PRESS F TO BUY · THE GLASS DOORS TO LEAVE</small>`);
     else if (game.mode === 'patrol' && !L.inside) hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>M: MAP · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else if (so && game.story.active?.m.day) hud.objective(so);
     else if (!L.inside && game.story.reconObjective()) hud.objective(game.story.reconObjective());
@@ -1220,7 +1314,7 @@ export function createGame(ctx) {
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois as Record<string, any>).filter(q => q.found).map(q => q.id),
         // where he is right now, so a reload puts him back on the street (not at home)
-        snap: { x: player.pos.x, z: player.pos.z, yaw: player.yaw, inside: L.inside, clock: L.clock, suit: L.suit, bag: L.bag, cuffed: !!player.cuffed, heat: game.heat },
+        snap: { x: game.inMall ? game.mallFrom.x : player.pos.x, z: game.inMall ? game.mallFrom.z : player.pos.z, yaw: player.yaw, inside: L.inside, clock: L.clock, suit: L.suit, bag: L.bag, cuffed: !!player.cuffed, heat: game.heat },
       };
       localStorage.setItem(saveKey(), JSON.stringify(data));
     } catch { /* storage unavailable (private window): the game still plays, it just won't remember */ }

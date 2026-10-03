@@ -423,6 +423,42 @@ export function buildCity(scene, opt: any = {}) {
     for (let t = a + 10; t <= b; t += sp, k++) { const side = k % 2 ? 1 : -1; streetlight(c + side * off, t, -side, 0); }
   }
 
+  // ---------- NEPA poles and wires ----------
+  // wooden poles on one side of every street, three sagging lines between them, and the mess Lagos is
+  // known for: service drops looping off to every house, and extra tangles where people "connected themselves"
+  {
+    const wires: number[] = [], add = (ax, ay, az, bx, by, bz, sag) => { let px = ax, py = ay, pz = az; for (let k = 1; k <= 8; k++) { const t = k / 8, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = ay + (by - ay) * t - sag * 4 * t * (1 - t); wires.push(px, py, pz, x, y, z); px = x; py = y; pz = z; } };
+    const PH = CURB + 8.6;
+    const pole = (x, z, alongX) => {
+      B.misc.cyl(0.13, 0.17, 8.8, { p: [x, CURB + 4.4, z] }, '#5b4430', 7);
+      B.misc.box(alongX ? 0.12 : 1.6, 0.12, alongX ? 1.6 : 0.12, { p: [x, PH - 0.3, z] }, '#4a3828');
+      for (const o of [-0.7, 0, 0.7]) B.misc.box(0.08, 0.14, 0.08, { p: [x + (alongX ? 0 : o), PH - 0.16, z + (alongX ? o : 0)] }, '#d7ccc8');
+      S.add(x - 0.15, 0, z - 0.15, x + 0.15, CURB + 8.8, z + 0.15, 'pole');
+    };
+    const run = (pts, alongX, out, messy) => { // pts along one street side; out = unit step toward the houses
+      pts.forEach(([x, z], k) => {
+        pole(x, z, alongX);
+        if (k > 0) { const [px, pz] = pts[k - 1]; for (const o of [-0.7, 0, 0.7]) add(px + (alongX ? 0 : o), PH - 0.1, pz + (alongX ? o : 0), x + (alongX ? 0 : o), PH - 0.1, z + (alongX ? o : 0), 0.55 + R() * 0.25); }
+        const drops = messy ? 3 + Math.floor(R() * 3) : 1 + Math.floor(R() * 2);
+        for (let d = 0; d < drops; d++) { const sx = (R() - 0.5) * 9, ty = CURB + 3.2 + R() * 2.5; add(x, PH - 0.2, z, x + out[0] * (WALK + 0.2) + (alongX ? sx : 0), ty, z + out[1] * (WALK + 0.2) + (alongX ? 0 : sx), 0.3 + R() * 0.6); }
+        if (messy && k > 0 && R() < 0.6) { const [px, pz] = pts[k - 1]; for (let q = 0; q < 3; q++) add(px, PH - 0.6 - R(), pz, x, PH - 0.6 - R(), z, 1 + R() * 1.4); }
+      });
+    };
+    const nearLight = (x, z) => world.lights.some(l => Math.abs(l.x - x) < 2.6 && Math.abs(l.z - z) < 2.6);
+    for (let j = 0; j <= N; j++) for (let i = I0; i < I1; i++) {
+      const c = roadLine(j) + ROAD / 2 + 1.9, a = roadLine(i) + ROAD / 2 + 3, b = roadLine(i + 1) - ROAD / 2 - 3, pts: any[] = [];
+      for (let t = a; t <= b; t += 17) if (!nearLight(t, c)) pts.push([t, c]);
+      run(pts, true, [0, 1], district(i) === 'mushin');
+    }
+    for (let i = I0; i <= I1; i++) for (let j = 0; j < N; j++) {
+      const c = roadLine(i) + ROAD / 2 + 1.9, a = roadLine(j) + ROAD / 2 + 3, b = roadLine(j + 1) - ROAD / 2 - 3, pts: any[] = [];
+      for (let t = a + 8; t <= b; t += 17) if (!nearLight(c, t)) pts.push([c, t]);
+      run(pts, false, [1, 0], district(Math.min(i, I1 - 1)) === 'mushin');
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(wires, 3));
+    scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x0b0b0b, transparent: true, opacity: 0.85 })));
+  }
+
   // ---------- potholes ----------
   for (let k = 0; k < 40; k++) {
     const alongX = R() < 0.5, line = roadLine(Math.floor(R() * (N + 1))), t = -HALF + 10 + R() * (N * CELL - 20);
