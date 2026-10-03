@@ -10,7 +10,7 @@ const G = 22;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const _c: any[] = [];
-const HP = { impostor: 6, redcap: 4, redcap2: 4, brute: 8, scorpion: 14, egungun: 12, chairman: 10, blade: 7 };
+const HP = { gboy: 5, general: 34, impostor: 6, redcap: 4, redcap2: 4, brute: 8, scorpion: 14, egungun: 12, chairman: 10, blade: 7 };
 
 let webGeo = null, webMat = null;
 function webBlob() {
@@ -33,8 +33,8 @@ export class Thug {
     this.maxHp = HP[variant] || 4; this.hp = this.maxHp;
     this.state = 'idle'; this.t = 0; this.anim = Math.random() * 9; this.cd = 0;
     this.ringR = 2.8 + Math.random() * 1.6; this.strafe = Math.random() < 0.5 ? 1 : -1;
-    this.group = group; this.big = variant === 'brute' || variant === 'scorpion' || variant === 'chairman';
-    this.acro = variant === 'egungun' || variant === 'blade'; // trained: they flip away from plain strikes
+    this.group = group; this.big = variant === 'brute' || variant === 'scorpion' || variant === 'chairman' || variant === 'general';
+    this.acro = variant === 'egungun' || variant === 'blade' || variant === 'general'; // trained: they flip away from plain strikes
     this.hasBag = false; this.bag = null; this.victim = null; this.patrol = null; this.pi = 0;
     this.kickT = Math.random(); this.removed = false; this.koT = 0; this.web = null; this.lost = 0;
     this.thrower = weapon === 'bottles' || variant === 'blade'; // the Patron's Blades throw knives from range
@@ -46,7 +46,7 @@ export class Thug {
   get airborne() { return this.state === 'air'; }
   get grounded() { return this.state === 'down' || this.state === 'webbed'; }
   get unblockable() { return this.weapon === 'machete' || this.weapon === 'axe' || this.state === 'throwWind'; }
-  get damage() { return this.variant === 'blade' ? 15 : this.variant === 'scorpion' ? 24 : this.weapon === 'axe' ? 22 : this.weapon === 'machete' ? 20 : this.variant === 'egungun' ? 14 : this.weapon === 'stick' ? 12 : this.weapon === 'knife' ? 10 : this.big ? 14 : 8; }
+  get damage() { return this.variant === 'general' ? 26 : this.variant === 'blade' ? 15 : this.variant === 'scorpion' ? 24 : this.weapon === 'axe' ? 22 : this.weapon === 'machete' ? 20 : this.variant === 'egungun' ? 14 : this.weapon === 'stick' ? 12 : this.weapon === 'knife' ? 10 : this.big ? 14 : 8; }
   stun(dur) { if (this.alive && !['air', 'down', 'ko'].includes(this.state)) { this.state = 'stagger'; this.t = 0; this.stagDur = dur; } }
   blind(dur) { if (this.alive && !['air', 'down', 'ko'].includes(this.state)) { this.state = 'blinded'; this.t = 0; this.blindDur = dur; } }
   flee() { this.state = 'fled'; this.t = 0; this.fleeYaw = this.yaw + Math.PI; }

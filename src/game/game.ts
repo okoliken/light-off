@@ -17,6 +17,7 @@ import { createRadio } from './radio.ts';
 import { createChatter } from './chatter.ts';
 import { createFerry } from './ferry.ts';
 import { createJob } from './job.ts';
+import { createGeneral } from './general.ts';
 import { nightStart } from './nightreport.ts';
 import { OUTFITS, Rig, Pose } from '../player/rig.ts';
 import { textSign } from '../core/textures.ts';
@@ -194,6 +195,7 @@ export function createGame(ctx) {
     addHeat: (n, why) => addHeat(n, why),
     scene: (lines, focus, onDone, title) => { if (lines?.length && game.playScene) game.playScene(lines, focus, onDone, title); else onDone?.(); },
   };
+  game.api = api;
   game.story = createStory(game, api);
 
   game.day = createDay(game);
@@ -205,6 +207,7 @@ export function createGame(ctx) {
   game.chatter = createChatter(game);
   game.ferry = createFerry(game);
   game.job = createJob(game);
+  game.general = createGeneral(game);
   // a danfo pulls in at a stop near you: the conductor shouts the route, someone squeezes on
   const ROUTES = ['Ojuelegba! Ojuelegba! Enter with your change!', 'CMS! Obalende! Oya oya!', 'Oshodi-Oke! Oshodi! Last two!', 'Yaba! Sabo! Yaba!', 'Mushin! Idi-Araba! Enter!', 'Stadium! Stadium! One chance!', 'Ikeja along! Ikeja! Shift o!'];
   game.onBusStop = (v, st) => {
@@ -464,6 +467,7 @@ export function createGame(ctx) {
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
     if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
     const dopt = DAY.interactOption(); if (dopt) return dopt;
+    if (game.mode === 'patrol') { const co = game.general.option(); if (co) return co; }
     if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo) return jo; }
     const fo = game.ferry.option(); if (fo) return fo;
     const stop = TR.stopNear(player.pos);
@@ -507,6 +511,7 @@ export function createGame(ctx) {
       case 'mount': player.mountBike(player.bike.yaw); return true;
       case 'ferry': game.ferry.board(opt.j); return true;
       case 'job': return game.job.act(opt);
+      case 'case': return game.general.act(opt);
       case 'steal': stealOkada(opt.v); return true;
       case 'free': { const c = opt.civ; c.mood = 'idle'; game.stats.saved++; game.logNight('freed', { name: c.name }); game.addRespect(150, 'FREED ' + (c.name || '').toUpperCase()); audio.grab(); hud.say(c.name || 'Captive', ['God bless you!', 'Thank you! Thank you!', 'Who are you?!'][Math.floor(R() * 3)], 2.5); game.story.onFreed(c); setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (R() - 0.5) * 60, c.pos.z + 40); }, 1200); return true; }
       case 'snatch': { const site = opt.site, stealth = ['idle', 'return'].includes(site.collector.state); site.collector.takeBag(); audio.snatch(); startCarry({ label: 'the levy bag', amount: site.amount, site }); site.alarmT = stealth ? 2.6 : 0.2; game.addRespect(stealth ? 150 : 60, stealth ? 'SILENT SNATCH' : 'SNATCH'); return true; }
@@ -1125,6 +1130,7 @@ export function createGame(ctx) {
     game.activities?.update(sdt);
     game.chatter.update(dt);
     if (game.mode === 'patrol' && game.sub !== 'free') game.job.update(dt);
+    if (game.mode === 'patrol') game.general.update(sdt);
     game.story.update(sdt);
     L.update(sdt);
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
@@ -1159,6 +1165,7 @@ export function createGame(ctx) {
     const ao = L.inside ? null : game.activities.objective();
     if (game.arrest) hud.objective('<b>Arrested.</b> Kick the door out before you reach the station<small>MASH F / SPACE · THE MORE HEALTH YOU HAVE, THE HARDER YOU KICK</small>');
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>NO FIGHTING, NO BOARD, NO CLIMBING · ALLEYS, CORNERS, CROWDS, SKITCHING IS OFF · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
+    else if (game.mode === 'patrol' && game.general.objective()) hud.objective(game.general.objective());
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
     else if (game.inMall) hud.objective(`<b>${game.mallFrom?.name || 'The mall'}</b> · ${L.timeStr()}<small>WALK UP TO A COUNTER AND PRESS F TO BUY · THE GLASS DOORS TO LEAVE</small>`);
@@ -1173,12 +1180,13 @@ export function createGame(ctx) {
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
     else if (game.mode === 'patrol') hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>OPEN THE MAP (M) · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
-    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? null : game.job.tracker()) : game.story.tracker()));
+    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? null : game.general.tracker() || game.job.tracker()) : game.story.tracker()));
   };
 
   // ---------- navigation ----------
   function navTarget() {
     if (player.cuffed) { const k = DAY.pois.kolade; return { x: k.x, z: k.z, color: 0xff8a80, label: 'BABA KOLADE · BOLT CUTTERS' }; } // in cuffs only one place matters
+    const ct = game.mode === 'patrol' && game.general?.target(); if (ct) return { x: ct.x, z: ct.z, color: 0xffd54f, label: 'THE CASE', moving: true };
     // what he's in the middle of always owns the arrow: the story mission, then whatever he's carrying back
     const sm = game.story.active && game.story.target(); if (sm) return { x: sm.x, z: sm.z, color: 0xffd54f, label: 'STORY', moving: true };
     if (game.dropped) { const m = game.dropped.mesh.position; return { x: m.x, z: m.z, color: 0xf2b705, label: 'PICK IT UP' }; }
@@ -1238,6 +1246,7 @@ export function createGame(ctx) {
     DAY.markers(M, MM, dstr);
     game.police.markers(M, MM, dstr);
     if (game.mode === 'patrol' && game.sub !== 'free') game.job.markers(M, MM, dstr);
+    if (game.mode === 'patrol') game.general.markers(M, MM, dstr);
     { const rc = game.story.reconTarget(); if (rc) { M.push({ x: rc.x, y: 3, z: rc.z, kind: 'story', label: `LOOK · ${rc.label.toUpperCase()} · ${dstr(rc.x, rc.z)}` }); MM.push({ x: rc.x, z: rc.z, color: '#ffd54f' }); } }
     { const ds = game.story.dayStart(); if (ds) { const d = game.story.dayAvailable(); M.push({ x: ds.x, y: 3, z: ds.z, kind: 'story', label: `DAYTIME · ${d.title.toUpperCase()} · ${dstr(ds.x, ds.z)}` }); MM.push({ x: ds.x, z: ds.z, color: '#ffd54f' }); } }
     game.activities?.markers(M, MM, dstr);
@@ -1384,7 +1393,7 @@ export function createGame(ctx) {
       const data = {
         v: 1, night: L.night, phase: L.phase,
         story: { homePending: game.story.homePending || null, midMission: game.story.active && !game.story.active.m.day ? game.story.active.m.title : null, index: game.story.progress(), unlocked: Math.max(game.story.unlocked, game.story.saved?.unlocked ?? 0), dayDone: game.story.dayDone, dayUnlocked: game.story.dayUnlocked, recon: game.story.recon, flags: game.story.flags, places: game.story.places },
-        respect: game.respect, stats: game.stats, job: game.job?.serialize(),
+        respect: game.respect, stats: game.stats, job: game.job?.serialize(), general: game.general?.serialize(),
         life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy },
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois as Record<string, any>).filter(q => q.found).map(q => q.id),
@@ -1411,7 +1420,7 @@ export function createGame(ctx) {
     game.respect = d.respect; Object.assign(game.stats, d.stats);
     Object.assign(L, d.life); player.injury = d.player.injury; player.hp = Math.max(20, Math.min(player.cap(), d.player.hp));
     for (const id of d.pois || []) if (DAY.pois[id]) DAY.pois[id].found = true;
-    game.job?.load(d.job);
+    game.job?.load(d.job); game.general?.load(d.general);
   };
 
   game.hudInfo = () => ({

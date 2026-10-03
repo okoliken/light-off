@@ -416,8 +416,8 @@ export function createTraffic(scene, world) {
     return v;
   };
 
-  traffic.spawnGetaway = (x, z, yaw) => {
-    const v = makeVehicle('getaway', 'getaway');
+  traffic.spawnGetaway = (x, z, yaw, type = 'getaway') => {
+    const v = makeVehicle(type, 'getaway');
     v.pos.set(x, 0, z); v.yaw = yaw; v.speed = 12;
     v.ai = { route: [], routeT: 0, health: 5, maxHealth: 5, smashed: false, stopped: false, topSpeed: 14 };
     v.group.rotation.order = 'YXZ';

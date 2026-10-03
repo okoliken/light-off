@@ -30,9 +30,25 @@ This replaces every earlier framing: no kid, no Mama, no Tobi, no student. It's 
 | 1 | Adult Bolaji: his own rented room, no Mama or Tobi, weekly rent | done (local) |
 | 1 | Delivery job: office, clock in, a checklist of parcels with deadlines, deliver, reviews, rating, weekly pay, rival riders, fired / reapply | done (local) |
 | 1 | Save and continue mid-shift | done (local) |
-| 2 | Daytime street crime as distractions: pickpockets, phone snatchers, one chance | next |
-| 2 | The General's boys in black (armed, dangerous) roaming by day and night; police take Bolaji for one of them | next |
-| 3 | Leads by day → night investigations → raids on the General's operations | later |
-| 4 | Police on the payroll, the frame-up evidence, the final confrontation with the General | later |
+| 2 | Daytime street crime as distractions: pickpockets, phone snatchers, one chance | done (local) |
+| 2 | The General's boys in black (armed, dangerous) roaming by day and night; police take Bolaji for one of them | done (local) |
+| 3 | Leads by day → night investigations → raids on the General's operations | done (local): chapters 1–5 |
+| 4 | Police on the payroll, the frame-up evidence, the final confrontation with the General | done (local): chapter 6 and the ending |
 
 (The world details already built, such as police raids, the ferry, Lagos Island and chatter, are listed in WHATS-NEW and the git history.)
+
+## Modes
+- **Story**: Bolaji's life (the job, rent) and the case against the General. It always continues from your save; there's no level select.
+- **Patrol**: endless free roam in the suit at night, on its own save. No job, no story, but the General's boys, one chance and the rest of the street crime still happen.
+- **No board by day:** the skateboard belongs to the boy in black. By day he walks, runs, or pays for rides.
+
+## The case (Story mode), as built
+Chapters unlock one per day or night, in order:
+1. **Men in Black** (night): a voice note says the boys in black are burning Adelabu Market. Fight five of them and an AK gunman, then lose the police, who think you're one of them. Lead: a burner phone.
+2. **The Address** (day, during your shift): a special parcel for "G.S. Holdings, Ladipo" appears on your job sheet. Deliver it and look around. Lead: the receipt with the gold eagle on a beret.
+3. **The Warehouse** (night): back at Ladipo in the suit. Take out the guards, take the ledger, escape the police. Lead: the payroll ledger (Inspector Okafor and six officers).
+4. **Okafor** (night): tail the inspector from the Ojuelegba checkpoint without being seen (not within 8 m, don't lose him), then listen in under the bridge. Lead: the Marina jetty shipment.
+5. **The Shipment** (night): get to Marina Jetty (ferry or bridge), fight six boys and three AK gunmen, photograph the rifle crates, survive a 3-star chase.
+6. **The General** (night): his Broad Street compound. Get through the guards, then fight Colonel (rtd) Gbenga Sowande himself, a big, trained boss who dodges plain strikes. Take the evidence to Commissioner Adaeze at City Hall. Then the ending and the newspapers.
+
+Leads appear in the **case file** on the job sheet (J).

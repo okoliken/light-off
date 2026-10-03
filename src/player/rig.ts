@@ -28,6 +28,9 @@ export const OUTFITS = {
   hawker: { skin: '#3f2618', top: '#00897b', bottom: '#37474f', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, tray: true, scale: 1.02, sheen: '#557766' },
   impostor: { skin: '#3f2618', top: '#1d1e22', bottom: '#1b1b1b', sock: '#222', sole: '#111', glove: null, hood: true, shorts: false, mask: 'bandana', scale: 1.06, sheen: '#555' }, // a cheap copy: hood but no ears, a red rag for a mask
   blade: { skin: '#3a2317', top: '#1c1d22', bottom: '#15161a', sock: '#111', sole: '#0a0a0a', glove: '#111', hood: false, shorts: false, mask: 'bandana', sash: true, scale: 1.0, sheen: '#444a58' },
+  // the General's boys: all black, faces covered, heavy-built. The General himself: old army fatigues and a beret
+  gboy: { skin: '#3a2317', top: '#0e0e10', bottom: '#111114', sock: '#0a0a0a', sole: '#0a0a0a', glove: '#0a0a0a', hood: false, shorts: false, mask: 'bandana', scale: 1.1, sheen: '#333844' },
+  general: { skin: '#3a2317', top: '#4b5320', bottom: '#3a4020', sock: '#111', sole: '#0a0a0a', glove: '#1b1b1b', hood: false, shorts: false, beret: '#1b1b1b', scale: 1.22, sheen: '#556644' },
   egungun: { skin: '#2a1a12', top: '#7b1fa2', bottom: '#1b1b1b', sock: '#111', sole: '#0a0a0a', glove: '#3e2723', hood: false, shorts: false, egungun: true, scale: 1.02, sheen: '#664477' },
   chairman: { skin: '#3a2317', top: '#ddd6c8', bottom: '#d6cfc0', sock: '#222', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#b71c1c', scale: 1.14, sheen: '#aaaaaa' },
   elder: { skin: '#4a2e1f', top: '#d7ccc8', bottom: '#5d4037', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, cap: '#5d4037', sheen: '#888877' },

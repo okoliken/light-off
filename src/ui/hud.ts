@@ -735,6 +735,7 @@ export function createHUD(root, world) {
       <div class="js-top"><div><b>${j.stars}</b><i>RATING ${j.rating.toFixed(1)}</i></div><div><b>₦${j.weekEarned.toLocaleString()}</b><i>THIS WEEK · PAYDAY DAY ${j.payDay}</i></div><div><b>₦${j.rent.toLocaleString()}</b><i>RENT DUE DAY ${j.rentDue}</i></div></div>
       <div class="cc-grid"><section style="grid-column: span 2"><h3>Today's parcels</h3>${ord}</section>
       <section><h3>Riders this week</h3>${j.rivals.map((r, k) => `<div class="js-r ${r.me ? 'me' : ''}"><b>${k + 1}</b><span>${r.name}</span><em>${r.week} · ★${r.rating.toFixed(1)}</em></div>`).join('')}</section>
+      <section style="grid-column: 1 / -1"><h3>Case file · ${j.case?.chapter || ''}</h3>${j.case?.leads.length ? j.case.leads.map(l => `<div class="js-v"><span>🗂 ${l}</span></div>`).join('') : '<p class="cc-note">No leads yet. Keep your eyes open: the men in black are everywhere.</p>'}</section>
       <section><h3>Latest reviews</h3>${j.reviews.length ? j.reviews.map(r => `<div class="js-v"><b>${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</b><span>${r.who}: "${r.text}"</span></div>`).join('') : '<p class="cc-note">No reviews yet.</p>'}</section></div>
       <button class="cc-go">Back to work</button></div>`;
     el.overlays.appendChild(wrap);

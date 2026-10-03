@@ -176,7 +176,7 @@ function frame() {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
     if (inp.pressed.map) { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.help) showControls();
-    if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub !== 'free') tutorial.event('job'), openMenu(done => hud.jobSheet(game.job.sheet(), done));
+    if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub !== 'free') tutorial.event('job'), openMenu(done => hud.jobSheet({ ...game.job.sheet(), case: game.general.caseFile() }, done));
     game.update(dt, inp);
     tutorial.update(dt, inp);
     if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
