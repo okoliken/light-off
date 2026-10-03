@@ -54,3 +54,17 @@ Make the default free roam feel natural and alive first, then layer the missions
 - **Lagos Island:** new landmarks are Tinubu Square's fountain, the Central Mosque, a CMS BRT terminal and a Marina waterfront. Idumota, Balogun and the Adeniji Adele interchange now show up in map search.
 - **Ferry:** LagFerry runs between Ebute-Metta Jetty and Marina Jetty for ₦500, with seated passengers, the driver shouting about life jackets, a wake behind the boat and chatter on the way. The map now suggests the ferry when you pick somewhere across the water.
 - **Okada for hire:** on your okada, stop at a bus stop and press F to carry a passenger. They name the place, you name the price, and you get paid when you drop them off. Crash and you get nothing.
+
+## Done in the second pass (local)
+- **Lagos Island rebuilt:**
+  - Isale Eko's pastel family houses;
+  - Broad Street and Marina bank towers (First Bank, Union Bank, Access);
+  - rooftop billboards (MTN, Glo, Indomie, Peak, GTBank, Dangote, OPay, Milo, "Eko o ni baje"…) and ground-floor shop signs;
+  - the Idumota clock tower with an Eyo statue, Iga Idunganran (the Oba's palace), the Cathedral Church of Christ, City Hall, Tafawa Balewa Square with its white horses, and Obalende motor park;
+  - Island food stalls (buka, suya, puff-puff, boli, corn) and proper area names.
+- **Crowds follow you:** people far off-screen move to the streets and hangouts near you, so the Island and every other district have people.
+- **Ferry:** a matte teal and yellow boat instead of shiny white.
+- **"The Boy in Black" tutorial:** starts the first time you go out in the suit. 13 steps:
+  - climb, get onto a roof, cat drop, wall-run, flip, cat leap, Street Sense, skitch;
+  - then three agberos jump you: strike, counter, launch, pounce, and finish them (with a Cat Sweep when they crowd you).
+  - Replay it from the pause menu.

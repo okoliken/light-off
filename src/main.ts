@@ -138,7 +138,7 @@ function pause(openBoard = false) {
   const S = game.story, list = S.missions.map((m, i) => ({ title: m.title, done: i < S.progress(), current: i === S.progress(), unlocked: i < S.unlocked }));
   const resume = () => { state = 'play'; hud.setHudVisible(true); input.lock(); audio.start(); };
   hud.pause(resume, list, (i) => { resume(); game.jumpToMission(i); }, { quality: settings.quality, presets: PRESETS, onQuality: applyQuality,
-    mode: game.mode, tutorial: { active: tutorial.active, skip: () => { tutorial.stop(); resume(); }, replay: () => { resume(); tutorial.start(); } }, board: () => game.patrolBoard(), onWaypoint: (e) => { game.setWaypoint(e); resume(); }, openBoard, rank: game.rank() });
+    mode: game.mode, tutorial: { active: tutorial.active, skip: () => { tutorial.stop(); resume(); }, replay: () => { resume(); tutorial.start(); }, replayNight: () => { resume(); tutorial.start('night'); } }, board: () => game.patrolBoard(), onWaypoint: (e) => { game.setWaypoint(e); resume(); }, openBoard, rank: game.rank() });
 }
 canvas.addEventListener('click', () => { if (state === 'play' && !document.pointerLockElement) input.lock(); });
 
@@ -177,6 +177,7 @@ function frame() {
     if (inp.pressed.help) showControls();
     game.update(dt, inp);
     tutorial.update(dt, inp);
+    if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
     camera.update(dt, inp, player);
     nav.update(dt, game, game.time);
   } else if (state === 'scene') {

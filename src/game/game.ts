@@ -82,6 +82,7 @@ export function createGame(ctx) {
   const bagOnHip = makeBag(); bagOnHip.position.set(0.2, -0.02, -0.12); bagOnHip.scale.setScalar(0.85); bagOnHip.visible = false; player.rig.b.hips.add(bagOnHip);
   const removeCiv = (civ, delay = 0) => { const f = () => { civ.remove(scene); const i = game.civilians.indexOf(civ); if (i >= 0) game.civilians.splice(i, 1); }; delay ? setTimeout(f, delay) : f(); };
   function spawnThug(o) { const t = new Thug(scene, world, o); game.thugs.push(t); return t; }
+  game.spawnThug = (o) => spawnThug(o);
   function spawnVictim({ x, z, yaw = 0, outfit, mood = 'idle' }: any) { const c = new Civilian(scene, world, { x, z, yaw, outfit }); c.mood = mood; game.civilians.push(c); return c; }
   function moveDir(inp) {
     const m = inp.move, cy = camera.yaw;
