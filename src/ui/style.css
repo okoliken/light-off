@@ -509,3 +509,4 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 .js-o.done em, .js-o.done b { color: #69f0ae; } .js-o.late em { color: #ffab40; } .js-o.failed em, .js-o.failed b { color: #ff5252; }
 .cc-grid .js-r { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; } .js-r.me { color: #ffd54f; font-weight: 700; } .js-r em { font-style: normal; color: #aaa; font-size: 12px; }
 .cc-grid .js-v { display: block; } .js-v b { color: #ffd54f; font-size: 12px; display: block; } .js-v span { font-size: 12px; color: #ccc; }
+#hud:has(.overlay) .tut, #hud:has(.mm) .tut, #hud:has(.bigmap) .tut { display: none !important; }

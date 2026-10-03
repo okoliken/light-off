@@ -171,6 +171,7 @@ function frame() {
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
   touch?.show(state === 'play');
+  tutorial.show(state === 'play' && !hudRoot.querySelector('.overlay'));
   const inp = input.poll();
   if (state === 'play') {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }

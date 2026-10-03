@@ -61,6 +61,8 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
   };
   T.done = (k = 'day') => { try { return !!localStorage.getItem(k === 'night' ? NKEY : KEY); } catch { return false; } };
   T.kind = () => kind;
+  // only show over the game itself: never on top of the map, menus, the job sheet or cutscenes
+  T.show = (on: boolean) => { if (T.active) el.classList.toggle('hidden', !on); };
   T.jump = (n: number) => { i = n; draw(); }; // for tests
   T.start = (k = 'day') => { kind = k; list = k === 'night' ? NIGHT : STEPS; for (const q in cb) delete cb[q]; spar = []; T.active = true; game.tutorialOn = true; document.body.classList.add('tut-on'); i = 0; s = fresh(); lastYaw = camera.yaw; el.classList.remove('hidden'); draw(); };
   T.stop = (finished = false) => {
