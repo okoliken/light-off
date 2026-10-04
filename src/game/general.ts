@@ -19,7 +19,7 @@ const VICTIM = ['Abeg! Abeg! Take everything!', 'Help! Somebody help!', 'Na my w
 const LEADS: Record<string, string> = {
   phone: 'A burner phone from one of the boys in black. A message: "General say make una finish Adelabu tonight."',
   receipt: 'A delivery receipt stamped G.S. HOLDINGS, with a gold eagle on a beret. Ladipo warehouse.',
-  ledger: 'The payroll ledger: "Insp. Okafor (Ojuelegba) ₦500,000 monthly", and six more officers.',
+  ledger: 'The payroll ledger: "Insp. Okafor (Ojuelegba) ₦500,000 monthly", six more officers, and a column: "Red Caps levy, 40% to G.S." The Red Caps are his street arm.',
   meeting: 'Okafor, overheard under the bridge: "The shipment lands at Marina jetty. General wan see am himself."',
   photos: 'Photos of AK-47 crates at Marina jetty, stamped G.S. HOLDINGS.',
   general: 'The General: Colonel (rtd) Gbenga Sowande. G.S. Holdings is his.',
@@ -211,7 +211,15 @@ export function createGeneral(game) {
       game.save();
     }
   }
+  // with the General gone, his street arm goes too: no more Red Caps levy points
+  G.endRedCaps = () => {
+    game.redCapsGone = true;
+    for (const s of game.sites || []) { s.state = 'done'; s.respawn = 1e9; for (const t of s.group || []) if (!t.removed) t.remove(); if (s.collector && !s.collector.removed) s.collector.remove(); }
+    for (const t of game.thugs) if (/^redcap|agbero/.test(t.variant) && t.role !== 'guard') t.remove?.();
+  };
   function ending() {
+    G.endRedCaps();
+    setTimeout(() => hud.toast('With the General gone, the <b>Red Caps</b> have no one to pay them. Their levy points are empty. Surulere breathes.', 'green'), 9000);
     hud.banner('THE GENERAL FALLS', 'Colonel Sowande is arrested at dawn. Seven officers suspended. Nobody knows who the boy in black is.', 'green', 7);
     setTimeout(() => game.onNewspaper?.(['PUNCH: "G.S. Holdings" boss arrested with arms cache at Marina', 'THE NATION: Seven police officers on General\'s payroll suspended', 'VANGUARD: Who is the boy in black? Lagos asks', 'BUSINESSDAY: Ladipo warehouse sealed by EFCC']), 7500);
   }
@@ -236,6 +244,6 @@ export function createGeneral(game) {
     updateSquad(dt); updateOneChance(dt); updatePick(dt);
   };
   G.serialize = () => ({ ch: C.ch, leads: C.leads, lastDay: C.lastDay ?? -1 });
-  G.load = (d) => { if (!d) return; C.ch = d.ch || 0; C.leads = d.leads || []; C.lastDay = d.lastDay ?? -1; C.on = false; C.st = 0; }; // a chapter in progress restarts from its first step
+  G.load = (d) => { if (!d) return; C.ch = d.ch || 0; C.leads = d.leads || []; C.lastDay = d.lastDay ?? -1; if (C.ch >= 6) setTimeout(() => G.endRedCaps(), 0); C.on = false; C.st = 0; }; // a chapter in progress restarts from its first step
   return G;
 }

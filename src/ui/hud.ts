@@ -289,7 +289,7 @@ export function createHUD(root, world) {
       const ride = (m, label) => Q[m].no ? opt(m, label, Q[m].no, false) : opt(m, label, `₦${Q[m].fare} · about ${mins(Q[m].secs)}${m === 'danfo' && Q.danfo.stopDist > 6 ? ` · from ${Q.danfo.stop.name} stop (${Q.danfo.stopDist} m)` : ''}`, true);
       pickEl.innerHTML = `<div class="bm-card"><div class="bm-ct"><span>${ICON[q.kind] || '📍'}</span><div><b>${q.name}</b><i>${q.area || ''} · ${Q.dist} m away</i></div><button class="bm-x" data-x>✕</button></div>
         <div class="bm-how">HOW DO YOU WANT TO GET THERE?</div>
-        ${opt('skate', 'Skate / walk', `Free · about ${mins(Q.skate.secs)} on the board · follow the trail`, true)}
+        ${game.player.noBoard ? opt('skate', game.job?.hasCycle ? 'Bicycle / walk' : 'Walk', `Free · about ${mins(game.job?.hasCycle ? Math.round(Q.dist / 7) : Q.walk.secs)} · follow the trail`, true) : opt('skate', 'Skate / walk', `Free · about ${mins(Q.skate.secs)} on the board · follow the trail`, true)}
         ${Q.ferry ? (Q.ferry.no ? opt('ferry', 'Ferry', Q.ferry.no, false) : opt('ferry', 'Ferry across the lagoon', `₦${Q.ferry.fare} · from ${Q.ferry.jetty.name} (${Q.ferry.jettyDist} m) · skip the bridge traffic`, true)) : ''}${ride('okada', 'Okada')}${ride('keke', 'Keke')}${ride('danfo', 'Danfo')}</div>`;
       pickEl.querySelector<HTMLElement>('[data-x]').onclick = () => { picked = null; pickEl.innerHTML = ''; };
       pickEl.querySelectorAll<HTMLElement>('[data-go]').forEach(b => b.onclick = () => { const m = b.dataset.go; close(); game.travel(q, m); });
@@ -731,7 +731,7 @@ export function createHUD(root, world) {
   // J: the SwiftDrop job sheet. Today's parcels, reviews, the weekly race against the other riders, rent
   H.jobSheet = (j, onClose) => {
     const wrap = document.createElement('div'); wrap.className = 'overlay ccard';
-    const ord = j.orders.length ? j.orders.map(o => `<div class="js-o ${o.status}"><b>${o.status === 'pending' ? (o.late ? '⚠' : '○') : o.status === 'failed' ? '✕' : '✓'}</b><span><b>${o.who}</b> · ${o.item}<i>${o.place.name}${o.place.area ? ' · ' + o.place.area : ''}</i></span><em>${o.status === 'pending' ? (o.late ? 'LATE' : 'by ' + o.dueStr) : o.status.toUpperCase()}</em></div>`).join('')
+    const ord = j.orders.length ? j.orders.map(o => `<div class="js-o ${o.status}"><b>${o.status === 'pending' ? (o.late ? '⚠' : '○') : o.status === 'failed' || o.status === 'reassigned' ? '✕' : '✓'}</b><span><b>${o.who}</b> · ${o.item}<i>${o.place.name}${o.place.area ? ' · ' + o.place.area : ''}</i></span><em>${o.status === 'pending' ? (o.late ? 'LATE' : 'by ' + o.dueStr) : o.status === 'reassigned' ? 'GIVEN TO ' + (o.by || 'ANOTHER RIDER').toUpperCase() : o.status.toUpperCase()}</em></div>`).join('')
       : `<p class="cc-note">${j.employed ? (j.clockedIn ? '' : 'No parcels yet. Clock in at the SwiftDrop office (Ojuelegba) before noon.') : 'You don\'t work at SwiftDrop right now.'}</p>`;
     wrap.innerHTML = `<div class="cc-box"><div class="cc-k">SWIFTDROP DISPATCH · DAY ${j.day}</div><h1>JOB SHEET</h1>
       <div class="js-top"><div><b>${j.stars}</b><i>RATING ${j.rating.toFixed(1)}</i></div><div><b>₦${j.weekEarned.toLocaleString()}</b><i>THIS WEEK · PAYDAY DAY ${j.payDay}</i></div><div><b>₦${j.rent.toLocaleString()}</b><i>RENT DUE DAY ${j.rentDue}</i></div></div>

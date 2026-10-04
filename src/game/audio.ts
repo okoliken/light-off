@@ -32,6 +32,7 @@ export function createAudio() {
     L.roll = loop(brown, 'lowpass', 220, 0.7); // wheels: low rumble, not hiss
     L.grind = loop(white, 'bandpass', 2800, 4);
     L.wind = loop(brown, 'bandpass', 500, 0.4);
+    L.rain = loop(white, 'bandpass', 1800, 0.5); // the hiss of rain on zinc roofs
     // generators: a low sawtooth chugging through an LFO-driven gain
     const gen = ctx.createOscillator(); gen.type = 'sawtooth'; gen.frequency.value = 52;
     const genF = ctx.createBiquadFilter(); genF.type = 'lowpass'; genF.frequency.value = 240;
@@ -95,6 +96,7 @@ export function createAudio() {
     set(L.siren, sirV * 0.1);
   };
 
+  A.setRain = (k) => { if (ctx && L.rain) L.rain.g.gain.setTargetAtTime(0.16 * k, ctx.currentTime, 0.4); };
   const guard = fn => (...a) => { if (ctx && A.enabled) fn(...a); };
   Object.assign(A, {
     ollie: guard(() => { burst('highpass', 1800, 0.06, 0.5); tone('sine', 220, 90, 0.08, 0.3); }),

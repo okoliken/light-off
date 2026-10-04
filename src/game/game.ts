@@ -20,6 +20,7 @@ import { createJob } from './job.ts';
 import { createGeneral } from './general.ts';
 import { createGadgets } from './gadgets.ts';
 import { createCoach } from './coach.ts';
+import { createWeather } from './weather.ts';
 import { nightStart } from './nightreport.ts';
 import { OUTFITS, Rig, Pose } from '../player/rig.ts';
 import { textSign } from '../core/textures.ts';
@@ -30,6 +31,15 @@ const FAMILIES: any[] = [
   ['Iya Bose', 'she fries akara every morning'], ['Blessing', 'her hair stall was seized last week'],
   ['Mr. Emeka', "his kids' school fees are due"], ['Mama Grace', "the pastor's widow"],
   ['Alhaji Musa', 'suya seller, three children'], ['Aunty Kemi', 'sells pure water at the junction'],
+];
+// tips for the new game (Story and Patrol): the job first, the street second
+const LIFE_TIPS: any[] = [
+  [3, '<span class="key">J</span> opens your <b>job sheet</b>: today\'s parcels, deadlines, your rating, pay and rent.'],
+  [20, 'Customers wait at the address. <b>Hand the parcel to them</b> (<span class="key">F</span>). Late ones call you, and if you leave it too long Mr Tunde gives it to another rider.'],
+  [45, 'Your <b>SwiftDrop bicycle</b>: <span class="key">F</span> to get on, <span class="key">R</span> to get off. In a hurry? Danfo, keke or okada from the map (<span class="key">M</span>).'],
+  [75, 'Trouble on the street (snatchers, one chance, men in black) is optional. <b>Every minute you spend on it is parcel time.</b>'],
+  [110, 'Watch your <b>hunger</b> and <b>energy</b>. Eat at the stalls or cook at home. Rent is due every 7 days.'],
+  [160, 'At night you can be the <b>boy in black</b> (<span class="key">U</span> where nobody sees). Police chase anyone in black on sight.'],
 ];
 const TIPS: any[] = [
   [2, 'Press <span class="key">R</span> to unclip your board and skate. <span class="key">R</span> again straps it back on.'],
@@ -65,8 +75,9 @@ export function createGame(ctx) {
 
   // ---------- helpers ----------
   const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2;
-  const addHeat = (n, why) => { const old = game.heat; game.heat = Math.min(3, Math.max(game.heat, 0) + n); game.heatTimer = 0; if (game.heat > old) { audio.alert(); if (why) hud.toast(why, 'red'); } };
-  game.addHeat = (n, why) => addHeat(n, why);
+  // in the new game the police leave the SwiftDrop rider alone; only the suit (or a real crime: force) gets chased
+  const addHeat = (n, why, force = false) => { if (game.mode === 'patrol' && !game.life.suit && !force) return; const old = game.heat; game.heat = Math.min(3, Math.max(game.heat, 0) + n); game.heatTimer = 0; if (game.heat > old) { audio.alert(); if (why) hud.toast(why, 'red'); } };
+  game.addHeat = (n, why, force = false) => addHeat(n, why, force);
   // ---------- daylight: people can see his face ----------
   // In his own clothes by day, fighting and cat moves in front of people fill EYES ON YOU.
   // Full: he's recognised. Mama hears about it, the police want a word, and a daytime mission fails.
@@ -194,7 +205,7 @@ export function createGame(ctx) {
     checkpoint: (i) => game.police.list[i],
     policeAlert: (secs) => { game.policeAlertT = secs; game.spawnCd = 0; },
     recarry: (item) => { game.carrying = null; game.delivery = null; startCarry(item); },
-    addHeat: (n, why) => addHeat(n, why),
+    addHeat: (n, why) => addHeat(n, why, true),
     scene: (lines, focus, onDone, title) => { if (lines?.length && game.playScene) game.playScene(lines, focus, onDone, title); else onDone?.(); },
   };
   game.api = api;
@@ -212,6 +223,7 @@ export function createGame(ctx) {
   game.general = createGeneral(game);
   game.gadgets = createGadgets(game);
   game.coach = createCoach(game);
+  game.weather = createWeather(game, { lowQuality: matchMedia('(pointer: coarse)').matches });
   // a danfo pulls in at a stop near you: the conductor shouts the route, someone squeezes on
   const ROUTES = ['Ojuelegba! Ojuelegba! Enter with your change!', 'CMS! Obalende! Oya oya!', 'Oshodi-Oke! Oshodi! Last two!', 'Yaba! Sabo! Yaba!', 'Mushin! Idi-Araba! Enter!', 'Stadium! Stadium! One chance!', 'Ikeja along! Ikeja! Shift o!'];
   game.onBusStop = (v, st) => {
@@ -308,7 +320,7 @@ export function createGame(ctx) {
     }
     const it = TH.nearest(player.pos, 2.2);
     if (it) { player.holding = it; TH.pickUp(it, player.rig.b.haR); audio.grab(); hud.popup(`${it.kind === 'sachet' ? 'PURE WATER' : it.kind.toUpperCase()} · <b>T</b> TO THROW`); return; }
-    if (!player.boardLost && player.mode === 'foot') {
+    if (!player.boardLost && !player.noBoard && player.mode === 'foot') {
       const to = throwTarget(dir);
       if (!to) { hud.popup('NOTHING TO THROW'); return; }
       player.handPos(_o); player.startThrow(); player.boardLost = true;
@@ -402,8 +414,8 @@ export function createGame(ctx) {
     player.pos.set(x, player.pos.y, z); player.mountBike(yaw);
     audio.punch(); camera.shake = 0.3;
     hud.say('Okada man', ['Ole! Ole! My okada!', 'Thief! Somebody hold am!', 'Na my daily bread you carry o!'][Math.floor(Math.random() * 3)], 3);
-    if (policeSeeing()) addHeat(1, 'Police saw you take the okada.');
-    else if (witnesses().length && Math.random() < 0.5) addHeat(1, 'Somebody is on the phone to the police.');
+    if (policeSeeing()) addHeat(1, 'Police saw you take the okada.', true);
+    else if (witnesses().length && Math.random() < 0.5) addHeat(1, 'Somebody is on the phone to the police.', true);
   }
   // ---------- the mall: walk in through the door, shop at the counters, walk out ----------
   game.inMall = false;
@@ -535,7 +547,7 @@ export function createGame(ctx) {
       case 'pickhint': return true;
       case 'uncuff': if (!game.story.flags.canPick) { game.story.flags.canPick = true; setTimeout(() => hud.toast('Baba Kolade showed you how: <b>a bent hair pin and two minutes of patience.</b> Buy pins at a mall, and next time you can <b>pick the cuffs yourself</b> (hold F where no police can see you).', 'blue'), 2500); }
         player.cuffed = false; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Baba Kolade: "I did not see you. I did not see these. Go home."', 'green'); game.addRespect(200, 'ESCAPED CUSTODY'); return true;
-      case 'roger': { game.logNight('roger'); const amt = game.police.take(opt.cp); audio.snatch(); startCarry(rogerItem(amt)); game.addRespect(200, 'ROGER SNATCHED'); game.say(opt.o, 'Thief! Na the boy in black! Catch am!', 'Police', 60); addHeat(1, 'The police want their roger back.'); return true; }
+      case 'roger': { game.logNight('roger'); const amt = game.police.take(opt.cp); audio.snatch(); startCarry(rogerItem(amt)); game.addRespect(200, 'ROGER SNATCHED'); game.say(opt.o, 'Thief! Na the boy in black! Catch am!', 'Police', 60); addHeat(1, 'The police want their roger back.', true); return true; }
       case 'story': return game.story.doOption(opt);
       case 'activity': return game.activities.doOption(opt);
       case 'food': { const v = opt.v; if (L.wallet < v.price) { hud.toast(`Not enough money for ${v.food}. People you help sometimes give you something "for food".`, 'red'); return true; } L.wallet -= v.price; L.eat(v.fill, v.food.toUpperCase()); hud.say(v.label === 'SUYA' ? 'Mallam' : 'Mama', ['Enjoy, my son.', 'You look tired o. Eat well.', 'Extra pepper for you.'][Math.floor(R() * 3)], 2); return true; }
@@ -821,7 +833,7 @@ export function createGame(ctx) {
   let visT = 0;
   const onFoot = () => ['foot', 'climb', 'wallrun', 'roll', 'down', 'act'].includes(player.mode);
   function updatePolice(dt) {
-    game.policeRange = (game.power > 0.5 ? 58 : 22) * (player.pos.y > 4 ? 0.6 : 1) * (player.prone ? 0.35 : 1) * (game.torchOn ? 1.35 : 1); // flat on the board: hard to spot; a torch: easy
+    game.policeRange = game.weather.visionScale() * (game.power > 0.5 ? 58 : 22) * (player.pos.y > 4 ? 0.6 : 1) * (player.prone ? 0.35 : 1) * (game.torchOn ? 1.35 : 1); // flat on the board: hard to spot; a torch: easy
     visT -= dt; game.assaultCd -= dt;
     const pol = traffic.police();
     if (visT <= 0) {
@@ -1157,6 +1169,7 @@ export function createGame(ctx) {
     if (game.mode === 'patrol' && game.sub !== 'free') game.job.update(dt);
     if (game.mode === 'patrol') game.general.update(sdt);
     game.gadgets.update(sdt);
+    game.weather.update(dt, camera.cam);
     game.story.update(sdt);
     L.update(sdt);
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
@@ -1174,7 +1187,7 @@ export function createGame(ctx) {
     game.stats.bestCombo = Math.max(game.stats.bestCombo, combat.best);
     if (!L.inside) game.outT = (game.outT || 0) + dt;
     game.autoT = (game.autoT || 0) + dt; if (game.autoT > 20 && !game.arrest && player.mode !== 'ride') { game.autoT = 0; game.save(); }
-    if (!L.inside && !game.tutorialOn && game.tipI < TIPS.length && game.outT > TIPS[game.tipI][0]) hud.toast(TIPS[game.tipI++][1], 'blue');
+    { const TT = game.mode === 'patrol' ? LIFE_TIPS : TIPS; if (!L.inside && !game.tutorialOn && game.tipI < TT.length && game.outT > TT[game.tipI][0]) hud.toast(TT[game.tipI++][1], 'blue'); }
     if (game.inMall && !mallOpen()) { hud.say('Security', 'We don close! Oya, everybody out.', 3); leaveMall(); }
     const area = game.ferry.ride ? 'Lagos Lagoon' : game.inMall ? (game.mallFrom?.name || 'Mall') : world.areaAt(player.pos.x, player.pos.z);
     if (area !== game.areaName) { if (game.areaName) hud.area?.(area); game.areaName = area; }
@@ -1192,6 +1205,7 @@ export function createGame(ctx) {
     if (game.arrest) hud.objective('<b>Arrested.</b> Kick the door out before you reach the station<small>MASH F / SPACE · THE MORE HEALTH YOU HAVE, THE HARDER YOU KICK</small>');
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>NO FIGHTING, NO BOARD, NO CLIMBING · ALLEYS, CORNERS, CROWDS, SKITCHING IS OFF · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.mode === 'patrol' && game.general.objective()) hud.objective(game.general.objective());
+    else if (game.mode === 'patrol' && game.sub !== 'free' && game.job.objective()) hud.objective(game.job.objective());
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
     else if (game.inMall) hud.objective(`<b>${game.mallFrom?.name || 'The mall'}</b> · ${L.timeStr()}<small>WALK UP TO A COUNTER AND PRESS F TO BUY · THE GLASS DOORS TO LEAVE</small>`);
@@ -1206,13 +1220,14 @@ export function createGame(ctx) {
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
     else if (game.mode === 'patrol') hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>OPEN THE MAP (M) · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
-    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? null : game.general.tracker() || game.job.tracker()) : game.story.tracker()));
+    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : (game.mode === 'patrol' && game.sub !== 'free' && game.job.clockedIn ? game.job.tracker() : null) || game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? null : game.general.tracker() || game.job.tracker()) : game.story.tracker()));
   };
 
   // ---------- navigation ----------
   function navTarget() {
     if (player.cuffed) { const k = DAY.pois.kolade; return { x: k.x, z: k.z, color: 0xff8a80, label: 'BABA KOLADE · BOLT CUTTERS' }; } // in cuffs only one place matters
     const ct = game.mode === 'patrol' && game.general?.target(); if (ct) return { x: ct.x, z: ct.z, color: 0xffd54f, label: 'THE CASE', moving: true };
+    const jt = game.mode === 'patrol' && game.sub !== 'free' && game.job?.target(); if (jt && !game.carrying) return { x: jt.x, z: jt.z, color: 0xff9100, label: jt.label };
     // what he's in the middle of always owns the arrow: the story mission, then whatever he's carrying back
     const sm = game.story.active && game.story.target(); if (sm) return { x: sm.x, z: sm.z, color: 0xffd54f, label: 'STORY', moving: true };
     if (game.dropped) { const m = game.dropped.mesh.position; return { x: m.x, z: m.z, color: 0xf2b705, label: 'PICK IT UP' }; }

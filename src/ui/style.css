@@ -513,3 +513,4 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 
 .gkit { display: flex; gap: 6px; margin-top: 6px; } .gkit span { font: 800 10px Inter, sans-serif; letter-spacing: 0.12em; color: #bdb8ad; background: rgba(8,10,16,0.6); border: 1px solid rgba(255,255,255,0.12); padding: 4px 7px; } .gkit i { font-style: normal; color: #ffd54f; margin-left: 4px; }
 @media (pointer: coarse) { .gkit { display: none; } }
+.js-o.reassigned em, .js-o.reassigned b { color: #ff5252; }

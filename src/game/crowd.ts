@@ -79,8 +79,8 @@ export function createCrowd(scene, world, count = 230) {
   // people far behind the camera quietly move to wherever Bolaji is now (so the Island isn't empty)
   const relocate = (p, cx, cz) => {
     const near = (o, a, b) => { const d = (o.x - cx) ** 2 + (o.z - cz) ** 2; return d > a * a && d < b * b; };
-    if (p.stand) { const c = hangouts.filter(h => near(h, 70, 150)); if (c.length) { const h = c[Math.floor(Math.random() * c.length)]; p.pos.set(h.x + (Math.random() - 0.5), 0.15, h.z + (Math.random() - 0.5)); return true; } return false; }
-    const c = walkRects.filter(r => near({ x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 }, 70, 155)); if (!c.length) return false;
+    if (p.stand) { const c = hangouts.filter(h => near(h, 45, 140)); if (c.length) { const h = c[Math.floor(Math.random() * c.length)]; p.pos.set(h.x + (Math.random() - 0.5), 0.15, h.z + (Math.random() - 0.5)); return true; } return false; }
+    const c = walkRects.filter(r => near({ x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 }, 45, 150)); if (!c.length) return false;
     const r = c[Math.floor(Math.random() * c.length)];
     p.rect = r; p.W = r.x1 - r.x0; p.H = r.z1 - r.z0; p.P = 2 * (p.W + p.H); p.u = Math.random() * p.P; const [x, z] = at(p, p.u); p.pos.set(x, 0.15, z); return true;
   };
@@ -105,7 +105,7 @@ export function createCrowd(scene, world, count = 230) {
         const p = peds[i];
         if ((night && p.dayOnly) || ((cam.x - p.pos.x) ** 2 + (cam.z - p.pos.z) ** 2 > 170 * 170 && p.pos.lengthSq() > 0)) { // off-screen: keep walking, skip the drawing
           hide(i); if (!p.stand) { p.u += p.dir * p.speed * dt; const [x, z] = at(p, p.u); p.pos.set(x, 0.15, z); }
-          p.farT = (p.farT || 0) + dt; if (p.farT > 1.5 + (i % 7) * 0.4) { p.farT = 0; if (!(night && p.dayOnly)) relocate(p, cam.x, cam.z); }
+          p.farT = (p.farT || 0) + dt; if (p.farT > 0.6 + (i % 7) * 0.25) { p.farT = 0; if (!(night && p.dayOnly)) relocate(p, cam.x, cam.z); }
           continue;
         }
         let scared = false;

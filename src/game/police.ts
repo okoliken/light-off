@@ -86,7 +86,7 @@ export function createCheckpoints(game) {
       const near = Math.hypot(cp.x - player.pos.x, cp.z - player.pos.z) < 30;
       if (near && cp.stopped && barkT <= 0) { barkT = 5; const o = officers.find(q => q.collector && q.alive); if (o) game.say(o, pick(LINES), 'Police', 30); }
       // hitting an officer at the post is assaulting the police
-      if (!attacked && officers.some(o => ['stunned', 'down'].includes(o.state))) { attacked = true; game.addHeat(1, 'You attacked the police at the checkpoint!'); }
+      if (!attacked && officers.some(o => ['stunned', 'down'].includes(o.state))) { attacked = true; game.addHeat(1, 'You attacked the police at the checkpoint!', true); }
     }
     if (game.heat === 0) attacked = false;
   };

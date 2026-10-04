@@ -85,7 +85,7 @@ export function createEnv(scene, renderer, camera, opt: any = {}) {
   return {
     composer, grade, bloom, hemi, moonL, fill, sky, stars, renderer,
     // one place computes the whole lighting state from: grid power (p), daylight (d), indoors
-    _p: 1, _d: 0, _indoor: false,
+    _p: 1, _d: 0, _indoor: false, _rain: 0,
     apply() {
       const p = this._p, d = this._d, i = this._indoor, L = (a, b, k) => a + (b - a) * k;
       skyU.glow.value = p; skyU.day.value = d;
@@ -97,16 +97,19 @@ export function createEnv(scene, renderer, camera, opt: any = {}) {
       moonL.color.set(0x9fb4ff).lerp(new THREE.Color(0xfff0d8), d);
       moonL.intensity = i ? L(0.08, 0.35, d) : L(0.55, 2.8, d);
       fill.intensity = i ? L(1.2, 0.4, d) : L(9, 1, d);
-      scene.fog.density = L(0.0085 + (1 - p) * 0.004, 0.0032, d);
+      scene.fog.density = L(0.0085 + (1 - p) * 0.004, 0.0032, d) + 0.009 * this._rain;
+      hemi.intensity *= 1 - 0.35 * this._rain; moonL.intensity *= 1 - 0.6 * this._rain;
       const nf = new THREE.Color(0.047 * (0.6 + 0.4 * p), 0.07 * (0.6 + 0.4 * p), 0.125 * (0.7 + 0.3 * p));
       scene.fog.color.copy(nf).lerp(new THREE.Color(0.72, 0.76, 0.8), d);
-      scene.background.set(0x05070d).lerp(new THREE.Color(0x9fb8d8), d);
+      scene.background.set(0x05070d).lerp(new THREE.Color(0x9fb8d8), d).lerp(new THREE.Color(0x4a525c), 0.7 * this._rain * d);
+      scene.fog.color.lerp(new THREE.Color(0x59616b), 0.6 * this._rain * d);
       grade.uniforms.dark.value = (1 - p) * (1 - d);
       renderer.toneMappingExposure = L(1.45, 0.95, d);
       bloom.strength = L(0.85, 0.25, d);
     },
     setIndoor(v) { if (v === this._indoor) return; this._indoor = v; this.apply(); },
     setPower(p) { this._p = p; this.apply(); },
+    setRain(k) { if (Math.abs(k - this._rain) < 0.01) return; this._rain = k; this.apply(); },
     setDaylight(d) { if (Math.abs(d - this._d) < 0.002) return; this._d = d; this.apply(); },
     update(dt, focus, cam, time) {
       if (this._d > 0.5) moonL.position.set(focus.x + 45, focus.y + 95, focus.z + 55); else moonL.position.set(focus.x - 40, focus.y + 80, focus.z - 60);

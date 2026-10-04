@@ -5,6 +5,8 @@
 // days and beg for the job. Everything here is saved.
 import * as THREE from 'three';
 import { Civilian } from './npcs.ts';
+import { Rig, Pose, HIP_H } from '../player/rig.ts';
+import { roadLine, I0, I1, N } from '../world/layout.ts';
 
 const ITEMS = ['iPhone (sealed)', 'HP laptop', 'Jumia shoe box', 'Birthday cake', 'Pharmacy bag', 'Ankara fabric', 'Documents envelope', 'Wig in a box', 'Bluetooth speaker', 'Baby formula', 'Perfume set', 'Phone charger', 'Party jollof (cooler)', 'Agbada', 'Wristwatch'];
 const NAMES = ['Mrs Adebayo', 'Chinedu', 'Aunty Funke', 'Mr Okoro', 'Tola', 'Baba Ibeji', 'Ngozi', 'Kunle', 'Mama Tobi', 'Segun', 'Blessing', 'Alhaji Musa', 'Yetunde', 'Emeka', 'Bisi', 'Pastor Femi', 'Zainab', 'Tunde Jr'];
@@ -138,7 +140,7 @@ export function createJob(game) {
     for (const o of J.orders) if (o.status === 'pending') { o.status = 'failed'; review(o, 'never'); missed++; }
     J.clockedIn = false; J.shiftOver = true; J.daysWorked++;
     for (const r of J.rivals) { const d = 6 + Math.floor(Math.random() * 7); r.week += d; r.rating = Math.max(3, Math.min(5, r.rating + (Math.random() - 0.45) * 0.2)); }
-    const done = J.orders.filter(o => o.status === 'done').length, late = J.orders.filter(o => o.status === 'late').length;
+    const done = J.orders.filter(o => o.status === 'done').length, late = J.orders.filter(o => o.status === 'late').length; missed += J.orders.filter(o => o.status === 'reassigned').length;
     hud.banner(timeUp ? 'SHIFT OVER' : 'CLOCKED OUT', `${done} on time · ${late} late · ${missed} never delivered · rating ${J.rating().toFixed(1)}`, missed || late > done ? 'red' : 'green', 4.5);
     if ((J.reviews.length >= 6 && J.rating() < 2.8) || J.strikes >= 3) fire(J.strikes >= 3 ? 'You keep not showing up.' : 'Too many complaints.');
     game.setWaypoint(null); game.save();
@@ -161,12 +163,24 @@ export function createJob(game) {
 
   J.update = (dt) => {
     if (J.day !== L.night) newDay();
+    updateRiders(dt);
     if (!J.employed) return;
     // didn't show up
     if (!J.clockedIn && !J.shiftOver && L.phase === 'day' && L.clock >= 12 * 60 && !J.noShowTold) { J.noShowTold = true; J.strikes++; hud.say('Mr Tunde (phone)', J.strikes >= 3 ? 'Don\'t bother coming tomorrow.' : 'Where are you?! Parcels dey here waiting.', 4); if (J.strikes >= 3) fire('You keep not showing up.'); }
     updateCustomers();
     if (J.clockedIn) {
-      for (const o of pending()) if (!o.warned && L.clock > o.due) { o.warned = true; hud.toast(`📞 <b>${o.who}</b> is calling: "Where is my ${o.item.toLowerCase()}?!" (now late)`, 'red'); }
+      for (const o of pending()) {
+        if (!o.warned && L.clock > o.due) { o.warned = true; hud.toast(`📞 <b>${o.who}</b> is calling: "Where is my ${o.item.toLowerCase()}?!" (now late)`, 'red'); }
+        if (!o.warned2 && L.clock > o.due + 20) { o.warned2 = true; hud.toast(`📞 <b>${o.who}</b> again: "${pick(['I need this thing TODAY. My shop dey wait.', 'If you no reach in 20 minutes I go cancel and report you!', 'Abeg, na for my mama hospital bill this thing be.'])}"`, 'red'); }
+        if (L.clock > o.due + 45) { // too late: the office gives it to someone else
+          const r = J.rivals[Math.floor(Math.random() * J.rivals.length)];
+          o.status = 'reassigned'; o.by = r.name; r.week++;
+          J.reviews.push({ who: o.who, stars: 1, text: pick([`Another rider (${r.name}) finally brought it. Never again.`, 'Had to call the office. Shameful.', 'Your colleague saved you. I\'m reporting the first rider.']), day: L.night });
+          hud.say('Mr Tunde (phone)', `I don give ${o.who}'s ${o.item.toLowerCase()} to ${r.name}. You dey sleep?!`, 4);
+          hud.toast(`<b>${o.item}</b> for ${o.who} was taken off your list and given to <b>${r.name}</b>. ★☆☆☆☆`, 'red');
+          routeNext();
+        }
+      }
       if (L.clock >= 19.5 * 60 || L.phase !== 'day') endShift(true);
     }
   };
@@ -178,6 +192,21 @@ export function createJob(game) {
     const ps = pending(), done = J.orders.length - ps.length;
     return { title: `SwiftDrop · Day ${L.night}`, sub: `★ ${J.rating().toFixed(1)} · ${done}/${J.orders.length} DELIVERED · J: JOB SHEET`, steps: ps.slice(0, 4).map((o, k) => ({ label: `${o.who} · ${o.item} · ${o.place.name} · ${L.clock > o.due ? 'LATE' : 'by ' + fmt(o.due)}`, state: k === 0 ? 'cur' : '' })) };
   };
+  // what to do right now, for the objective line and the guide arrow
+  J.target = () => {
+    if (!J.employed) return L.night >= J.rehireDay && L.phase === 'day' ? { x: office.x, z: office.z, label: 'SWIFTDROP · ASK FOR YOUR JOB' } : null;
+    if (!J.clockedIn) return !J.shiftOver && L.phase === 'day' && L.clock < 12 * 60 ? { x: office.x, z: office.z, label: 'SWIFTDROP · CLOCK IN' } : null;
+    const o = next(); if (o) { const c = npcs.get(o.id), t = c && !c.gone ? c.pos : o.place; return { x: t.x, z: t.z, label: `${o.who.toUpperCase()} · ${o.item.toUpperCase()}` }; }
+    return { x: office.x, z: office.z, label: 'SWIFTDROP · CLOCK OUT' };
+  };
+  J.objective = () => {
+    if (!J.employed || L.inside) return null;
+    if (!J.clockedIn) return !J.shiftOver && L.phase === 'day' && L.clock < 12 * 60 ? `Get to <b>SwiftDrop</b> and clock in<small>OJUELEGBA · BEFORE NOON · ON THE BICYCLE OR ON FOOT</small>` : null;
+    const o = next(), left = pending().length;
+    if (!o) return 'All delivered. <b>Clock out at SwiftDrop</b><small>OR KEEP WORKING THE STREETS</small>';
+    const late = L.clock > o.due, mins = Math.round(Math.abs(o.due - L.clock));
+    return `Deliver <b>${o.item}</b> to <b>${o.who}</b> · ${o.place.name}<small>${late ? `<span style="color:#ff8a80">LATE ${mins} MIN · THEY KEEP CALLING</span>` : `DUE IN ${mins} MIN`} · ${left} PARCEL${left > 1 ? 'S' : ''} LEFT · J: JOB SHEET</small>`;
+  };
   J.markers = (M, MM, dstr) => {
     if (J.employed && !J.clockedIn && !J.shiftOver && L.phase === 'day') { MM.push({ x: office.x, z: office.z, color: '#ff9100' }); M.push({ x: office.x, y: 3.4, z: office.z, kind: 'deliver', label: `SWIFTDROP · CLOCK IN · ${dstr(office.x, office.z)}` }); }
     if (!J.employed && L.night >= J.rehireDay) MM.push({ x: office.x, z: office.z, color: '#ff9100' });
@@ -186,6 +215,34 @@ export function createJob(game) {
   J.sheet = () => ({ rating: J.rating(), stars: stars(J.rating()), employed: J.employed, clockedIn: J.clockedIn, orders: J.orders.map(o => ({ ...o, dueStr: fmt(o.due), late: L.clock > o.due })), reviews: J.reviews.slice(-6).reverse(),
     weekEarned: J.weekEarned, weekDone: J.weekDone, payDay: J.payDay, rentDue: J.rentDue, rent: RENT + J.rentDebt, rivals: J.rivals.map(r => ({ ...r })).concat([{ name: 'Bolaji (you)', week: J.weekDone, rating: J.rating(), me: true }]).sort((a, b) => b.week - a.week), day: L.night });
   J.officePlace = () => ({ name: office.name, x: office.x, z: office.z, kind: 'place' });
+  // ---- the other SwiftDrop riders, out on their bicycles all day ----
+  const riders = J.rivals.map((r, k) => {
+    const g = new THREE.Group(), m = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 });
+    for (const z of [0.55, -0.55]) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.035, 6, 18), m('#111')); w.rotation.y = Math.PI / 2; w.position.set(0, 0.34, z); g.add(w); }
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.0), m('#e65100')); fr.position.set(0, 0.62, 0); g.add(fr);
+    const rig = new Rig({ skin: ['#5b3a26', '#3e2418', '#6d4530'][k], top: '#e65100', bottom: '#212121', sock: '#212121', sole: '#212121', cap: '#e65100', sheen: '#556070', scale: 1.02 });
+    Pose.idle(rig, 0, false); rig.set('hipsY', HIP_H - 0.35); rig.set('thLX', -1.2); rig.set('thRX', -1.2); rig.set('knLX', 1.0); rig.set('knRX', 1.0); rig.set('spineX', 0.35); rig.set('shLX', -1.2); rig.set('shRX', -1.2); rig.snap(); rig.update(0.016);
+    rig.root.position.y = 0.42; g.add(rig.root);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.34), m('#e65100')); box.position.set(0, 1.35, -0.35); g.add(box);
+    g.visible = false; scene.add(g);
+    const i = I0 + 1 + Math.floor(Math.random() * (I1 - I0 - 1)), j = 1 + Math.floor(Math.random() * (N - 1));
+    return { name: r.name, g, rig, x: roadLine(i), z: roadLine(j), tx: roadLine(i), tz: roadLine(j), pedal: k, said: 0 };
+  });
+  const updateRiders = (dt) => {
+    const on = L.phase === 'day' && L.clock > 7 * 60 && L.clock < 19.5 * 60 && game.sub !== 'free';
+    for (const r of riders) {
+      r.g.visible = on; if (!on) continue;
+      if (Math.hypot(r.tx - r.x, r.tz - r.z) < 0.5) { // next junction: along one road, then the other (Lagos grid, no shortcuts)
+        if (Math.random() < 0.5) r.tx = roadLine(I0 + Math.floor(Math.random() * (I1 - I0 + 1))); else r.tz = roadLine(Math.floor(Math.random() * (N + 1)));
+      }
+      const goX = Math.abs(r.tx - r.x) > 0.5, dx = goX ? Math.sign(r.tx - r.x) : 0, dz = goX ? 0 : Math.sign(r.tz - r.z), sp = 6.5 * dt;
+      r.x += dx * Math.min(sp, Math.abs(r.tx - r.x)); r.z += dz * Math.min(sp, Math.abs(r.tz - r.z));
+      const yaw = Math.atan2(dx, dz); const side = 4.6; // keep to the right, near the kerb
+      r.g.position.set(r.x - Math.cos(yaw) * side * 0 + (dz ? -dz * side : 0), 0.15, r.z + (dx ? dx * side : 0)); r.g.rotation.y = yaw;
+      r.pedal += dt * 7; const a = Math.sin(r.pedal); r.rig.set('thLX', -1.2 + a * 0.4); r.rig.set('thRX', -1.2 - a * 0.4); r.rig.update(dt, 20);
+      if (game.time - r.said > 40 && Math.hypot(r.g.position.x - player.pos.x, r.g.position.z - player.pos.z) < 9) { r.said = game.time; hud.say(r.name, pick([`Bolaji! I don do ${J.rivals.find(q => q.name === r.name)?.week ?? 3} this week o!`, 'Oga Tunde dey vex for you. Hurry!', 'Customer for Yaba don call me twice. Make I go!', 'Na today you go learn this job.']), 3); }
+    }
+  };
   J.serialize = () => { const cur = player.mode === 'bike' && player.kind === 'bicycle' ? { x: player.pos.x, z: player.pos.z, yaw: player.heading } : player.cycle; if (cur) J.cycleAt = cur; const { hasCycle, cycleAt, employed, day, clockedIn, shiftOver, orders, reviews, weekEarned, weekDone, daysWorked, strikes, rehireDay, rentDue, rentDebt, payDay, rivals, noShowTold } = J; return { hasCycle, cycleAt, employed, day, clockedIn, shiftOver, orders, reviews: reviews.slice(-30), weekEarned, weekDone, daysWorked, strikes, rehireDay, rentDue, rentDebt, payDay, rivals, noShowTold }; };
   J.load = (d) => { if (!d) return; Object.assign(J, d); if (J.hasCycle) setTimeout(() => { const c = J.cycleAt || { x: world.homeDoor.x + 2, z: world.homeDoor.z + 2, yaw: 0 }; player.parkCycle(c.x, c.z, c.yaw); game.refreshBag?.(); }, 0); };
   J.routeNext = routeNext;
