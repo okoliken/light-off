@@ -1286,21 +1286,31 @@ export function createGame(ctx) {
     return best ? { x: best.x, z: best.z, color: 0xff9100, label: 'LEVY' } : { x: world.homeDoor.x, z: world.homeDoor.z, color: 0xffffff, label: 'HOME' };
   }
   let navT = 0;
+  // the guide route is sticky: once planned it only changes when the target moves, he strays off it,
+  // or a few seconds pass. Replanning every frame made the arrow flip around on every small turn.
+  let navTarg = null, navDirect = false;
   function updateNav(dt) {
     navT -= dt;
     const t = L.inside ? null : navTarget();
     game.nav = t;
-    if (!t) { game.navRoute = null; return; }
-    if (navT <= 0 || !game.navRoute) {
-      navT = t.moving ? 0.3 : 0.6;
-      const d = Math.hypot(t.x - player.pos.x, t.z - player.pos.z);
-      const direct = d < 35 || !col.blocked(player.pos.x, player.pos.y + 1.5, player.pos.z, t.x, player.pos.y + 1.5, t.z, 3);
-      const yaw = ['board', 'grind', 'skitch'].includes(player.mode) ? player.heading : player.yaw;
-      game.navRoute = direct ? [[t.x, t.z]] : traffic.route(player.pos.x, player.pos.z, yaw, t.x, t.z);
-    }
+    if (!t) { game.navRoute = null; navTarg = null; return; }
     const r = game.navRoute;
-    while (r.length > 1 && Math.hypot(r[0][0] - player.pos.x, r[0][1] - player.pos.z) < 9) r.shift();
-    r[r.length - 1] = [t.x, t.z];
+    const d = Math.hypot(t.x - player.pos.x, t.z - player.pos.z);
+    const targetMoved = !navTarg || Math.hypot(navTarg.x - t.x, navTarg.z - t.z) > 8;
+    let strayed = false;
+    if (r && r.length) { const n = r[0]; strayed = Math.hypot(n[0] - player.pos.x, n[1] - player.pos.z) > 70; }
+    const clear = d < 30 || (d < 120 && !col.blocked(player.pos.x, player.pos.y + 1.5, player.pos.z, t.x, player.pos.y + 1.5, t.z, 3));
+    if (!r || targetMoved || strayed || navT <= 0) {
+      navT = 4;
+      // straight-line guidance sticks once it starts (no flicker between "direct" and "by road")
+      navDirect = clear || (navDirect && d < 45);
+      const yaw = ['board', 'grind', 'skitch', 'bike', 'zip'].includes(player.mode) ? player.heading : player.yaw;
+      game.navRoute = navDirect ? [[t.x, t.z]] : traffic.route(player.pos.x, player.pos.z, yaw, t.x, t.z);
+      navTarg = { x: t.x, z: t.z };
+    } else if (!navDirect && clear && d < 30) { navDirect = true; game.navRoute = [[t.x, t.z]]; }
+    const rr = game.navRoute;
+    while (rr.length > 1 && Math.hypot(rr[0][0] - player.pos.x, rr[0][1] - player.pos.z) < 9) rr.shift();
+    rr[rr.length - 1] = [t.x, t.z];
   }
 
   function buildMarkers() {

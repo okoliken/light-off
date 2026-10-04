@@ -644,7 +644,7 @@ export function createPlayer(scene, world, traffic) {
     const cond = world.roadCond?.(p.pos.x, p.pos.z);
     if (cond === 'flood') p.speed -= p.speed * 1.2 * dt; else if (cond === 'bad' && p.speed > 12) p.speed -= (p.speed - 12) * 1.5 * dt;
     p.speed = Math.max(0, p.speed);
-    p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed;
+    p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed; p.yaw = p.heading; // the route planner reads yaw
     p.lean += (clamp(-steer / Math.max(dt, 1e-3) * 0.18 * Math.min(1, p.speed / 10), -0.5, 0.5) - p.lean) * Math.min(1, dt * 6);
     const before = p.speed;
     const { contacts, hit } = physics(dt, { onBoard: true });
