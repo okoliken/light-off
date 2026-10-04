@@ -411,7 +411,7 @@ export function createHUD(root, world) {
     el.stars.forEach((s, i) => s.classList.toggle('on', game.heat > i));
     el.naira.innerHTML = game.mode === 'patrol' ? `₦${game.life.wallet.toLocaleString()}<span>CASH</span>` : `₦${game.stats.returned.toLocaleString()}<span>RETURNED</span>`;
     const spd = Math.round(Math.hypot(p.vel.x, p.vel.z) * 3.6);
-    el.mode.innerHTML = `${game.arrest ? 'Arrested' : p.cuffed && p.mode === 'foot' ? 'Handcuffed' : MODE_NAMES[p.mode] || p.mode}<small>${p.mode === 'grind' ? 'SPACE JUMP OFF · C HOP OFF' : spd + ' KM/H'}</small>`;
+    el.mode.innerHTML = `${game.arrest ? 'Arrested' : p.mode === 'bike' && p.kind === 'bicycle' ? 'Bicycle' : p.cuffed && p.mode === 'foot' ? 'Handcuffed' : MODE_NAMES[p.mode] || p.mode}<small>${p.mode === 'grind' ? 'SPACE JUMP OFF · C HOP OFF' : spd + ' KM/H'}</small>`;
     const sk = p.mode === 'skitch' && p.skitch;
     el.grip.classList.toggle('hidden', !sk);
     if (sk) el.gripB.style.width = Math.max(0, p.skitch.grip) + '%';
@@ -466,7 +466,7 @@ export function createHUD(root, world) {
     ['Moving', [['Move', 'W A S D', 'L-Stick'], ['Look around', 'Mouse', 'R-Stick'], ['Jump · climb a wall', 'Space', 'A'], ['Hold: charge a cat leap', 'Space', 'A'], ['Sprint', 'Shift', 'RT']]],
     ['Skating', [['Board on / off', 'R', 'Y'], ['Ollie (faster or holding Shift = higher)', 'Space', 'A'], ['In the air: board flip (+ a direction)', 'F', 'X'], ['In the air: backflip / frontflip / 360 spin (pull back / push forward / sideways)', 'Space', 'A'],
       ['Lie on your belly (when fast) · X again to get up', 'X', '—'], ['Skitch: grab a vehicle', 'E', 'RB']]],
-    ['Okada', [['Take one (get close, or catch it on the board)', 'F', 'X'], ['Ride · full throttle', 'W A S D · Shift', 'L-Stick · RT'], ['Brake', 'Space', 'A'], ['Get off', 'R', 'Y']]],
+    ['Bicycle & okada', [['Get on your SwiftDrop bicycle (or take an okada)', 'F', 'X'], ['Ride · full throttle', 'W A S D · Shift', 'L-Stick · RT'], ['Brake', 'Space', 'A'], ['Get off', 'R', 'Y']]],
     ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
       ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
     ['Escape kit', [['Pepper bomb · Ash cloud · Nail plank', '1 · 2 · 3', '—'], ['Hang on a danfo (Space: climb onto the roof)', 'E', 'RB'], ['Ride a NEPA wire (Coach Ayo teaches it)', 'E', 'RB'], ['Blackout: pull a transformer fuse', 'F', 'X']]],

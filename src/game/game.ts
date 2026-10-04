@@ -466,6 +466,7 @@ export function createGame(ctx) {
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 3.6 * 3.6) return { kind: 'deliver', text: `<span class="key">F</span>Give it back to ${game.delivery.name}` };
     if (busy) return null;
     // okadas: his own (where he left it), or somebody else's
+    if (player.mode === 'foot' && !player.cuffed && player.nearCycle()) return { kind: 'mountCycle', text: '<span class="key">F</span>Get on your SwiftDrop bicycle' };
     if (player.mode === 'foot' && !player.cuffed && player.nearBike()) return { kind: 'mount', text: '<span class="key">F</span>Get on the okada' };
     if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && (v.speed < 8 || player.mode === 'board')); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
@@ -514,6 +515,7 @@ export function createGame(ctx) {
       case 'pickup': { const it = game.dropped.item; scene.remove(game.dropped.mesh); game.dropped = null; startCarry(it); return true; }
       case 'deliver': deliver(); return true;
       case 'mount': player.mountBike(player.bike.yaw); return true;
+      case 'mountCycle': player.mountCycle(); return true;
       case 'ferry': game.ferry.board(opt.j); return true;
       case 'job': return game.job.act(opt);
       case 'case': return game.general.act(opt);
@@ -564,10 +566,19 @@ export function createGame(ctx) {
   }
   // ---------- the backpack: change anywhere nobody can see you ----------
   let backpack = null;
+  const deliveryBox = (() => {
+    const g = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 0.36), new THREE.MeshStandardMaterial({ color: '#e65100', roughness: 0.8 })); g.add(box);
+    const t = textSign('SWIFTDROP', '#e65100', '#ffffff', 256, 64); const lbl = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.1), new THREE.MeshBasicMaterial({ map: t })); lbl.position.set(0, 0.06, -0.181); lbl.rotation.y = Math.PI; g.add(lbl);
+    g.position.set(0, 0.02, -0.28); return g;
+  })();
+  game.refreshBag = () => updateBackpack();
   function updateBackpack() {
     if (!backpack) { backpack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.18), new THREE.MeshStandardMaterial({ color: '#2b2f36', roughness: 0.9 })); backpack.position.set(0, 0.0, -0.17); }
     backpack.parent?.remove(backpack);
-    if (L.bag && !L.suit) player.rig.b.chest.add(backpack); // the suit is on him, so the bag hangs empty out of sight
+    deliveryBox.parent?.remove(deliveryBox);
+    if (!L.suit && game.job?.hasCycle && game.sub !== 'free') player.rig.b.chest.add(deliveryBox); // the SwiftDrop box (the suit rides inside it)
+    else if (L.bag && !L.suit) player.rig.b.chest.add(backpack); // the suit is on him, so the bag hangs empty out of sight
   }
   function witnesses() { // anyone within 16 m with a clear line of sight
     const P = player.pos, see = (q) => q && !q.gone && !q.removed && dist2(q.pos, P) < 16 * 16 && !col.blocked(q.pos.x, q.pos.y + 1.5, q.pos.z, P.x, P.y + 1.2, P.z, 1.2);
@@ -1054,7 +1065,7 @@ export function createGame(ctx) {
     else if (player.mode === 'ride') { if (game.ferry.ride) game.ferry.update(dt, input); else TR.update(dt, input); input.pressed = {}; }
     else if (game.pendingTrip && player.mode === 'foot') TR.checkPending();
     if (player.mode === 'bike') {
-      const st = !game.fare && Math.hypot(player.vel.x, player.vel.z) < 2.5 && TR.stops.find(q => dist2(q, player.pos) < 8 * 8);
+      const st = player.kind !== 'bicycle' && !game.fare && Math.hypot(player.vel.x, player.vel.z) < 2.5 && TR.stops.find(q => dist2(q, player.pos) < 8 * 8);
       prompt = game.prompt = st ? '<span class="key">F</span>Carry a passenger (okada for hire)' : game.fare ? `Passenger to <b>${game.fare.dest.name}</b> · ₦${game.fare.pay.toLocaleString()} · <span class="key">R</span> drops him` : '<span class="key">R</span>Get off · <span class="key">Space</span>Brake · <span class="key">Shift</span>Full throttle';
       if (st && input.pressed.act) startFare();
     }

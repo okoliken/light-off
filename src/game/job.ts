@@ -36,7 +36,7 @@ export function createJob(game) {
   }
 
   const J: any = {
-    office, employed: true, day: 0, clockedIn: false, shiftOver: false, orders: [], reviews: [], weekEarned: 0, weekDone: 0, daysWorked: 0, strikes: 0,
+    office, employed: true, hasCycle: false, cycleAt: null, day: 0, clockedIn: false, shiftOver: false, orders: [], reviews: [], weekEarned: 0, weekDone: 0, daysWorked: 0, strikes: 0,
     rehireDay: 0, rentDue: 7, rentDebt: 0, payDay: 7, rivals: RIVALS.map(n => ({ name: n, week: 0, rating: 3.8 + Math.random() * 0.9 })), firedTold: false,
   };
   J.rating = () => { const r = J.reviews.slice(-20); return r.length ? r.reduce((a, q) => a + q.stars, 0) / r.length : 4.2; };
@@ -102,6 +102,10 @@ export function createJob(game) {
   J.act = (opt) => {
     if (opt.act === 'clockin') {
       J.clockedIn = true; J.orders = makeOrders(); audio.pickup();
+      if (!J.hasCycle) { // first shift: the company bicycle and the delivery box
+        J.hasCycle = true; const ax = -s.nz, az = s.nx; player.parkCycle(office.x + ax * 2.2 + s.nx * 1.2, office.z + az * 2.2 + s.nz * 1.2, Math.atan2(ax, az)); game.refreshBag?.();
+        setTimeout(() => hud.banner('YOUR SWIFTDROP BICYCLE', 'Mr Tunde hands you a company bicycle and an orange delivery box. F to get on, R to get off. Break it, you pay for it.', 'white', 5), 3400);
+      }
       hud.say('Mr Tunde', pick([`${J.orders.length} drops today. Customers dey wait. No story.`, 'Oya, carry your parcels. Last week complain too much o.', `Your rating na ${J.rating().toFixed(1)}. Kola dey do better than you.`]), 3.5);
       hud.banner('SHIFT STARTED', `${J.orders.length} parcels · first one due ${fmt(J.orders[0].due)} · J for the job sheet`, 'white', 3.2);
       if (L.night >= J.payDay && J.weekEarned > 0) payday();
@@ -141,6 +145,7 @@ export function createJob(game) {
   }
   function fire(why) {
     J.employed = false; J.clockedIn = false; J.rehireDay = L.night + 2;
+    if (J.hasCycle) { J.hasCycle = false; if (player.mode === 'bike' && player.kind === 'bicycle') { player.mode = 'foot'; } player.cycle = null; player.parkCycle(office.x, office.z, 0); player.cycle = null; game.refreshBag?.(); setTimeout(() => game.player.parkCycle && (game.player.cycle = null), 0); }
     hud.banner('SACKED', `Mr Tunde: "${why} Submit your bag. Go."`, 'red', 5);
     hud.toast('You can go back to SwiftDrop in <b>2 days</b> and beg for the job. Until then: rent still dey come.', 'red');
   }
@@ -181,8 +186,8 @@ export function createJob(game) {
   J.sheet = () => ({ rating: J.rating(), stars: stars(J.rating()), employed: J.employed, clockedIn: J.clockedIn, orders: J.orders.map(o => ({ ...o, dueStr: fmt(o.due), late: L.clock > o.due })), reviews: J.reviews.slice(-6).reverse(),
     weekEarned: J.weekEarned, weekDone: J.weekDone, payDay: J.payDay, rentDue: J.rentDue, rent: RENT + J.rentDebt, rivals: J.rivals.map(r => ({ ...r })).concat([{ name: 'Bolaji (you)', week: J.weekDone, rating: J.rating(), me: true }]).sort((a, b) => b.week - a.week), day: L.night });
   J.officePlace = () => ({ name: office.name, x: office.x, z: office.z, kind: 'place' });
-  J.serialize = () => { const { employed, day, clockedIn, shiftOver, orders, reviews, weekEarned, weekDone, daysWorked, strikes, rehireDay, rentDue, rentDebt, payDay, rivals, noShowTold } = J; return { employed, day, clockedIn, shiftOver, orders, reviews: reviews.slice(-30), weekEarned, weekDone, daysWorked, strikes, rehireDay, rentDue, rentDebt, payDay, rivals, noShowTold }; };
-  J.load = (d) => { if (d) Object.assign(J, d); };
+  J.serialize = () => { const cur = player.mode === 'bike' && player.kind === 'bicycle' ? { x: player.pos.x, z: player.pos.z, yaw: player.heading } : player.cycle; if (cur) J.cycleAt = cur; const { hasCycle, cycleAt, employed, day, clockedIn, shiftOver, orders, reviews, weekEarned, weekDone, daysWorked, strikes, rehireDay, rentDue, rentDebt, payDay, rivals, noShowTold } = J; return { hasCycle, cycleAt, employed, day, clockedIn, shiftOver, orders, reviews: reviews.slice(-30), weekEarned, weekDone, daysWorked, strikes, rehireDay, rentDue, rentDebt, payDay, rivals, noShowTold }; };
+  J.load = (d) => { if (!d) return; Object.assign(J, d); if (J.hasCycle) setTimeout(() => { const c = J.cycleAt || { x: world.homeDoor.x + 2, z: world.homeDoor.z + 2, yaw: 0 }; player.parkCycle(c.x, c.z, c.yaw); game.refreshBag?.(); }, 0); };
   J.routeNext = routeNext;
   return J;
 }

@@ -88,7 +88,7 @@ export function createAudio() {
     if (onBoard || p.mode === 'skitch') { L.seam = (L.seam || 0) + spd / 60; if (L.seam > 1.8) { L.seam = 0; burst('lowpass', 700 + Math.random() * 200, 0.03, 0.05 + Math.min(0.05, spd / 400)); } }
     set(L.grind, p.mode === 'grind' ? 0.22 : 0, 0.03);
     set(L.wind, Math.min(0.14, Math.max(0, (spd - 12) / 70) + (p.onGround ? 0 : Math.min(0.06, -p.vel.y / 200))), 0.3);
-    set(L.engine, p.mode === 'bike' ? 0.05 + Math.min(0.06, spd / 400) : 0, 0.1);
+    set(L.engine, p.mode === 'bike' && p.kind !== 'bicycle' ? 0.05 + Math.min(0.06, spd / 400) : 0, 0.1);
     if (p.mode === 'bike') L.engine.o.frequency.setTargetAtTime(38 + spd * 4.2, now(), 0.12);
     let sirV = 0;
     for (const v of game.traffic.vehicles) if (v.police?.siren) sirV = Math.max(sirV, vol(v.pos, 140));
