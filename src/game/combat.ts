@@ -11,6 +11,7 @@
 
 const COMBO = ['jab', 'hook', 'jab', 'knee', 'flipkick'];
 const COMBO2 = ['hook', 'spin', 'jab', 'hook', 'flipkick'];
+const CUFFED = ['knee', 'spin', 'knee', 'flipkick']; // hands cuffed behind him: knees, spin kicks, a flip kick
 const COMBO3 = ['jab', 'hook', 'knee', 'spin', 'jab', 'flipkick']; // the long chain once he's really rolling
 
 export function createCombat(game) {
@@ -85,7 +86,7 @@ export function createCombat(game) {
   // surrounded: three or more of them close enough for the Cat Sweep
   C.sweepReady = () => C.sweepCd <= 0 && game.thugs.filter(t => t.alive && !t.grounded && !t.airborne && t.engaged && dist(t, player) < 3.8).length >= 3;
   C.sweep = () => {
-    if (!['foot', 'board'].includes(player.mode) || !C.sweepReady() || player.cuffed) return false;
+    if (!['foot', 'board'].includes(player.mode) || !C.sweepReady()) return false; // a leg sweep: cuffs don't matter
     C.sweepCd = 8;
     if (player.mode === 'board') player.mode = 'foot';
     player.startAct('sweep', null, () => {
@@ -119,9 +120,9 @@ export function createCombat(game) {
 
   // F: returns true if it did a combat move
   C.attack = (dir, held: any = {}) => {
-    if (!['foot', 'board'].includes(player.mode) || player.cuffed) return false;
+    if (!['foot', 'board'].includes(player.mode)) return false;
     // Wall Spring: F into a wall right in front of him kicks off it, flipping back onto the nearest enemy behind
-    if (player.mode === 'foot' && player.onGround) {
+    if (player.mode === 'foot' && player.onGround && !player.cuffed) {
       const wt = game.world.collision.raycast(player.pos.x, player.pos.y + 1, player.pos.z, dir[0], 0, dir[1], 1.4);
       if (wt < 1.3) {
         const back = foes().filter(t => !t.grounded && dist(t, player) < 7.5 && ((t.pos.x - player.pos.x) * dir[0] + (t.pos.z - player.pos.z) * dir[1]) < 0).sort((a, b) => dist(a, player) - dist(b, player))[0];
@@ -181,7 +182,7 @@ export function createCombat(game) {
     }
     const t = pickTarget(dir, 7.5, x => !x.grounded || !x.takeHit);
     if (!t) return false;
-    const seq = C.combo >= 10 ? COMBO3 : C.combo >= 5 ? COMBO2 : COMBO;
+    const seq = player.cuffed ? CUFFED : C.combo >= 10 ? COMBO3 : C.combo >= 5 ? COMBO2 : COMBO; // cuffed: all legs
     const kind = seq[C.chain % seq.length]; C.chain++;
     const heavy = kind === 'flipkick';
     player.startAct(kind, t, () => {
@@ -194,8 +195,7 @@ export function createCombat(game) {
   };
 
   // C: counter if someone is about to hit him; returns false if there's nothing to counter
-  C.counter = () => {
-    if (player.cuffed) return false;
+  C.counter = () => { // a spin kick: works in cuffs too
     const threats = game.thugs.filter(t => t.alive && t.state === 'windup' && t.t > 0.08 && dist(t, player) < 3.6);
     const counterable = threats.filter(t => !t.unblockable).sort((a, b) => dist(a, player) - dist(b, player));
     if (!counterable.length) return false;
@@ -237,8 +237,7 @@ export function createCombat(game) {
   };
 
   // G: launcher
-  C.launch = (dir) => {
-    if (player.cuffed) return false;
+  C.launch = (dir) => { // a kick: works in cuffs too
     if (!['foot', 'board'].includes(player.mode)) return false;
     const t = pickTarget(dir, 3.2, x => x.takeHit && !x.grounded && !x.airborne);
     if (!t) return false;

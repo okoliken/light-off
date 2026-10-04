@@ -877,10 +877,19 @@ export function createGame(ctx) {
     if (pol.length > want) for (const v of pol) { if (v.police.mode === 'transport') continue; if (!v.police.crew && !v.police.sees && Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) > 95) { traffic.remove(v); break; } }
     let grabbing = false;
     const ps = Math.hypot(player.vel.x, player.vel.z);
-    if (!game.arrest && game.heat > 0 && player.mode !== 'skitch' && player.mode !== 'down' && ps < 4.8 && player.pos.y < 1.3) for (const v of pol) if (Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) < 4 && v.speed < 6) { grabbing = true; break; }
-    if (game.officerGrab) grabbing = true;
+    void ps;
+    // a trained fighter: while he still has his strength, a grab just gets the officer shoved off. Police
+    // have to hurt him first (shoot, beat him down); only then can they get the cuffs on.
+    if (game.officerGrab && !game.arrest) {
+      const strong = player.hp > player.cap() * 0.4 && !['down', 'crawl'].includes(player.mode);
+      if (strong) {
+        const o = game.gunmen.filter(g => g.alive && g.role === 'police' && Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) < 1.8)[0];
+        if (o && (game.shoveCd || 0) <= game.time) { game.shoveCd = game.time + 0.8; o.stun?.(1.4); const dx = o.pos.x - player.pos.x, dz = o.pos.z - player.pos.z, d = Math.hypot(dx, dz) || 1; o.pos.x += dx / d * 1.6; o.pos.z += dz / d * 1.6; camera.shake = 0.25; audio.punch(); hud.popup(player.cuffed ? 'HEADBUTT · <b>NOT TODAY</b>' : 'SHOVED OFF'); }
+      } else grabbing = true;
+    }
+    if (!game.arrest && game.heat > 0 && ['down', 'crawl'].includes(player.mode) && game.gunmen.some(g => g.alive && g.role === 'police' && Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) < 2.2)) grabbing = true; // beaten down with an officer on top of him
     game.officerGrab = false;
-    game.catchMeter = Math.max(0, game.catchMeter + (grabbing ? dt * 0.85 : -dt * 0.7));
+    game.catchMeter = Math.max(0, game.catchMeter + (grabbing ? dt * (['down', 'crawl'].includes(player.mode) ? 0.6 : 0.4) : -dt * 0.9));
     if (grabbing && R() < dt * 0.8) hud.say('Police', ['Oya stop there!', 'Where you dey run go?', 'Hold am! Hold am!'][Math.floor(R() * 3)], 1.6);
     if (game.catchMeter >= 1) { game.catchMeter = 0; busted(); }
   }
@@ -1203,7 +1212,7 @@ export function createGame(ctx) {
     const so = game.story.objective();
     const ao = L.inside ? null : game.activities.objective();
     if (game.arrest) hud.objective('<b>Arrested.</b> Kick the door out before you reach the station<small>MASH F / SPACE · THE MORE HEALTH YOU HAVE, THE HARDER YOU KICK</small>');
-    else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>NO FIGHTING, NO BOARD, NO CLIMBING · ALLEYS, CORNERS, CROWDS, SKITCHING IS OFF · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
+    else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>LEGS STILL WORK: KICK (F) · COUNTER (C) · LAUNCH / SWEEP (G) · NO CLIMBING · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.mode === 'patrol' && game.general.objective()) hud.objective(game.general.objective());
     else if (game.mode === 'patrol' && game.sub !== 'free' && game.job.objective()) hud.objective(game.job.objective());
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
