@@ -79,7 +79,7 @@ export function createJob(game) {
     for (const [id, c] of npcs) if (!J.orders.some(o => o.id === id)) { npcs.delete(id); if (!c.gone) c.remove(scene); }
   };
   const next = () => pending().sort((a, b) => a.due - b.due)[0];
-  const routeNext = () => { const o = next(); if (o) game.setWaypoint({ x: o.place.x, z: o.place.z, title: `${o.who} · ${o.place.name}` }); else game.setWaypoint({ x: office.x, z: office.z, title: J.clockedIn ? 'SwiftDrop: all delivered, clock out' : 'SwiftDrop office · clock in' }); };
+  const routeNext = () => { const o = next(); if (o) game.setWaypoint({ x: o.place.x, z: o.place.z, title: `${o.who} · ${o.place.name}` }, true); else game.setWaypoint({ x: office.x, z: office.z, title: J.clockedIn ? 'SwiftDrop: all delivered, clock out' : 'SwiftDrop office · clock in' }, true); };
 
   function review(o, kind) {
     const late = kind === 'late', never = kind === 'never';

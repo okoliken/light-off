@@ -33,13 +33,19 @@ const FAMILIES: any[] = [
   ['Alhaji Musa', 'suya seller, three children'], ['Aunty Kemi', 'sells pure water at the junction'],
 ];
 // tips for the new game (Story and Patrol): the job first, the street second
-const LIFE_TIPS: any[] = [
+// tips for the new game, kept apart: the rider by day only hears about the job; the boy in black only
+// hears about the night (seconds = time spent in that life)
+const DAY_TIPS: any[] = [
   [3, '<span class="key">J</span> opens your <b>job sheet</b>: today\'s parcels, deadlines, your rating, pay and rent.'],
-  [20, 'Customers wait at the address. <b>Hand the parcel to them</b> (<span class="key">F</span>). Late ones call you, and if you leave it too long Mr Tunde gives it to another rider.'],
-  [45, 'Your <b>SwiftDrop bicycle</b>: <span class="key">F</span> to get on, <span class="key">R</span> to get off. In a hurry? Danfo, keke or okada from the map (<span class="key">M</span>).'],
-  [75, 'Trouble on the street (snatchers, one chance, men in black) is optional. <b>Every minute you spend on it is parcel time.</b>'],
-  [110, 'Watch your <b>hunger</b> and <b>energy</b>. Eat at the stalls or cook at home. Rent is due every 7 days.'],
-  [160, 'At night you can be the <b>boy in black</b> (<span class="key">U</span> where nobody sees). Police chase anyone in black on sight.'],
+  [25, 'Customers wait at the address. <b>Hand the parcel to them</b> (<span class="key">F</span>).'],
+  [60, 'Your <b>SwiftDrop bicycle</b>: <span class="key">F</span> to get on, <span class="key">R</span> to get off. In a hurry? A danfo, keke or okada from the map (<span class="key">M</span>).'],
+  [120, 'Late parcels: the customer calls, then Mr Tunde <b>gives it to another rider</b>. Bad for your rating.'],
+  [200, 'Eat at the stalls or cook at home. <b>Rent is due every 7 days.</b>'],
+];
+const NIGHT_TIPS: any[] = [
+  [5, 'Fighting: <span class="key">F</span> strikes, <span class="key">C</span> counters when <b>"!"</b> flashes, <span class="key">G</span> launches. <span class="key">V</span> pounces from far away.'],
+  [40, 'Your kit: <span class="key">1</span> pepper bomb · <span class="key">2</span> ash cloud (police can\'t see in) · <span class="key">3</span> nail plank for police tyres.'],
+  [90, 'Police chase anyone in black on sight. <b>Rooftops, wires and crowds</b> lose them. Coach Ayo at the Stadium teaches wire riding (by day).'],
 ];
 const TIPS: any[] = [
   [2, 'Press <span class="key">R</span> to unclip your board and skate. <span class="key">R</span> again straps it back on.'],
@@ -1197,7 +1203,12 @@ export function createGame(ctx) {
     game.stats.bestCombo = Math.max(game.stats.bestCombo, combat.best);
     if (!L.inside) game.outT = (game.outT || 0) + dt;
     game.autoT = (game.autoT || 0) + dt; if (game.autoT > 20 && !game.arrest && player.mode !== 'ride') { game.autoT = 0; game.save(); }
-    { const TT = game.mode === 'patrol' ? LIFE_TIPS : TIPS; if (!L.inside && !game.tutorialOn && game.tipI < TT.length && game.outT > TT[game.tipI][0]) hud.toast(TT[game.tipI++][1], 'blue'); }
+    if (game.mode === 'patrol') { // the two lives keep their own tips and their own clocks
+      const night = L.suit, TT = night ? NIGHT_TIPS : DAY_TIPS, k = night ? 'tipN' : 'tipD', tk = night ? 'outN' : 'outD';
+      if (!L.inside) game[tk] = (game[tk] || 0) + dt;
+      game[k] ||= 0; if (!L.inside && !game.tutorialOn && game[k] < TT.length && game[tk] > TT[game[k]][0]) hud.toast(TT[game[k]++][1], 'blue');
+      document.body.classList.toggle('rider', !night); document.body.classList.toggle('night-life', night);
+    } else if (!L.inside && !game.tutorialOn && game.tipI < TIPS.length && game.outT > TIPS[game.tipI][0]) hud.toast(TIPS[game.tipI++][1], 'blue');
     if (game.inMall && !mallOpen()) { hud.say('Security', 'We don close! Oya, everybody out.', 3); leaveMall(); }
     const area = game.ferry.ride ? 'Lagos Lagoon' : game.inMall ? (game.mallFrom?.name || 'Mall') : world.areaAt(player.pos.x, player.pos.z);
     if (area !== game.areaName) { if (game.areaName) hud.area?.(area); game.areaName = area; }
@@ -1431,7 +1442,7 @@ export function createGame(ctx) {
     return out;
   };
   game.travel = (place, mode) => mode === 'skate' ? (game.setWaypoint({ x: place.x, z: place.z, title: place.name }), true) : TR.trip(place, mode);
-  game.setWaypoint = (e) => { game.waypoint = e ? { x: e.x, z: e.z, label: e.title } : null; if (e) hud.notice('WAYPOINT', e.title, 'blue'); };
+  game.setWaypoint = (e, silent = false) => { game.waypoint = e ? { x: e.x, z: e.z, label: e.title } : null; if (e && !silent) hud.notice('WAYPOINT', e.title, 'blue'); };
   game.patrolTracker = () => {
     const b = game.patrolBoard().slice(0, 3), r = game.rank();
     return { title: 'Patrol', sub: `NIGHT ${L.night} · ${r.name.toUpperCase()}${r.next ? ` · ${r.toNext.toLocaleString()} TO ${r.next.toUpperCase()}` : ''}`, steps: [...b.map(e => ({ label: `${e.title} · ${e.dist}m`, state: e.urgent ? 'cur' : '' })), { label: 'J: Patrol Board', state: '' }] };

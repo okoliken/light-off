@@ -51,7 +51,7 @@ export function createChatter(game) {
     const p = game.player.pos, near = (q, r) => (q.x - p.x) ** 2 + (q.z - p.z) ** 2 < r * r;
     const busy = game.world.vendors.some(v => near(v, 14)) || (game.world.busStops || []).some(s => near(s, 14)) || (game.crowdPeople?.() || []).filter(q => near(q, 10)).length >= 3;
     if (!busy) { C.streetT = 4; return; }
-    const [w, l] = pick(STREET_TALK); game.hud.say(w, l, 3.4); C.streetT = 18 + Math.random() * 20;
+    const [w, l] = pick(STREET_TALK); game.hud.say(w, l, 3.4); C.streetT = (game.job?.clockedIn ? 40 : 22) + Math.random() * 25;
   };
   return C;
 }

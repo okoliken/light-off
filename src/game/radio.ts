@@ -53,7 +53,7 @@ export function createRadio(game) {
     R.pending = !!pendingNews();
   };
   // push a line over the air without the player tuning in (dispatch-style: trouble right now)
-  R.say = (text) => hud.radio(station(), text);
+  R.say = (text, force = false) => { if (!force && game.mode === 'patrol' && !game.life.suit && game.job?.clockedIn) return; hud.radio(station(), text); }; // quiet while he's working
   const pendingNews = () => {
     const S = game.story, m = S.upcoming();
     if (m && !S.active && S.unlocked <= S.index && m.radio) return true;

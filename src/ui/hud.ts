@@ -130,8 +130,8 @@ export function createHUD(root, world) {
   H.toast = (text, kind = '') => {
     const d = document.createElement('div'); d.className = 'toast ' + kind; d.innerHTML = glyph(text); el.toasts.appendChild(d);
     const id = ++toastN; void id;
-    setTimeout(() => d.remove(), 4800);
-    while (el.toasts.children.length > 5) el.toasts.firstChild.remove();
+    setTimeout(() => d.remove(), 4200);
+    while (el.toasts.children.length > 2) el.toasts.firstChild.remove(); // never a wall of text
   };
   H.banner = (title, sub = '', kind = '', dur = 2.6) => {
     el.banner.innerHTML = `<div class="banner ${kind}"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>`;
@@ -142,7 +142,7 @@ export function createHUD(root, world) {
     const box = root.querySelector('.notices'); if (!box) return;
     const d = document.createElement('div'); d.className = 'notice ' + kind; d.innerHTML = glyph(`<b>${title}</b>${text ? ' · ' + text : ''}`); box.appendChild(d);
     setTimeout(() => d.classList.add('out'), 3200); setTimeout(() => d.remove(), 3800);
-    while (box.children.length > 2) box.firstChild.remove();
+    while (box.children.length > 1) box.firstChild.remove();
   };
   H.popup = (html) => {
     const d = document.createElement('div'); d.className = 'popup'; d.innerHTML = html; el.popups.appendChild(d);
