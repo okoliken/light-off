@@ -203,8 +203,13 @@ export function createJob(game) {
     return { x: office.x, z: office.z, label: 'SWIFTDROP · CLOCK OUT' };
   };
   J.objective = () => {
-    if (!J.employed || L.inside) return null;
-    if (!J.clockedIn) return !J.shiftOver && L.phase === 'day' && L.clock < 12 * 60 ? `Get to <b>SwiftDrop</b> and clock in<small>OJUELEGBA · BEFORE NOON · ON THE BICYCLE OR ON FOOT</small>` : null;
+    if (L.inside) return null;
+    if (!J.employed) return L.night >= J.rehireDay && L.phase === 'day' ? `No job. <b>Go to SwiftDrop and ask for it back</b><small>RENT ₦${(RENT + J.rentDebt).toLocaleString()} DUE DAY ${J.rentDue}</small>` : `No job until day ${J.rehireDay}<small>RENT ₦${(RENT + J.rentDebt).toLocaleString()} DUE DAY ${J.rentDue} · THE SUIT COMES OUT AT NIGHT</small>`;
+    if (!J.clockedIn) {
+      if (!J.shiftOver && L.phase === 'day' && L.clock < 12 * 60) return `Get to <b>SwiftDrop</b> and clock in<small>OJUELEGBA · BEFORE NOON · ON THE BICYCLE OR ON FOOT</small>`;
+      if (L.suit) return null; // the night is the boy in black's
+      return `Off duty · <b>₦${J.weekEarned.toLocaleString()}</b> this week<small>PAYDAY DAY ${J.payDay} · RENT ₦${(RENT + J.rentDebt).toLocaleString()} DUE DAY ${J.rentDue} · EAT, REST, OR CHANGE INTO THE SUIT (U) WHERE NOBODY SEES</small>`;
+    }
     const o = next(), left = pending().length;
     if (!o) return 'All delivered. <b>Clock out at SwiftDrop</b><small>OR KEEP WORKING THE STREETS</small>';
     const late = L.clock > o.due, mins = Math.round(Math.abs(o.due - L.clock));

@@ -100,6 +100,7 @@ function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(
 game.onRideMenu = (stop) => openMenu(done => hud.rideMenu(stop, game.transport.options(stop), (to, mode) => { done(); game.transport.board(stop, to, mode); }, done));
 game.onMissionComplete = (r) => { if (state === 'play') openMenu(done => hud.missionReport(r, done)); else pendingReports.push(r); };
 const pendingReports: any[] = [];
+game.onArrestHint = () => openMenu(done => hud.arrestCard(done));
 game.onShop = (shop) => openMenu(done => hud.shop(shop, shop.list || (() => game.shopItems().filter((it: any) => !shop.items || shop.items.includes(it.id))), () => game.life.wallet, shop.buy || ((id) => game.buy(id)), done));
 game.onNewspaper = (heads) => openMenu(done => hud.newspaper(heads, done));
 

@@ -86,7 +86,7 @@ export class Gunman {
         this.aimT += dt;
         if (!eye()) this.losT += dt; else this.losT = 0;
         if (this.losT > 0.35) { this.state = this.role === 'thief' ? 'flee' : 'chase'; this.shootCd = 0.8; break; }
-        if (this.aimT >= (this.role === 'police' ? 1.05 : 0.95)) { out = { shoot: true, dist }; this.state = 'recover'; this.t = 0; this.shootCd = 2.3 + Math.random() * 1.6; }
+        if (this.aimT >= (this.role === 'police' ? 1.7 : 1.4)) { out = { shoot: true, dist }; this.state = 'recover'; this.t = 0; this.shootCd = 2.3 + Math.random() * 1.6; }
         break;
       }
       case 'recover': {

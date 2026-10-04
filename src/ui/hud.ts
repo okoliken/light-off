@@ -748,6 +748,21 @@ export function createHUD(root, world) {
     const key = (e) => { if (['Escape', 'KeyJ', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); done(); } };
     addEventListener('keydown', key, true); wrap.querySelector<HTMLElement>('.cc-go').onclick = done;
   };
+  // first arrest: the game stops and explains the way out
+  H.arrestCard = (onDone) => {
+    const wrap = document.createElement('div'); wrap.className = 'overlay ccard';
+    const row = (k, t) => `<div><kbd>${k}</kbd><span>${t}</span></div>`;
+    wrap.innerHTML = `<div class="cc-box"><div class="cc-k">THEY GOT YOU</div><h1>ARRESTED</h1>
+      <div class="cc-grid">
+        <section class="cc-hot"><h3>1 · In the car</h3>${row('F / Space', 'Mash to kick the door out')}${row('Tip', 'Kick hardest when the car slows at a junction')}</section>
+        <section><h3>2 · Out, in cuffs</h3>${row('W A S D', 'Run. Break their line of sight (alleys, crowds, dark)')}${row('F · C · G', 'Your legs still fight: kick, counter, sweep')}</section>
+        <section><h3>3 · Free</h3>${row('Hold F', 'Out of sight: slip the cuffs (about 3 s)')}${row('or', 'Baba Kolade cuts them at his workshop')}</section>
+      </div><button class="cc-go">Got it</button><p class="cc-note">Shown once. The bar at the bottom of the screen pulses when it\'s time to act.</p></div>`;
+    el.overlays.appendChild(wrap);
+    const done = () => { wrap.remove(); removeEventListener('keydown', key, true); onDone?.(); };
+    const key = (e) => { if (['Enter', 'Escape', 'Space', 'KeyF'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); done(); } };
+    addEventListener('keydown', key, true); wrap.querySelector<HTMLElement>('.cc-go').onclick = done;
+  };
   H.rideMenu = (from, opts, onPick, onCancel) => {
     const LBL = { danfo: 'Danfo', keke: 'Keke', okada: 'Okada' };
     el.overlays.innerHTML = `<div class="overlay"><div class="card ridemenu">

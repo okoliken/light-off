@@ -872,7 +872,7 @@ export function createGame(ctx) {
       else hud.notice('SOMEWHERE, A PHONE RINGS', `Somebody important just heard the police lost you again (${F.policeFails}).`, 'blue');
     }
     if (game.heat > 0) {
-      if (seen) { game.heatTimer = 0; game.seenTime += dt; if (game.seenTime > 16 && game.heat < 3) { game.seenTime = 0; addHeat(1, 'More units joining the chase!'); } }
+      if (seen) { game.heatTimer = 0; if (!game.arrest) game.seenTime += dt; if (game.seenTime > 16 && game.heat < 3) { game.seenTime = 0; addHeat(1, 'More units joining the chase!'); } }
       else { game.heatTimer += dt; game.seenTime = Math.max(0, game.seenTime - dt); if (game.heatTimer > (player.cuffed ? 16 : 10)) { game.heatTimer = 0; game.heat--; hud.toast(game.heat ? 'They\'re losing you…' : '<b>You lost the police.</b>', game.heat ? 'blue' : 'green'); } }
     }
     for (const v of pol) { if (v.police.mode === 'transport') continue; const chasing = game.heat > 0; v.police.mode = chasing ? 'chase' : 'patrol'; v.police.siren = chasing; }
@@ -918,43 +918,63 @@ export function createGame(ctx) {
     if (game.arrest || game.respawnT > 0) return;
     game.stats.busted++; audio.busted();
     player.dropHeld(); loseItem();
-    let car = traffic.police().filter(v => !v.police.crew?.length || true).sort((a, b) => dist2(a.pos, player.pos) - dist2(b.pos, player.pos))[0];
+    let car = traffic.police().sort((a, b) => dist2(a.pos, player.pos) - dist2(b.pos, player.pos))[0];
     if (!car || dist2(car.pos, player.pos) > 60 * 60) car = traffic.spawnPolice(player.pos.x, player.pos.z);
     for (const g of car.police.crew || []) g.remove(); car.police.crew = null; car.police.parked = false;
-    // the station: the far corner of the district
-    const corners: any[] = [[0, 0], [N, 0], [0, N], [N, N]].map(([i, j]) => ({ x: roadLine(i), z: roadLine(j) }));
-    const dest = corners.sort((a, b) => dist2(b, player.pos) - dist2(a, player.pos))[0];
-    car.police.mode = 'transport'; car.police.dest = dest; car.police.route = []; car.police.siren = true;
-    player.mode = 'foot'; player.getupT = 0; player.critical = false; player.hp = Math.max(player.hp, 25); player.adren = 0;
-    player.startRide(car, false);
-    L.wallet = 0;
-    game.arrest = { car, t: 0, struggle: 0, second: !!player.cuffed };
-    for (const g of game.gunmen) if (g.alive && g.role === 'police' && !g.post) { g.state = 'return'; g.t = 0; }
+    // phase 1: two officers hold him on the spot while the car comes round
+    player.mode = 'foot'; player.getupT = 0; player.critical = false; player.hp = Math.max(player.hp, 25); player.adren = 0; player.vel.set(0, 0, 0); player.invuln = 99;
+    const second = !!player.cuffed; player.cuffed = true;
+    const holders: any[] = [];
+    for (const side of [-1, 1]) { const x = player.pos.x + Math.cos(player.yaw) * side * 0.9, z = player.pos.z - Math.sin(player.yaw) * side * 0.9; const g = new Gunman(scene, world, { x, z, y: player.pos.y, yaw: player.yaw, role: 'police', post: { x, z, yaw: player.yaw, cp: { stopped: null } } }); g.holder = true; holders.push(g); game.gunmen.push(g); }
+    car.police.mode = 'chase'; car.police.target.copy(player.pos); car.police.siren = true;
+    game.arrest = { phase: 'held', car, t: 0, struggle: 0, second, holders };
+    for (const g of game.gunmen) if (g.alive && g.role === 'police' && !g.post && !g.holder) { g.state = 'return'; g.t = 0; }
     for (const t of game.thugs) if (t.alive && t.engaged) t.state = 'return'; // the fight is over
-    hud.banner('ARRESTED', player.cuffed ? 'Caught again. They tightened the cuffs. Kick harder.' : 'Cuffed in the back of a police car. <b>Mash F / Space to kick the door out.</b>', 'red', 3.5);
-    game.say(null, ['Oya siddon there! Station!', 'You think say you fit run? Station!', 'Okafor go like this one.'][Math.floor(R() * 3)], 'Police');
+    hud.banner('ARRESTED', 'Two officers have your arms. The car is coming.', 'red', 3);
+    game.say(holders[0], ['Oya! Hold am well!', 'Face down! You dey go station!', 'Okafor go like this one.'][Math.floor(R() * 3)], 'Police');
+    let seen = false; try { seen = !!localStorage.getItem('light-off-seen-arrest'); localStorage.setItem('light-off-seen-arrest', '1'); } catch { /* */ }
+    if (!seen) setTimeout(() => game.arrest && game.onArrestHint?.(), 900); // first time: the game pauses and explains the way out
+  }
+  function intoCar(A) {
+    const v = A.car;
+    for (const g of A.holders) g.remove();
+    const corners: any[] = [[0, 0], [N, 0], [0, N], [N, N]].map(([i, j]) => ({ x: roadLine(i), z: roadLine(j) })); // the station: the far corner
+    const dest = corners.sort((a, b) => dist2(b, player.pos) - dist2(a, player.pos))[0];
+    v.police.mode = 'transport'; v.police.dest = dest; v.police.route = []; v.police.siren = true;
+    player.startRide(v, false); player.invuln = 0;
+    L.wallet = 0; A.phase = 'car'; A.t = 0;
+    hud.banner('IN THE CAR', 'Station in 50 seconds. <b>Mash F / Space to kick the door out.</b> Kick hardest when the car slows.', 'red', 3.5);
   }
   function updateArrest(dt, input) {
     const A = game.arrest; if (!A) return;
     const v = A.car;
     A.t += dt;
+    document.body.classList.add('arrested');
+    if (A.phase === 'held') { // held still: no moving, no fighting, just the car getting closer
+      input.move.x = input.move.y = 0; player.vel.set(0, 0, 0);
+      v.police.target.copy(player.pos);
+      const d = Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z);
+      game.hudMeter = Math.min(1, A.t / 6); game.catchMeter = 0; game.catchLabel = 'THEY\'RE HOLDING YOU · THE CAR IS COMING';
+      if (A.t > 3 && (d < 10 || A.t > 7)) intoCar(A);
+      return;
+    }
     const window = v.speed < 4; // the car slows at a junction: that's when a kick really counts
     if (input.pressed.act || input.pressed.jump) { A.struggle += (A.second ? 0.045 : 0.06) * (0.7 + 0.5 * player.hp / Math.max(1, player.cap())) * (window ? 2 : 1); camera.shake = 0.25; audio.clank?.(v.pos); }
     A.struggle = Math.max(0, A.struggle - dt * 0.1);
-    game.hudMeter = A.struggle; game.catchMeter = 0; game.catchLabel = window ? 'THE CAR IS SLOWING · KICK NOW!' : `KICK THE DOOR: MASH F / SPACE · ${Math.max(0, Math.ceil(50 - A.t))}s TO THE STATION`;
+    game.hudMeter = A.struggle; game.catchMeter = 0; game.catchLabel = window ? 'THE CAR IS SLOWING · KICK NOW! (F / SPACE)' : `KICK THE DOOR: MASH F / SPACE · ${Math.max(0, Math.ceil(50 - A.t))}s TO THE STATION`;
     if (A.struggle >= 1) {
-      // the door gives: out onto the road, still in cuffs
+      // the door gives: out onto the road, still in cuffs. The car stops dead; the officers get out and come after him on foot
       const side = R() < 0.5 ? 1 : -1;
       player.endRide(v.pos.x + v.rt.x * side * 2.2, v.pos.z + v.rt.z * side * 2.2);
-      player.cuffed = true; player.invuln = 1.5; game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null;
-      v.police.mode = 'chase'; v.police.parked = true; v.police.target.copy(player.pos);
-      game.arrest = null; game.cuffT = 0;
-      game.heat = 3; game.heatTimer = 0; audio.alert(); camera.shake = 0.8;
-      hud.banner('YOU\'RE OUT', 'Still in handcuffs. No fighting, no board, no climbing. <b>Lose them, then get to Baba Kolade\'s workshop.</b>', 'red', 4);
-      game.say(null, 'E don escape! Block the road! Block am!', 'Police');
+      player.cuffed = true; player.invuln = 2.5; game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null;
+      v.speed = 0; v.police.mode = 'chase'; v.police.parked = false; v.police.crew = null; v.police.target.copy(player.pos);
+      game.arrest = null; game.cuffT = 0; document.body.classList.remove('arrested');
+      game.heat = 2; game.heatTimer = 0; game.seenTime = -12; game.spawnCd = 14; audio.alert(); camera.shake = 0.8; // no fresh units for a while: a chase, not a flood
+      hud.banner('YOU\'RE OUT', 'Still in cuffs. <b>Run. Get out of their sight, then hold F to slip the cuffs.</b> Your legs still fight.', 'red', 4.5);
+      game.say(null, 'E don escape! Come down! Catch am!', 'Police');
       return;
     }
-    if (A.t > 50) { game.arrest = null; game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null; player.endRide(v.pos.x, v.pos.z); player.cuffed = false; v.police.mode = 'patrol'; game.heat = 0; jailed(); }
+    if (A.t > 50) { game.arrest = null; document.body.classList.remove('arrested'); game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null; player.endRide(v.pos.x, v.pos.z); player.cuffed = false; v.police.mode = 'patrol'; game.heat = 0; jailed(); }
   }
   function jailed() {
     game.respawnT = 999;
@@ -1097,7 +1117,7 @@ export function createGame(ctx) {
     }
     if (!prompt && (!player.onGround || player.pos.y > 3) && player.wireNear?.()) prompt = '<span class="key">E</span>Ride the wire';
     game.prompt = prompt;
-    if (game.arrest) { updateArrest(dt, input); input.pressed = {}; }
+    if (game.arrest) { updateArrest(dt, input); if (game.arrest?.phase === 'held') { input.pressed = {}; input.held = {}; } else input.pressed = {}; }
     else if (player.mode === 'ride') { if (game.ferry.ride) game.ferry.update(dt, input); else TR.update(dt, input); input.pressed = {}; }
     else if (game.pendingTrip && player.mode === 'foot') TR.checkPending();
     if (player.mode === 'bike') {
@@ -1231,7 +1251,7 @@ export function createGame(ctx) {
     buildMarkers();
     const so = game.story.objective();
     const ao = L.inside ? null : game.activities.objective();
-    if (game.arrest) hud.objective('<b>Arrested.</b> Kick the door out before you reach the station<small>MASH F / SPACE · THE MORE HEALTH YOU HAVE, THE HARDER YOU KICK</small>');
+    if (game.arrest) hud.objective(game.arrest.phase === 'held' ? '<b>Arrested.</b> Two officers are holding you<small>THE CAR IS COMING · YOU GET YOUR CHANCE IN THE CAR</small>' : '<b>In the police car.</b> Kick the door out before the station<small>MASH F / SPACE · KICK HARDEST WHEN THE CAR SLOWS</small>');
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>LEGS STILL WORK: KICK (F) · COUNTER (C) · LAUNCH / SWEEP (G) · NO CLIMBING · DARKNESS HELPS</small>` : game.mode === 'patrol' ? '<b>Handcuffed.</b> Get out of sight, then <b>hold F to slip the cuffs</b><small>NOBODY CAN BE WATCHING · OR BABA KOLADE CAN CUT THEM</small>' : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.mode === 'patrol' && game.general.objective()) hud.objective(game.general.objective());
     else if (game.mode === 'patrol' && game.sub !== 'free' && game.job.objective()) hud.objective(game.job.objective());

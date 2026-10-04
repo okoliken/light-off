@@ -57,7 +57,7 @@ export class Thug {
     if (!this.alive) return;
     if (['idle', 'return', 'tail', 'patrol'].includes(this.state)) { this.state = 'alert'; this.t = -delay; if (this.group) for (const o of this.group) if (o !== this && o.alive && ['idle', 'return', 'patrol'].includes(o.state)) { o.state = 'alert'; o.t = -delay - Math.random() * 0.4; } }
   }
-  telegraph() { this.state = 'windup'; this.t = 0; this.windDur = this.variant === 'blade' ? 0.42 : this.weapon === 'axe' ? 1.0 : this.weapon === 'machete' ? 0.85 : this.weapon === 'knife' ? 0.45 : this.big ? 0.8 : 0.62; }
+  telegraph() { this.state = 'windup'; this.t = 0; this.windDur = 1.35 * (this.variant === 'blade' ? 0.42 : this.weapon === 'axe' ? 1.0 : this.weapon === 'machete' ? 0.85 : this.weapon === 'knife' ? 0.45 : this.big ? 0.8 : 0.62); }
 
   // kind: light | heavy | launch | air | slam | counter | takedown
   takeHit(dmg, fx, fz, kind = 'light') {

@@ -517,3 +517,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 
 /* the rider by day sees only what matters to the job: no fight keys, no kit, no gang meter, no rep */
 body.rider .gadgets, body.rider .wanted, body.rider .respect { display: none !important; }
+
+/* arrested: the catch bar shakes and glows so you know it's your move */
+body.arrested .catch { animation: tutNudge 2.2s ease-in-out infinite; border: 1px solid rgba(255,82,82,0.6); background: rgba(40,8,8,0.85); padding: 8px 12px; }
