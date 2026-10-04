@@ -55,6 +55,27 @@ export function createJob(game) {
     return out.sort((a, b) => a.due - b.due);
   }
   const pending = () => J.orders.filter(o => o.status === 'pending');
+  // the customers themselves: they come out and wait at the address when you're close, wave you over,
+  // and react when the parcel lands (or doesn't). Spawned near you only, so the city isn't full of them.
+  const FITS = [['#c62828', '#212121'], ['#1565c0', '#263238'], ['#fafafa', '#3e2723'], ['#6a1b9a', '#4a148c'], ['#2e7d32', '#212121'], ['#f9a825', '#3e2723'], ['#00838f', '#263238']];
+  const npcs = new Map();
+  const spawnCustomer = (o) => {
+    const [top, bottom] = FITS[o.id % FITS.length], skin = ['#4a2e1f', '#5b3a26', '#3e2418', '#6d4530'][o.id % 4];
+    const fem = /Mrs|Aunty|Mama|Ngozi|Tola|Blessing|Yetunde|Bisi|Zainab|Funke/.test(o.who);
+    const c = new Civilian(scene, world, { x: o.place.x, z: o.place.z, yaw: Math.random() * 6, outfit: { skin, top, bottom, sock: '#3e2723', sole: '#2b2b2b', cap: fem ? null : (o.id % 3 === 0 ? '#212121' : null), sheen: '#556070' } });
+    c.name = o.who; c.mood = 'idle'; c.faceTarget = player.pos; game.civilians.push(c); npcs.set(o.id, c); return c;
+  };
+  const dropCustomer = (o, leave = true) => { const c = npcs.get(o.id); if (!c) return; npcs.delete(o.id); if (c.gone) return; if (leave) setTimeout(() => c.gone || c.runHome(c.pos.x + (Math.random() - 0.5) * 40, c.pos.z + (Math.random() - 0.5) * 40), 2500); else c.remove(scene); };
+  const updateCustomers = () => {
+    for (const o of J.orders) {
+      const c = npcs.get(o.id), d = Math.hypot(o.place.x - player.pos.x, o.place.z - player.pos.z);
+      if (o.status !== 'pending') { if (c) dropCustomer(o, true); continue; }
+      if (!c && d < 70) spawnCustomer(o);
+      else if (c && d > 110) dropCustomer(o, false);
+      else if (c) c.mood = d < 14 ? (L.clock > o.due ? 'chat' : 'wave') : 'idle'; // waving you over (or, late, on the phone complaining)
+    }
+    for (const [id, c] of npcs) if (!J.orders.some(o => o.id === id)) { npcs.delete(id); if (!c.gone) c.remove(scene); }
+  };
   const next = () => pending().sort((a, b) => a.due - b.due)[0];
   const routeNext = () => { const o = next(); if (o) game.setWaypoint({ x: o.place.x, z: o.place.z, title: `${o.who} · ${o.place.name}` }); else game.setWaypoint({ x: office.x, z: office.z, title: J.clockedIn ? 'SwiftDrop: all delivered, clock out' : 'SwiftDrop office · clock in' }); };
 
@@ -74,7 +95,7 @@ export function createJob(game) {
       if (!J.clockedIn && !J.shiftOver) return L.clock >= 6.5 * 60 && L.clock < 12 * 60 ? { kind: 'job', act: 'clockin', text: '<span class="key">F</span>Clock in and collect today\'s parcels' } : { kind: 'none', text: L.clock < 6.5 * 60 ? 'SwiftDrop opens at 6:30 AM.' : 'Too late to clock in today. Shifts start before noon.' };
       if (J.clockedIn && !pending().length) return { kind: 'job', act: 'clockout', text: '<span class="key">F</span>Clock out (all parcels delivered)' };
     }
-    const o = pending().find(q => Math.hypot(q.place.x - p.x, q.place.z - p.z) < 7);
+    const o = pending().find(q => { const c = npcs.get(q.id), t = c && !c.gone ? c.pos : q.place; return Math.hypot(t.x - p.x, t.z - p.z) < 3.2; });
     if (o) return { kind: 'job', act: 'deliver', o, text: `<span class="key">F</span>Hand over <b>${o.item}</b> to ${o.who}${L.clock > o.due ? ' <small style="color:#ff8a80">(LATE)</small>' : ''}` };
     return null;
   };
@@ -88,6 +109,7 @@ export function createJob(game) {
     }
     if (opt.act === 'deliver') {
       const o = opt.o, late = L.clock > o.due; o.status = late ? 'late' : 'done';
+      { const c = npcs.get(o.id); if (c && !c.gone) { c.mood = late ? 'idle' : 'cheer'; c.faceTarget = player.pos; } }
       const r = review(o, late ? 'late' : 'ok'), pay = late ? PAY_LATE : PAY_ON_TIME;
       J.weekEarned += pay; J.weekDone++; audio.pickup();
       hud.say(o.who, late ? pick(['Na now?!', 'Abeg, just give me.', 'Hmm. Late again.']) : pick(['Thank you!', 'Ah, fast! God bless.', 'Nice one, rider.']), 2.5);
@@ -137,6 +159,7 @@ export function createJob(game) {
     if (!J.employed) return;
     // didn't show up
     if (!J.clockedIn && !J.shiftOver && L.phase === 'day' && L.clock >= 12 * 60 && !J.noShowTold) { J.noShowTold = true; J.strikes++; hud.say('Mr Tunde (phone)', J.strikes >= 3 ? 'Don\'t bother coming tomorrow.' : 'Where are you?! Parcels dey here waiting.', 4); if (J.strikes >= 3) fire('You keep not showing up.'); }
+    updateCustomers();
     if (J.clockedIn) {
       for (const o of pending()) if (!o.warned && L.clock > o.due) { o.warned = true; hud.toast(`📞 <b>${o.who}</b> is calling: "Where is my ${o.item.toLowerCase()}?!" (now late)`, 'red'); }
       if (L.clock >= 19.5 * 60 || L.phase !== 'day') endShift(true);

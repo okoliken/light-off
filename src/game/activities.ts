@@ -365,7 +365,7 @@ export function createActivities(game, h) {
   A.option = () => {
     if (L.inside || !['foot', 'board'].includes(player.mode)) return null;
     if (!A.job && game.mode !== 'patrol' && L.phase === 'day' && d2(stall, player.pos) < 3.2 * 3.2) return { kind: 'activity', what: 'job', text: '<span class="key">F</span>Take a delivery job from Mama Nkechi (paid, timed)' };
-    if (!A.skate && d2({ x: pitch.x, z: pitch.z - 6 }, player.pos) < 4 * 4) return { kind: 'activity', what: 'skate', text: '<span class="key">F</span>Start the skate challenge (45 seconds: tricks, grinds, flips)' };
+    if (!A.skate && !player.noBoard && d2({ x: pitch.x, z: pitch.z - 6 }, player.pos) < 4 * 4) return { kind: 'activity', what: 'skate', text: '<span class="key">F</span>Start the skate challenge (45 seconds: tricks, grinds, flips)' };
     return null;
   };
   A.doOption = (opt) => {
@@ -416,7 +416,7 @@ export function createActivities(game, h) {
     if (A.robbery) { const r = A.robbery, v = r.stage === 'chase' ? r.car : r.crew.find(g => g.alive && g.item); if (v) { M.push({ x: v.pos.x, y: v.pos.y + 2.4, z: v.pos.z, kind: 'site', label: `ROBBERS · ${dstr(v.pos.x, v.pos.z)}` }); MM.push({ x: v.pos.x, z: v.pos.z, color: '#ff3d3d' }); } }
     if (L.phase === 'day' && game.mode !== 'patrol') { MM.push({ x: stall.x, z: stall.z, color: '#ff9800' }); if (d2(stall, player.pos) < 50 * 50) M.push({ x: stall.x, y: 3.2, z: stall.z, kind: 'errand', label: 'DELIVERY JOBS', edge: false }); }
     MM.push({ x: pitch.x, z: pitch.z, color: '#42a5f5' });
-    if (d2(pitch, player.pos) < 60 * 60 && !A.skate) M.push({ x: pitch.x, y: 3.2, z: pitch.z - 6, kind: 'errand', label: 'SKATE CHALLENGE', edge: false });
+    if (d2(pitch, player.pos) < 60 * 60 && !A.skate && !player.noBoard) M.push({ x: pitch.x, y: 3.2, z: pitch.z - 6, kind: 'errand', label: 'SKATE CHALLENGE', edge: false });
     if (A.job) { M.push({ x: A.job.to.x, y: 2.6, z: A.job.to.z, kind: 'errand', label: `${A.job.name.toUpperCase()} · ${dstr(A.job.to.x, A.job.to.z)}` }); MM.push({ x: A.job.to.x, z: A.job.to.z, color: '#80deea' }); }
     const s = A.snatch;
     if (s && s.thief.alive && s.thief.item) { M.push({ x: s.thief.pos.x, y: s.thief.pos.y + 2.3, z: s.thief.pos.z, kind: 'site', label: `THIEF · ${dstr(s.thief.pos.x, s.thief.pos.z)}` }); MM.push({ x: s.thief.pos.x, z: s.thief.pos.z, color: '#ff3d3d' }); }
