@@ -29,7 +29,7 @@ const NIGHT: Step[] = [
   { id: 'catdrop', title: 'Drop like a cat', how: { kb: 'Jump off the roof. He lands on his feet (no damage)', touch: 'Walk off the roof. He lands on his feet', pad: 'Jump off the roof' }, done: s => s.ev.has('catDrop') || s.ev.has('landRoll') || !!s.landedLow },
   { id: 'wallrun', title: 'Run along a wall', how: { kb: 'Sprint (<kbd>Shift</kbd>) beside a wall and press <kbd>Space</kbd> toward it', touch: 'Run beside a wall, stick all the way, tap <b>JUMP</b> toward it', pad: 'Sprint beside a wall, <kbd>A</kbd> toward it' }, done: s => s.ev.has('wallrun') || s.mode === 'wallrun' },
   { id: 'flip', title: 'Flip in the air', how: { kb: 'Jump, then <kbd>Space</kbd> again in the air', touch: 'Tap <b>JUMP</b>, then <b>JUMP</b> again in the air', pad: '<kbd>A</kbd>, then <kbd>A</kbd> again' }, done: s => s.ev.has('flip') },
-  { id: 'leap', title: 'Cat leap', how: { kb: 'Hold <kbd>Space</kbd> to crouch, let go to leap far', touch: 'Hold <b>JUMP</b>, then let go', pad: 'Hold <kbd>A</kbd>, then let go' }, done: s => s.ev.has('leap') },
+  { id: 'leap', title: 'Cat leap', how: { kb: 'Hold <kbd>Space</kbd> to crouch, let go to leap far', touch: 'Hold <b>JUMP</b>, then let go', pad: 'Hold <kbd>A</kbd>, then let go' }, done: s => s.ev.has('leap') || s.charged },
   { id: 'sense', title: 'Street Sense', how: { kb: 'Hold <kbd>Q</kbd>: see danger and enemies through walls', touch: 'Hold <b>SENSE</b>', pad: 'Hold <kbd>LB</kbd>' }, done: s => s.sensed > 0.6 },
   { id: 'skitch', title: 'Hitch a ride', how: { kb: 'Get close behind a moving car and press <kbd>E</kbd>', touch: 'Get close to a moving car and tap <b>GRAB</b>', pad: 'Get close to a moving car, <kbd>RB</kbd>' }, done: s => s.mode === 'skitch' || s.ev.has('skitch') },
   { id: 'strike', title: 'Fight: strike', how: { kb: 'Three agberos don\'t like the mask. <kbd>F</kbd> (or click) toward one to hit', touch: 'Three agberos are coming. Tap <b>HIT/USE</b>', pad: 'Three agberos are coming. <kbd>X</kbd> to hit' }, done: s => s.cb.attack >= 3, fight: true },
@@ -79,7 +79,7 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
     if (player.mode === 'foot' && !player.onGround) s.jumped = true;
     s.mode = player.mode; s.speed = player.speed || hs;
     s.free = game.sub === 'free';
-    for (const e of player.events || []) s.ev.add(e.e);
+    for (const e of player.events || []) { s.ev.add(e.e); if (e.e === 'jump' && (e.power || 0) > 0.35) s.charged = true; }
     if (game.sense) s.sensed += dt;
     s.onGround = player.onGround; if (player.pos.y > 4 && player.onGround) { s.highUp = true; s.wasHigh = true; }
     if (s.wasHigh && player.onGround && player.pos.y < 1) s.landedLow = true;

@@ -155,6 +155,7 @@ export function createJob(game) {
   }
   function newDay() {
     J.day = L.night; J.clockedIn = false; J.shiftOver = false; J.orders = []; J.noShowTold = false;
+    { const k = L.items, min = { pepper: 2, smoke: 1, nails: 1 }; let got = false; for (const q in min) if ((k[q] || 0) < min[q]) { k[q] = min[q]; got = true; } if (got) hud.toast('You restocked your kit from the stash under your mat: <b>pepper, ash, a nail plank</b>.', 'blue'); } // a new day: the stash at home tops the kit up
     if (L.night >= J.rentDue) {
       if (L.wallet >= RENT + J.rentDebt) { L.wallet -= RENT + J.rentDebt; J.rentDebt = 0; hud.toast(`The landlord collected <b>₦${RENT.toLocaleString()}</b> rent this morning.`, 'blue'); }
       else { J.rentDebt += RENT; hud.say('Landlord', J.rentDebt > RENT ? 'Two weeks now! If I no see my money, I go throw your things outside.' : 'Bolaji, where my rent? I no dey beg you o.', 4); }

@@ -532,6 +532,7 @@ export function createPlayer(scene, world, traffic) {
     return true;
   }
   function startClimb(wall) {
+    emit('climb');
     if (p.cuffed) return; // hands cuffed behind him: no climbing
     p.mode = 'climb'; p.climb = { s: wall.s, nx: Math.round(wall.nx), nz: Math.round(wall.nz) };
     if (p.climb.nx === 0 && p.climb.nz === 0) p.climb.nx = 1;
