@@ -125,6 +125,7 @@ export function createJob(game) {
     if (opt.act === 'clockout') { endShift(); return true; }
     if (opt.act === 'rehire') {
       J.employed = true; J.strikes = 0; J.reviews = J.reviews.slice(-4).map(r => ({ ...r, stars: Math.max(r.stars, 3) })); J.clockedIn = false; J.shiftOver = false; J.firedTold = false;
+      game.refreshFit?.(); // uniform back on
       hud.say('Mr Tunde', 'Last chance. If one more customer complain, you go find another work.', 4);
       hud.banner('REHIRED', 'Back on the SwiftDrop roster. Clock in tomorrow morning (or now, before noon).', 'green', 3.5); game.save(); return true;
     }
@@ -148,6 +149,7 @@ export function createJob(game) {
   function fire(why) {
     J.employed = false; J.clockedIn = false; J.rehireDay = L.night + 2;
     if (J.hasCycle) { J.hasCycle = false; if (player.mode === 'bike' && player.kind === 'bicycle') { player.mode = 'foot'; } player.cycle = null; player.parkCycle(office.x, office.z, 0); player.cycle = null; game.refreshBag?.(); setTimeout(() => game.player.parkCycle && (game.player.cycle = null), 0); }
+    game.refreshFit?.(); // uniform off
     hud.banner('SACKED', `Mr Tunde: "${why} Submit your bag. Go."`, 'red', 5);
     hud.toast('You can go back to SwiftDrop in <b>2 days</b> and beg for the job. Until then: rent still dey come.', 'red');
   }

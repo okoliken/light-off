@@ -52,7 +52,7 @@ export function createGeneral(game) {
   function startSquad() {
     const sp = api.spot(50, 120); if (!sp) return;
     const v = api.victim({ x: sp.x, z: sp.z, yaw: Math.atan2(sp.nx, sp.nz), mood: 'cower' }); v.name = pick(['Mama Kemi', 'Alhaji Sani', 'Uncle Tayo', 'Chioma', 'Mr. Okon']);
-    const grp = gang(sp.x + sp.nx * 1.2, sp.z + sp.nz * 1.2, 3 + (L.phase === 'day' ? 0 : 1), L.phase === 'day' ? 0 : 1);
+    const grp = gang(sp.x + sp.nx * 1.2, sp.z + sp.nz * 1.2, 3, L.phase === 'day' ? 0 : 1); // three boys, one gun at night: a fight, not a massacre
     G.squad = { ...grp, v, t: 0, woke: false, area: world.areaAt(sp.x, sp.z), lineT: 2 };
     hud.notice('MEN IN BLACK', `${G.squad.area}: the General's boys are terrorising ${v.name}'s shop.`, 'red');
     game.radio?.say(`Caller from ${G.squad.area}: "Boys in black don block our street! Dem get gun! Police no dey come!"`);
@@ -66,7 +66,7 @@ export function createGeneral(game) {
     if (S.lineT <= 0 && d < 30 && !S.woke) { S.lineT = 4; if (Math.random() < 0.6) hud.say('Boy in black', pick(HAVOC), 2.8); else hud.say(S.v.name, pick(VICTIM), 2.8); }
     if (!S.woke && (d < 9 || S.boys.some(t => t.alive && t.engaged) || S.boys.some(t => !t.alive))) {
       S.woke = true; wake(S); hud.say('Boy in black', L.suit ? 'Who be this one wey dress like us?! Finish am!' : 'Rider, you wan die? Oya!', 3);
-      setTimeout(() => { if (G.squad === S && L.suit) api.addHeat(1, 'Police: "More of them! The one in black too! Carry all of them!"'); }, 9000);
+      // the police are paid to look away while the General's boys work: no units pile in mid-fight
     }
     if (S.woke && alive(S) === 0) {
       S.v.mood = 'idle'; S.v.faceTarget = player.pos; hud.say(S.v.name, pick(['God bless you!', 'Who are you?! Thank you!', 'Those boys... they say na General send them.']), 3.5);
@@ -142,7 +142,7 @@ export function createGeneral(game) {
       intro: () => { hud.banner('CHAPTER 1 · MEN IN BLACK', 'Your phone buzzes: a voice note from Iya Basira at Adelabu Market. "They are burning the stalls!"', 'red', 4.5); },
       steps: [
         { label: 'Get to Adelabu Market', where: () => world.marketSpot, done: () => near(player.pos, world.marketSpot, 22) },
-        { label: 'Fight the General\'s boys', where: () => world.marketSpot, enter: () => { C.data.g = gang(world.marketSpot.x, world.marketSpot.z, 5, 1); wake(C.data.g); game.api.scatter?.(world.marketSpot.x, world.marketSpot.z, 4); hud.say('Boy in black', 'Who be you? Una see am? Na one of us?!', 3); }, done: () => C.data.g && alive(C.data.g) === 0 },
+        { label: 'Fight the General\'s boys', where: () => world.marketSpot, enter: () => { C.data.g = gang(world.marketSpot.x, world.marketSpot.z, 4, 1); wake(C.data.g); game.api.scatter?.(world.marketSpot.x, world.marketSpot.z, 4); hud.say('Boy in black', 'Who be you? Una see am? Na one of us?!', 3); }, done: () => C.data.g && alive(C.data.g) === 0 },
         { label: 'The police think you\'re one of them: lose them', where: () => null, enter: () => { api.addHeat(2, 'Police: "One of the men in black! Na him dey lead them!"'); lead('phone'); }, done: () => game.heat === 0 },
       ] },
     { title: 'The Address', when: () => L.phase === 'day' && L.clock < 16 * 60 && (job().clockedIn || !job().employed),
@@ -177,7 +177,7 @@ export function createGeneral(game) {
       intro: () => hud.banner('CHAPTER 5 · THE SHIPMENT', 'Marina jetty, Lagos Island. Take the ferry, the bridge, whatever. Get pictures of what comes off that boat.', 'red', 5),
       steps: [
         { label: 'Get to Marina Jetty on Lagos Island', where: () => jetty(), done: () => near(player.pos, jetty(), 30) },
-        { label: 'Fight the shipment guards', where: () => jetty(), enter: () => { const j = jetty(); C.data.g = gang(j.x + 6, j.z - 6, 6, 3); wake(C.data.g); hud.say('Boy in black', 'Na the one wey dey follow us! Kill am!', 3); }, done: () => alive(C.data.g || { boys: [], guns: [] }) === 0 },
+        { label: 'Fight the shipment guards', where: () => jetty(), enter: () => { const j = jetty(); C.data.g = gang(j.x + 6, j.z - 6, 4, 2); wake(C.data.g); hud.say('Boy in black', 'Na the one wey dey follow us! Kill am!', 3); }, done: () => alive(C.data.g || { boys: [], guns: [] }) === 0 },
         { label: 'Photograph the crates (F)', where: () => jetty(), use: 'photos', done: () => C.data.used === 'photos' },
         { label: 'Lose the police', where: () => null, enter: () => { lead('photos'); api.addHeat(3, 'Police everywhere. The General\'s friends want those photos back.'); }, done: () => game.heat === 0 },
       ] },
@@ -185,7 +185,7 @@ export function createGeneral(game) {
       intro: () => hud.banner('CHAPTER 6 · THE GENERAL', 'His compound on Broad Street. Colonel Gbenga Sowande, retired. Trained to kill. He knows you\'re coming.', 'red', 5),
       steps: [
         { label: 'Go to the General\'s compound (Broad Street)', where: () => compound, done: () => near(player.pos, compound, 30) },
-        { label: 'Get through his guards', where: () => compound, enter: () => { C.data.g = gang(compound.x, compound.z, 5, 2); wake(C.data.g); }, done: () => alive(C.data.g || { boys: [], guns: [] }) === 0 },
+        { label: 'Get through his guards', where: () => compound, enter: () => { C.data.g = gang(compound.x, compound.z, 4, 1); wake(C.data.g); }, done: () => alive(C.data.g || { boys: [], guns: [] }) === 0 },
         { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const g = api.thug({ x: compound.x + 4, z: compound.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say na small boy go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
         { label: 'Take the evidence to Commissioner Adaeze at City Hall', where: () => hall, use: 'handover', done: () => C.data.used === 'handover' },
       ] },

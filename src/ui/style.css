@@ -516,4 +516,4 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 .js-o.reassigned em, .js-o.reassigned b { color: #ff5252; }
 
 /* the rider by day sees only what matters to the job: no fight keys, no kit, no gang meter, no rep */
-body.rider .gadgets, body.rider .gkit, body.rider .wanted, body.rider .respect { display: none !important; }
+body.rider .gadgets, body.rider .wanted, body.rider .respect { display: none !important; }
