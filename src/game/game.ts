@@ -501,7 +501,8 @@ export function createGame(ctx) {
     }
     const pk = game.thugs.find(t => t.alive && t.item && ['idle', 'patrol', 'return'].includes(t.state) && dist2(t.pos, player.pos) < 1.8 * 1.8);
     if (pk) { const tx = player.pos.x - pk.pos.x, tz = player.pos.z - pk.pos.z, tl = Math.hypot(tx, tz) || 1; if ((Math.sin(pk.yaw) * tx + Math.cos(pk.yaw) * tz) / tl < 0.1) return { kind: 'pickpocket', t: pk, text: `<span class="key">F</span>Pick his pocket (${pk.item.label})` }; }
-    if (player.cuffed && !game.arrest && L.items.pins > 0 && game.story.flags.canPick) return { kind: 'pickhint', text: `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
+    const canFree = game.mode === 'patrol' || (L.items.pins > 0 && game.story.flags.canPick); // the new Bolaji always can: a hairpin sewn into his collar
+    if (player.cuffed && !game.arrest && canFree) return { kind: 'pickhint', text: game.mode === 'patrol' ? '<span class="key">F</span>Hold to slip the cuffs · nobody watching' : `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
     const co = game.cuffOption(); if (co) return co;
     const shop = (world.shops || []).find(q => dist2(q, player.pos) < 4 * 4);
     if (shop && !player.cuffed) return { kind: 'shop', shop, text: mallOpen() ? `<span class="key">F</span>Go into <b>${shop.name}</b>` : `<b>${shop.name}</b> · closed (9 AM to 9 PM)` };
@@ -646,11 +647,11 @@ export function createGame(ctx) {
   }
   let pickT = 0;
   function updatePick(dt, input) {
-    if (!player.cuffed || game.arrest || !L.items.pins || !game.story.flags.canPick || !input.held.act) { if (pickT > 0 && !input.held.act) pickT = 0; return; }
+    if (!player.cuffed || game.arrest || (game.mode !== 'patrol' && (!L.items.pins || !game.story.flags.canPick)) || !input.held.act) { if (pickT > 0 && !input.held.act) pickT = 0; return; }
     const watched = traffic.police().some(v => v.police.sees) || game.gunmen.some(g => g.alive && g.role === 'police' && dist2(g.pos, player.pos) < 25 * 25 && !col.blocked(g.pos.x, g.pos.y + 1.5, g.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2));
     if (watched) { if (pickT > 0.3) hud.popup('THEY CAN SEE YOU · GET OUT OF SIGHT FIRST'); pickT = 0; return; }
     pickT += dt; game.hudMeter = pickT / 3.5; game.catchLabel = 'PICKING THE CUFFS · KEEP HOLDING F';
-    if (pickT >= 3.5) { pickT = 0; player.cuffed = false; L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
+    if (pickT >= 3.5) { pickT = 0; player.cuffed = false; if (game.mode !== 'patrol') L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
   }
   let dayAttT = 0, dayToldT = -999;
   function updateDaySuit(dt) { // the boy in black in broad daylight draws a crowd and the police
@@ -1212,7 +1213,7 @@ export function createGame(ctx) {
     const so = game.story.objective();
     const ao = L.inside ? null : game.activities.objective();
     if (game.arrest) hud.objective('<b>Arrested.</b> Kick the door out before you reach the station<small>MASH F / SPACE · THE MORE HEALTH YOU HAVE, THE HARDER YOU KICK</small>');
-    else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>LEGS STILL WORK: KICK (F) · COUNTER (C) · LAUNCH / SWEEP (G) · NO CLIMBING · DARKNESS HELPS</small>` : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
+    else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>LEGS STILL WORK: KICK (F) · COUNTER (C) · LAUNCH / SWEEP (G) · NO CLIMBING · DARKNESS HELPS</small>` : game.mode === 'patrol' ? '<b>Handcuffed.</b> Get out of sight, then <b>hold F to slip the cuffs</b><small>NOBODY CAN BE WATCHING · OR BABA KOLADE CAN CUT THEM</small>' : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.mode === 'patrol' && game.general.objective()) hud.objective(game.general.objective());
     else if (game.mode === 'patrol' && game.sub !== 'free' && game.job.objective()) hud.objective(game.job.objective());
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
