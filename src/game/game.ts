@@ -896,15 +896,15 @@ export function createGame(ctx) {
     // a trained fighter: while he still has his strength, a grab just gets the officer shoved off. Police
     // have to hurt him first (shoot, beat him down); only then can they get the cuffs on.
     if (game.officerGrab && !game.arrest) {
-      const strong = player.hp > player.cap() * 0.4 && !['down', 'crawl'].includes(player.mode);
+      const strong = player.hp > player.cap() * 0.2 && player.mode !== 'crawl'; // a knockdown alone is not enough: only badly hurt (under 20%) or critical
       if (strong) {
         const o = game.gunmen.filter(g => g.alive && g.role === 'police' && Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) < 1.8)[0];
         if (o && (game.shoveCd || 0) <= game.time) { game.shoveCd = game.time + 0.8; o.stun?.(1.4); const dx = o.pos.x - player.pos.x, dz = o.pos.z - player.pos.z, d = Math.hypot(dx, dz) || 1; o.pos.x += dx / d * 1.6; o.pos.z += dz / d * 1.6; camera.shake = 0.25; audio.punch(); hud.popup(player.cuffed ? 'HEADBUTT · <b>NOT TODAY</b>' : 'SHOVED OFF'); }
       } else grabbing = true;
     }
-    if (!game.arrest && game.heat > 0 && ['down', 'crawl'].includes(player.mode) && game.gunmen.some(g => g.alive && g.role === 'police' && Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) < 2.2)) grabbing = true; // beaten down with an officer on top of him
+    if (!game.arrest && game.heat > 0 && player.mode === 'crawl' && game.gunmen.some(g => g.alive && g.role === 'police' && Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) < 2.2)) grabbing = true; // beaten down with an officer on top of him
     game.officerGrab = false;
-    game.catchMeter = Math.max(0, game.catchMeter + (grabbing ? dt * (['down', 'crawl'].includes(player.mode) ? 0.6 : 0.4) : -dt * 0.9));
+    game.catchMeter = Math.max(0, game.catchMeter + (grabbing ? dt * (player.mode === 'crawl' ? 0.5 : 0.35) : -dt * 0.9));
     if (grabbing && R() < dt * 0.8) hud.say('Police', ['Oya stop there!', 'Where you dey run go?', 'Hold am! Hold am!'][Math.floor(R() * 3)], 1.6);
     if (game.catchMeter >= 1) { game.catchMeter = 0; busted(); }
   }
@@ -976,10 +976,10 @@ export function createGame(ctx) {
     if (game.respawnT > 0) return;
     if (player.mode !== 'crawl') { crawlSafeT = 0; return; }
     const hs = hostilesNear();
-    const close = hs.some(h => dist2(h.pos, player.pos) < 1.7 * 1.7);
+    const close = hs.some(h => h.role !== 'police' && dist2(h.pos, player.pos) < 1.7 * 1.7); // police cuff him through the catch bar, they don't kick him into the gutter
     const seen = hs.some(h => dist2(h.pos, player.pos) < 14 * 14 && !col.blocked(h.pos.x, h.pos.y + 1.5, h.pos.z, player.pos.x, player.pos.y + 0.5, player.pos.z, 1.0));
     crawlSafeT = seen ? 0 : crawlSafeT + dt;
-    if (game.heat > 0 && game.gunmen.some(g => g.alive && g.role === 'police' && dist2(g.pos, player.pos) < 2.2 * 2.2)) { arrest(); return; }
+    // critical and an officer on him: the cuffs come through the catch bar (updatePolice), never instantly
     if (!hs.length || crawlSafeT > 2.5) { player.getUp(15); hud.notice('YOU GOT AWAY', 'Barely. Get somewhere safe and eat something.', 'green', 2.5); game.addRespect(100, 'SURVIVED'); return; }
     if (close || player.crawlT > 14) beatenOut();
   }
