@@ -483,16 +483,16 @@ export function createGame(ctx) {
     if (game.dropped && dist2(game.dropped.mesh.position, player.pos) < 2.4 * 2.4) return { kind: 'pickup', text: `<span class="key">F</span>Pick up ${game.dropped.item.label}` };
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 3.6 * 3.6) return { kind: 'deliver', text: `<span class="key">F</span>Give it back to ${game.delivery.name}` };
     if (busy) return null;
+    // what he's here to do comes first: the parcel, the case, Coach Ayo
+    if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo && jo.kind !== 'none') return jo; }
+    if (game.mode === 'patrol') { const co = game.general.option(); if (co) return co; }
+    { const ca = game.coach.option(); if (ca && ca.kind !== 'none') return ca; }
     // okadas: his own (where he left it), or somebody else's
     if (player.mode === 'foot' && !player.cuffed && player.nearCycle()) return { kind: 'mountCycle', text: '<span class="key">F</span>Get on your SwiftDrop bicycle' };
     if (player.mode === 'foot' && !player.cuffed && player.nearBike()) return { kind: 'mount', text: '<span class="key">F</span>Get on the okada' };
-    if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && (v.speed < 8 || player.mode === 'board')); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
     if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
     const dopt = DAY.interactOption(); if (dopt) return dopt;
-    if (game.mode === 'patrol') { const co = game.general.option(); if (co) return co; }
-    { const ca = game.coach.option(); if (ca) return ca; }
-    if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo) return jo; }
     const fo = game.ferry.option(); if (fo) return fo;
     const stop = TR.stopNear(player.pos);
     if (stop && !player.fightingNear) return { kind: 'bus', stop, text: `<span class="key">F</span>Take a ride from <b>${stop.name}</b> bus stop` };
@@ -508,7 +508,7 @@ export function createGame(ctx) {
     const pk = game.thugs.find(t => t.alive && t.item && ['idle', 'patrol', 'return'].includes(t.state) && dist2(t.pos, player.pos) < 1.8 * 1.8);
     if (pk) { const tx = player.pos.x - pk.pos.x, tz = player.pos.z - pk.pos.z, tl = Math.hypot(tx, tz) || 1; if ((Math.sin(pk.yaw) * tx + Math.cos(pk.yaw) * tz) / tl < 0.1) return { kind: 'pickpocket', t: pk, text: `<span class="key">F</span>Pick his pocket (${pk.item.label})` }; }
     const canFree = game.mode === 'patrol' || (L.items.pins > 0 && game.story.flags.canPick); // the new Bolaji always can: a hairpin sewn into his collar
-    if (player.cuffed && !game.arrest && canFree) return { kind: 'pickhint', text: game.mode === 'patrol' ? '<span class="key">F</span>Hold to slip the cuffs · nobody watching' : `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
+    if (player.cuffed && !game.arrest && canFree) return { kind: 'pickhint', text: game.mode === 'patrol' ? (cuffWatched() ? '<b>Police can see you.</b> Get out of sight, then hold <span class="key">F</span> to slip the cuffs' : '<span class="key">F</span>Hold to slip the cuffs (about 3 seconds)') : `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
     const co = game.cuffOption(); if (co) return co;
     const shop = (world.shops || []).find(q => dist2(q, player.pos) < 4 * 4);
     if (shop && !player.cuffed) return { kind: 'shop', shop, text: mallOpen() ? `<span class="key">F</span>Go into <b>${shop.name}</b>` : `<b>${shop.name}</b> · closed (9 AM to 9 PM)` };
@@ -523,8 +523,11 @@ export function createGame(ctx) {
       if (game.mode === 'patrol') return { kind: 'home', text: '<span class="key">F</span>Go into your room' };
       return { kind: 'home', text: L.phase === 'day' ? '<span class="key">F</span>Go inside (nobody is home)' : '<span class="key">F</span>Go inside quietly (Mama is asleep)' };
     }
+    if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && (v.speed < 2.5 || player.mode === 'board')); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
     const v = world.vendors.find(q => dist2(q, player.pos) < 2.4 * 2.4);
     if (v) return { kind: 'food', v, text: `<span class="key">F</span>Buy ${v.food} · ₦${v.price.toLocaleString()} <small style="opacity:.7">(you have ₦${L.wallet.toLocaleString()})</small>` };
+    if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo) return jo; }
+    { const ca = game.coach.option(); if (ca) return ca; }
     const tf = world.transformers.find(t => dist2(t, player.pos) < 3 * 3);
     if (tf && game.power > 0.5 && tf.cool <= 0 && game.blackout.state === 'on') return { kind: 'fuse', tf, text: '<span class="key">F</span>Pull the transformer fuse (blackout)' };
     return null;
@@ -652,10 +655,12 @@ export function createGame(ctx) {
     game.torchOn = !game.torchOn; torch.intensity = game.torchOn ? 38 : 0; audio.tick?.();
   }
   let pickT = 0;
+  // only police close by and with a clear look at him stop him working the cuffs loose
+  const cuffWatched = () => traffic.police().some(v => v.police.sees && dist2(v.pos, player.pos) < 30 * 30) || game.gunmen.some(g => g.alive && g.role === 'police' && dist2(g.pos, player.pos) < 14 * 14 && !col.blocked(g.pos.x, g.pos.y + 1.5, g.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2));
   function updatePick(dt, input) {
     if (!player.cuffed || game.arrest || (game.mode !== 'patrol' && (!L.items.pins || !game.story.flags.canPick)) || !input.held.act) { if (pickT > 0 && !input.held.act) pickT = 0; return; }
-    const watched = traffic.police().some(v => v.police.sees) || game.gunmen.some(g => g.alive && g.role === 'police' && dist2(g.pos, player.pos) < 25 * 25 && !col.blocked(g.pos.x, g.pos.y + 1.5, g.pos.z, player.pos.x, player.pos.y + 1.2, player.pos.z, 1.2));
-    if (watched) { if (pickT > 0.3) hud.popup('THEY CAN SEE YOU · GET OUT OF SIGHT FIRST'); pickT = 0; return; }
+    const watched = cuffWatched();
+    if (watched) { if (!game.cuffWarnT || game.time - game.cuffWarnT > 2) { game.cuffWarnT = game.time; hud.popup('POLICE CAN SEE YOU · <b>GET OUT OF SIGHT FIRST</b>'); } pickT = Math.max(0, pickT - dt * 2); game.hudMeter = pickT / 3.5; return; }
     pickT += dt; game.hudMeter = pickT / 3.5; game.catchLabel = 'PICKING THE CUFFS · KEEP HOLDING F';
     if (pickT >= 3.5) { pickT = 0; player.cuffed = false; if (game.mode !== 'patrol') L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
   }
