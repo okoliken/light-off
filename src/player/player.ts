@@ -250,7 +250,8 @@ export function createPlayer(scene, world, traffic) {
       const facing = wall && (Math.sin(p.yaw) * wall.nx + Math.cos(p.yaw) * wall.nz) < -0.5;
       if (facing && wall.s.maxy - p.pos.y > 1.3) { startClimb(wall); return; }
       if (p.onGround) p.charge = 0; // start crouching: a tap is a high jump, holding charges a cat leap
-      else if (p.airFlips < 1 && p.airT > 0.06 && !p.aiming && p.energy > 12 && p.hp > 15) { // acrobatic air flip (a small second jump)
+      else if (p.airFlips < 1 && p.airT > 0.06 && !p.aiming && (p.energy <= 3 || p.hp <= 8)) emit('tooTired');
+      else if (p.airFlips < 1 && p.airT > 0.06 && !p.aiming && p.energy > 3 && p.hp > 8) { // acrobatic air flip (a small second jump)
         const hs = Math.hypot(p.vel.x, p.vel.z);
         const kind = Math.abs(inp.move.x) > 0.6 && Math.abs(inp.move.y) < 0.5 ? 'side' : (hs > 2.5 || inp.move.y > 0.3) ? 'front' : 'back';
         p.airFlips++; p.vel.y = Math.max(p.vel.y, 6.4);

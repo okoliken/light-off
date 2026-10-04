@@ -508,7 +508,7 @@ export function createGame(ctx) {
     const pk = game.thugs.find(t => t.alive && t.item && ['idle', 'patrol', 'return'].includes(t.state) && dist2(t.pos, player.pos) < 1.8 * 1.8);
     if (pk) { const tx = player.pos.x - pk.pos.x, tz = player.pos.z - pk.pos.z, tl = Math.hypot(tx, tz) || 1; if ((Math.sin(pk.yaw) * tx + Math.cos(pk.yaw) * tz) / tl < 0.1) return { kind: 'pickpocket', t: pk, text: `<span class="key">F</span>Pick his pocket (${pk.item.label})` }; }
     const canFree = game.mode === 'patrol' || (L.items.pins > 0 && game.story.flags.canPick); // the new Bolaji always can: a hairpin sewn into his collar
-    if (player.cuffed && !game.arrest && canFree) return { kind: 'pickhint', text: game.mode === 'patrol' ? (cuffWatched() ? '<b>Police can see you.</b> Get out of sight, then hold <span class="key">F</span> to slip the cuffs' : '<span class="key">F</span>Hold to slip the cuffs (about 3 seconds)') : `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
+    if (player.cuffed && !game.arrest && canFree) return { kind: 'pickhint', text: game.mode === 'patrol' ? (cuffWatched() ? '<b>Police can see you.</b> Get out of sight, then hold <span class="key">F</span> to slip the cuffs' : 'Hold <span class="key">F</span> to slip the cuffs (2 seconds) · tap F to kick') : `<span class="key">F</span>Hold to pick the cuffs (${L.items.pins} pin${L.items.pins > 1 ? 's' : ''}) · nobody watching` };
     const co = game.cuffOption(); if (co) return co;
     const shop = (world.shops || []).find(q => dist2(q, player.pos) < 4 * 4);
     if (shop && !player.cuffed) return { kind: 'shop', shop, text: mallOpen() ? `<span class="key">F</span>Go into <b>${shop.name}</b>` : `<b>${shop.name}</b> · closed (9 AM to 9 PM)` };
@@ -661,8 +661,8 @@ export function createGame(ctx) {
     if (!player.cuffed || game.arrest || (game.mode !== 'patrol' && (!L.items.pins || !game.story.flags.canPick)) || !input.held.act) { if (pickT > 0 && !input.held.act) pickT = 0; return; }
     const watched = cuffWatched();
     if (watched) { if (!game.cuffWarnT || game.time - game.cuffWarnT > 2) { game.cuffWarnT = game.time; hud.popup('POLICE CAN SEE YOU · <b>GET OUT OF SIGHT FIRST</b>'); } pickT = Math.max(0, pickT - dt * 2); game.hudMeter = pickT / 3.5; return; }
-    pickT += dt; game.hudMeter = pickT / 3.5; game.catchLabel = 'PICKING THE CUFFS · KEEP HOLDING F';
-    if (pickT >= 3.5) { pickT = 0; player.cuffed = false; if (game.mode !== 'patrol') L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
+    pickT += dt; game.hudMeter = pickT / 2.5; game.catchLabel = 'SLIPPING THE CUFFS · KEEP HOLDING F'; game.pickShown = game.time;
+    if (pickT >= 2.5) { pickT = 0; player.cuffed = false; if (game.mode !== 'patrol') L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
   }
   let dayAttT = 0, dayToldT = -999;
   function updateDaySuit(dt) { // the boy in black in broad daylight draws a crowd and the police
@@ -1117,7 +1117,7 @@ export function createGame(ctx) {
         if (v.ai.health <= 0) { v.ai.smashed = true; game.addRespect(300, 'CAR STOPPED'); }
       }
       else if (input.pressed.act) {
-        if (opt && opt.kind !== 'none' && doInteraction(opt)) { /* handled */ }
+        if (opt && opt.kind !== 'none' && opt.kind !== 'pickhint' && doInteraction(opt)) { /* handled */ }
         else if (player.mode === 'board' && !player.onGround) player.tryTrick();
         else if (!combat.attack(dir, { sprint: input.held.sprint, moving: Math.hypot(input.move.x, input.move.y) > 0.3 })) { player.tryPunch(); audio.swing(); }
       }
@@ -1197,7 +1197,7 @@ export function createGame(ctx) {
 
     updateDowned(dt);
     if (['down', 'crawl'].includes(player.mode) && !game.arrest) { game.hudMeter = Math.max(0.02, player.adren); game.catchLabel = player.adren > 0.03 ? 'ADRENALINE · KEEP MASHING SPACE' : 'DOWN · MASH SPACE FOR AN ADRENALINE BURST'; }
-    else if (!game.arrest && game.hudMeter != null) { game.hudMeter = null; game.catchLabel = null; }
+    else if (!game.arrest && game.hudMeter != null && game.time - (game.pickShown || -9) > 0.15) { game.hudMeter = null; game.catchLabel = null; }
     if (!game.injuryTold && player.cap() < 88) { game.injuryTold = true; hud.toast('<b>Injury:</b> hits leave damage that caps your health (the striped part of the bar). Health refills up to the cap on its own; <b>food and sleep</b> heal the injury itself.', 'blue'); }
     if (game.respawnT > 0) { game.respawnT -= dt; if (game.respawnT <= 0) respawn(); }
 
@@ -1350,6 +1350,7 @@ export function createGame(ctx) {
 
   function handleEvent(ev) {
     switch (ev.e) {
+      case 'tooTired': if (!game.tiredT || game.time - game.tiredT > 6) { game.tiredT = game.time; hud.popup('TOO TIRED TO FLIP · <b>EAT OR REST</b>'); } break;
       case 'noBoard': if (!game.noBoardT || game.time - game.noBoardT > 15) { game.noBoardT = game.time; hud.toast('No board by day: it stays hidden with the suit. <b>Walk, run, or pay for a danfo, keke or okada.</b> The board comes out with the boy in black.', 'blue'); } break;
       case 'bikeOn': audio.horn?.(player.pos); break;
       case 'bikeOff': if (ev.crash) { audio.land(1); camera.shake = 0.6; hud.popup('CRASHED'); } break;
