@@ -10,8 +10,8 @@ export const PRESETS = {
 };
 
 export function loadSettings() {
-  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && PRESETS[s.quality]) return s; } catch { /* no storage */ }
-  return { quality: 'medium' };
+  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && PRESETS[s.quality]) return { sound: true, ...s }; } catch { /* no storage */ }
+  return { quality: 'medium', sound: true };
 }
 export function saveSettings(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* no storage */ } }
 export const preset = (s) => ({ ...PRESETS[s.quality], pixelRatio: Math.min(devicePixelRatio || 1, PRESETS[s.quality].pixelRatio) });

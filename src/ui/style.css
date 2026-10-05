@@ -318,6 +318,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 .mm-controls .kb { text-align: right; white-space: nowrap; } .mm-controls .kb i { font-size: 10px; color: #777; margin: 0 4px; font-style: normal; }
 .mm-controls .pad { text-align: left; }
 /* graphics cards */
+.mm-sound { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; } .mm-sound span { font: 800 11px Inter, sans-serif; letter-spacing: 0.3em; color: var(--yellow); margin-right: 8px; }
 .mm-quality { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .qcard { all: unset; cursor: pointer; border: 1px solid rgba(255,255,255,0.18); padding: 16px; display: flex; flex-direction: column; gap: 6px; transition: all 0.15s; }
 .qcard b { font-family: Anton, Impact, sans-serif; font-weight: 400; font-size: 28px; letter-spacing: 0.04em; }

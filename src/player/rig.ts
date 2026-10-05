@@ -18,6 +18,10 @@ export const OUTFITS = {
   // his everyday clothes: faded tee, shorts, bathroom slippers
   bolajiDay: { scale: 1.04, skin: '#5b3a26', top: '#e65100', bottom: '#2b2f36', sock: '#2b2f36', sole: '#1f1f22', glove: null, hood: false, shorts: false, cap: '#e65100', boardOnBack: false, sheen: '#886655' }, // a grown man in his SwiftDrop rider shirt and cap
   bolajiCivil: { scale: 1.04, skin: '#5b3a26', top: '#37474f', bottom: '#263238', sock: '#263238', sole: '#1f1f22', glove: null, hood: false, shorts: false, cap: null, boardOnBack: false, sheen: '#886655' }, // off the job: a plain shirt, no cap
+  // more of his own clothes, from the nail by the door at home (see CASUAL_FITS)
+  bolajiJersey: { scale: 1.04, skin: '#5b3a26', top: '#0b8a3e', bottom: '#f2f2f2', sock: '#f2f2f2', sole: '#1f1f22', glove: null, hood: false, shorts: true, cap: null, boardOnBack: false, sheen: '#557766' }, // Super Eagles jersey and white shorts
+  bolajiKaftan: { scale: 1.04, skin: '#5b3a26', top: '#e9e2d0', bottom: '#e9e2d0', sock: '#5b3a26', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#4e342e', boardOnBack: false, sheen: '#aaa59a' }, // white kaftan and a cap, for church or a party
+  bolajiSinglet: { scale: 1.04, skin: '#5b3a26', top: '#f5f5f5', bottom: '#2c4a73', sock: '#2c4a73', sole: '#1f1f22', glove: null, hood: false, shorts: false, singlet: true, cap: null, boardOnBack: false, sheen: '#888888' }, // singlet and jeans, a hot afternoon
   bolaji: { scale: 1.04, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#6a7898', cat: true },
   agbero: { skin: '#4a2e1f', top: '#2e7d32', bottom: '#263238', sock: '#4e342e', sole: '#3e2723', glove: null, hood: false, shorts: false, singlet: true, cap: '#b71c1c', scale: 1.08, sheen: '#445544' },
   agbero2: { skin: '#3f2618', top: '#f9a825', bottom: '#1a1a1a', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, singlet: true, cap: null, scale: 1.1, sheen: '#665533' },
@@ -38,6 +42,9 @@ export const OUTFITS = {
   police: { skin: '#4a2e1f', top: '#13161c', bottom: '#13161c', sock: '#0a0a0a', sole: '#050505', glove: null, hood: false, shorts: false, beret: '#0b0b0b', gun: true, scale: 1.05, sheen: '#3a4458', badge: true },
   thief: { skin: '#3f2618', top: '#4e342e', bottom: '#1f2a36', sock: '#2b2b2b', sole: '#1a1a1a', glove: null, hood: false, shorts: false, mask: 'bandana', gun: true, scale: 1.02, sheen: '#554444' },
 };
+
+/** What he can wear off duty, in the order the nail at home offers them. */
+export const CASUAL_FITS: [string, string][] = [['bolajiCivil', 'Plain shirt'], ['bolajiJersey', 'Super Eagles jersey'], ['bolajiKaftan', 'White kaftan'], ['bolajiSinglet', 'Singlet and jeans']];
 
 export class Rig {
   [key: string]: any; // TODO(ts): declare fields

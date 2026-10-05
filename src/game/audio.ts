@@ -3,7 +3,7 @@
 export function createAudio() {
   let ctx = null, master = null, L: any = {};
   const listener = { x: 0, z: 0 };
-  const A: any = { enabled: false };
+  const A: any = { enabled: false, muted: false };
 
   function noiseBuffer(sec = 2, brown = false) {
     const b = ctx.createBuffer(1, ctx.sampleRate * sec, ctx.sampleRate), d = b.getChannelData(0);
@@ -19,13 +19,15 @@ export function createAudio() {
     return { src, f, g };
   }
 
+  // the Sound setting: everything goes through the master gain, so muting it silences the lot
+  A.setMuted = (m: boolean) => { A.muted = m; if (master) master.gain.value = m ? 0 : 0.7; };
   A.pause = () => { if (ctx && ctx.state === 'running') ctx.suspend(); };
   A.start = () => {
     if (ctx) { ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ctx = new AC();
     const comp = ctx.createDynamicsCompressor(); comp.connect(ctx.destination);
-    master = ctx.createGain(); master.gain.value = 0.7; master.connect(comp);
+    master = ctx.createGain(); master.gain.value = A.muted ? 0 : 0.7; master.connect(comp);
     const white = noiseBuffer(2), brown = noiseBuffer(3, true);
     L.white = white;
     L.city = loop(brown, 'lowpass', 380);

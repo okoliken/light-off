@@ -64,6 +64,8 @@ console.log(`[light-off] world built in ${Math.round(performance.now() - t0)} ms
 let state = 'title'; // title | play | paused | overlay | scene
 const L = game.life;
 
+audio.setMuted(settings.sound === false);
+function applySound(on) { settings.sound = on; saveSettings(settings); audio.setMuted(!on); }
 function applyQuality(q) {
   settings.quality = q; saveSettings(settings); Q = preset(settings);
   renderer.setPixelRatio(Q.pixelRatio); renderer.setSize(innerWidth, innerHeight);
@@ -89,7 +91,7 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   if (!tutorial.done()) setTimeout(() => tutorial.start(), 1200); // first time: learn by doing
   if (game.pendingResume) { const id = game.pendingResume; game.pendingResume = null; setTimeout(() => game.story.resumePending(id), 800); }
   else if (game.interrupted) { hud.notice('MISSION INTERRUPTED', `"${game.interrupted}" was cut short. Start it again from your door tonight.`, 'blue'); game.interrupted = null; }
-}, { quality: settings.quality, presets: PRESETS, life: lifeSaved ? { night: lifeSaved.night, phase: lifeSaved.phase, wallet: lifeSaved.life?.wallet } : null, free: freeSaved ? { night: freeSaved.night } : null });
+}, { quality: settings.quality, sound: settings.sound, onSound: applySound, presets: PRESETS, life: lifeSaved ? { night: lifeSaved.night, phase: lifeSaved.phase, wallet: lifeSaved.life?.wallet } : null, free: freeSaved ? { night: freeSaved.night } : null });
 
 function showControls(first = false) { openMenu(done => hud.controlsCard(done, first)); }
 hud.onHelpBar((k) => { if (state !== 'play') return; if (k === 'pause') { document.exitPointerLock?.(); pause(); } else if (k === 'controls') showControls(); else { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); } });
@@ -139,7 +141,7 @@ function pause(openBoard = false) {
   hud.setHudVisible(false);
   const S = game.story, list = S.missions.map((m, i) => ({ title: m.title, done: i < S.progress(), current: i === S.progress(), unlocked: i < S.unlocked }));
   const resume = () => { state = 'play'; hud.setHudVisible(true); input.lock(); audio.start(); };
-  hud.pause(resume, list, (i) => { resume(); game.jumpToMission(i); }, { quality: settings.quality, presets: PRESETS, onQuality: applyQuality,
+  hud.pause(resume, list, (i) => { resume(); game.jumpToMission(i); }, { quality: settings.quality, sound: settings.sound, onSound: applySound, presets: PRESETS, onQuality: applyQuality,
     mode: game.mode, tutorial: { active: tutorial.active, skip: () => { tutorial.stop(); resume(); }, replay: () => { resume(); tutorial.start(); }, replayNight: () => { resume(); tutorial.start('night'); } }, board: () => game.patrolBoard(), onWaypoint: (e) => { game.setWaypoint(e); resume(); }, openBoard, rank: game.rank() });
 }
 canvas.addEventListener('click', () => { if (state === 'play' && !document.pointerLockElement) input.lock(); });

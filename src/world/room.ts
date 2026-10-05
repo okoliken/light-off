@@ -68,11 +68,17 @@ export function buildRoom(scene, world) {
   const mama = sleeper({ skin: '#4a2e20', top: '#7b1fa2', bottom: '#4a148c', sock: '#3e2723', sole: '#2b2b2b', cap: '#6a1b9a', sheen: '#664477' }, X + 2.2, Z - 1.7, 0, 0.62);
   const tobi = sleeper({ skin: '#5b3a26', top: '#1565c0', bottom: '#263238', sock: '#5b3a26', sole: '#2b2b2b', shorts: true, sheen: '#445577' }, X - 2.6, Z - 0.2, Math.PI / 2, 0.04, 0.72);
 
+  // his clothes hang on a nail on the door wall: the uniform and a few shirts
+  for (const [k, c] of ['#e65100', '#37474f', '#0b8a3e', '#e9e2d0', '#f5f5f5'].entries()) {
+    const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.6, 0.05), new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 }));
+    shirt.position.set(X + 0.95 + k * 0.18, 1.45 - k * 0.02, Z + hd - 0.06 - k * 0.04); shirt.rotation.y = 0.12 * (k - 2); scene.add(shirt);
+  }
   world.room = {
     x: X, z: Z, light, mama, tobi,
     spawn: { x: X - 1.3, z: Z - 0.6, yaw: Math.PI / 2 },
     door: { x: (dx0 + dx1) / 2, z: Z + hd - 0.5 },
     drum: { x: X - 2.3, z: Z + 1.25 }, pot: { x: X + 0.3, z: Z - 1.45 }, mat: { x: X - 1.4, z: Z - 1.4 },
+    clothes: { x: X + 1.3, z: Z + hd - 0.5 }, // his clothes on a nail by the door
     chair: { x: X + 0.6, z: Z + 0.55 }, radio: { x: X - 1.9, z: Z - hd + 0.55 }, tobiSpot: { x: X - 1.6, z: Z + 0.15 }, mamaSpot: { x: X + 1.4, z: Z - 0.9 },
     corners: [[X - hw + 0.35, Z - hd + 0.35], [X + hw - 0.35, Z - hd + 0.35], [X - hw + 0.35, Z + hd - 0.35], [X + hw - 0.35, Z + hd - 0.35]].map(([x, z]) => ({ x, y: H - 0.25, z })),
     region: { x0: X - hw + 0.35, x1: X + hw - 0.35, z0: Z - hd + 0.35, z1: Z + hd - 0.35 },

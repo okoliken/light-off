@@ -494,7 +494,7 @@ export function createHUD(root, world) {
   const PSN = { A: '✕', B: '○', X: '□', Y: '△', RB: 'R1', LB: 'L1', RT: 'R2', LT: 'L2', Back: 'Share', Start: 'Options' };
   const padLabel = (k) => padType === 'ps' ? (PSN[k] || k) : k;
   const controlsPanel = () => `<div class="mm-controls">${CONTROL_GROUPS.map(([g, rows]) => `<section><h3>${g}</h3>${rows.map(([what, kb, pad]) => `<div class="cr"><span>${what}</span><span class="kb">${keycaps(kb)}</span><span class="pad"><kbd class="p">${padLabel(pad)}</kbd></span></div>`).join('')}</section>`).join('')}</div>`;
-  const settingsPanel = (o: any) => `<div class="mm-quality">${Object.entries(o.presets).map(([k, p]: [string, any]) => `<button class="qcard ${k === o.quality ? 'on' : ''}" data-q="${k}" data-nav><b>${k.toUpperCase()}</b><span>${p.label.split(' · ')[1] || ''}</span>
+  const settingsPanel = (o: any) => `<div class="mm-sound"><span>SOUND</span><button class="mm-btn ${o.sound !== false ? 'hot' : ''}" data-snd="on" data-nav>On</button><button class="mm-btn ${o.sound === false ? 'hot' : ''}" data-snd="off" data-nav>Off</button></div><div class="mm-quality">${Object.entries(o.presets).map(([k, p]: [string, any]) => `<button class="qcard ${k === o.quality ? 'on' : ''}" data-q="${k}" data-nav><b>${k.toUpperCase()}</b><span>${p.label.split(' · ')[1] || ''}</span>
       <ul><li>${p.fps} fps cap</li><li>${p.shadows ? `Shadows ${p.shadowSize}` : 'No shadows'}</li><li>${p.bloom ? 'Glow on' : 'No glow'}</li><li>${p.crowd} people</li></ul></button>`).join('')}</div>
     <p class="mm-note">Resolution, shadows, glow and frame rate change right away. The crowd size and street lights change the next time the game loads. If your laptop runs hot, pick Low.</p>`;
   const storyPanel = () => `<p class="mm-story">Bolaji is a grown man trying to survive Lagos. By day he rides for <em>SwiftDrop Dispatch</em> with no bike of his own: parcels, deadlines, angry customers, rent every week.</p>
@@ -568,9 +568,15 @@ export function createHUD(root, world) {
     paint();
     return M;
   }
-  const qualityWire = (o, onPick) => (panel) => panel.querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
-    panel.querySelectorAll('[data-q]').forEach(x => x.classList.toggle('on', x === b)); o.quality = b.dataset.q; onPick(b.dataset.q);
-  });
+  const qualityWire = (o, onPick) => (panel) => {
+    panel.querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
+      panel.querySelectorAll('[data-q]').forEach(x => x.classList.toggle('on', x === b)); o.quality = b.dataset.q; onPick(b.dataset.q);
+    });
+    panel.querySelectorAll('[data-snd]').forEach(b => b.onclick = () => {
+      const on = b.dataset.snd === 'on'; o.sound = on; o.onSound?.(on);
+      panel.querySelectorAll('[data-snd]').forEach(x => x.classList.toggle('hot', x === b));
+    });
+  };
   const logo = (small) => `<div class="mm-logo ${small ? 'small' : ''}"><div class="mm-kicker">A BOLAJI STORY</div><h1><span class="fl">LIGHT</span><span class="dash">-</span><span class="fl2">OFF</span></h1>
     <div class="mm-chapter">SURULERE <b>·</b> YABA <b>·</b> MUSHIN <b>·</b> LAGOS</div></div>`;
 
@@ -592,7 +598,7 @@ export function createHUD(root, world) {
     } });
     items.push({ label: 'The story', action: (m) => m.open('THE STORY SO FAR', storyPanel()) });
     items.push({ label: 'Controls', action: (m) => m.open('CONTROLS', controlsPanel()) });
-    items.push({ label: 'Settings', action: (m) => m.open('GRAPHICS', settingsPanel({ ...o, quality: q }), qualityWire(o, v => { q = v; })) });
+    items.push({ label: 'Settings', action: (m) => m.open('SETTINGS', settingsPanel({ ...o, quality: q }), qualityWire(o, v => { q = v; })) });
     const M = menuShell({ kind: 'title', header: logo(false), items });
   };
 
@@ -617,7 +623,7 @@ export function createHUD(root, world) {
             <div class="mmr cur"><span class="n">🐈</span><span class="t"><b>Street cat</b><i>The board, climbing, wall-runs, cat drops, wires, fighting a group</i></span><button class="mm-btn hot" data-nav data-tut="night">Play</button></div></div>`,
           (p) => p.querySelectorAll('[data-tut]').forEach((b: any) => b.onclick = () => { M.destroy(); b.dataset.tut === 'night' ? opts.tutorial?.replayNight() : opts.tutorial?.replay(); })) },
       { label: 'Controls', attr: 'data-ct', action: (m) => m.open('CONTROLS', controlsPanel()) },
-      { label: 'Settings', attr: 'data-st', action: (m) => m.open('GRAPHICS', settingsPanel(opts), qualityWire(opts, v => opts.onQuality(v))) },
+      { label: 'Settings', attr: 'data-st', action: (m) => m.open('SETTINGS', settingsPanel(opts), qualityWire(opts, v => opts.onQuality(v))) },
       { label: 'Quit to title', sub: 'Progress is saved', action: (m) => m.open('QUIT TO TITLE?', '<p class="mm-note big">Your progress is saved at the last checkpoint (waking up, going home, finishing a mission).</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Quit to title</button><button class="mm-btn" data-nav data-no data-default>Keep playing</button></div>',
         (p) => { p.querySelector('[data-yes]').onclick = () => location.reload(); p.querySelector('[data-no]').onclick = m.close; }) },
     ];
@@ -737,7 +743,7 @@ export function createHUD(root, world) {
     const ord = j.orders.length ? j.orders.map(o => `<div class="js-o ${o.status}"><b>${o.status === 'pending' ? (o.late ? '⚠' : '○') : o.status === 'failed' || o.status === 'reassigned' ? '✕' : '✓'}</b><span><b>${o.who}</b> · ${o.item}<i>${o.place.name}${o.place.area ? ' · ' + o.place.area : ''}</i></span><em>${o.status === 'pending' ? (o.late ? 'LATE' : 'by ' + o.dueStr) : o.status === 'reassigned' ? 'GIVEN TO ' + (o.by || 'ANOTHER RIDER').toUpperCase() : o.status.toUpperCase()}</em></div>`).join('')
       : `<p class="cc-note">${j.employed ? (j.clockedIn ? '' : 'No parcels yet. Clock in at the SwiftDrop office (Ojuelegba) before noon.') : 'You don\'t work at SwiftDrop right now.'}</p>`;
     wrap.innerHTML = `<div class="cc-box"><div class="cc-k">SWIFTDROP DISPATCH · DAY ${j.day}</div><h1>JOB SHEET</h1>
-      <div class="js-top"><div><b>${j.stars}</b><i>RATING ${j.rating.toFixed(1)}</i></div><div><b>₦${j.weekEarned.toLocaleString()}</b><i>THIS WEEK · PAYDAY DAY ${j.payDay}</i></div><div><b>₦${j.rent.toLocaleString()}</b><i>RENT DUE DAY ${j.rentDue}</i></div></div>
+      <div class="js-top"><div><b>${j.stars}</b><i>RATING ${j.rating.toFixed(1)}</i></div><div><b>₦${j.weekEarned.toLocaleString()}</b><i>THIS WEEK · ${j.unpaid ? `₦${j.unpaid.toLocaleString()} AT CLOCK-OUT` : 'PAID DAILY'}</i></div><div><b>₦${j.rent.toLocaleString()}</b><i>RENT DUE DAY ${j.rentDue}</i></div></div>
       <div class="cc-grid"><section style="grid-column: span 2"><h3>Today's parcels</h3>${ord}</section>
       <section><h3>Riders this week</h3>${j.rivals.map((r, k) => `<div class="js-r ${r.me ? 'me' : ''}"><b>${k + 1}</b><span>${r.name}</span><em>${r.week} · ★${r.rating.toFixed(1)}</em></div>`).join('')}</section>
       <section style="grid-column: 1 / -1"><h3>Case file · ${j.case?.chapter || ''}</h3>${j.case?.leads.length ? j.case.leads.map(l => `<div class="js-v"><span>🗂 ${l}</span></div>`).join('') : '<p class="cc-note">No leads yet. Keep your eyes open: the men in black are everywhere.</p>'}</section>

@@ -22,7 +22,7 @@ import { createGadgets } from './gadgets.ts';
 import { createCoach } from './coach.ts';
 import { createWeather } from './weather.ts';
 import { nightStart } from './nightreport.ts';
-import { OUTFITS, Rig, Pose } from '../player/rig.ts';
+import { OUTFITS, CASUAL_FITS, Rig, Pose } from '../player/rig.ts';
 import { textSign } from '../core/textures.ts';
 import { blockRect, WALK, N, HALF, roadLine } from '../world/layout.ts';
 
@@ -381,6 +381,11 @@ export function createGame(ctx) {
       if (near(R0.chair, 1.0)) return { kind: 'rest', text: '<span class="key">F</span>Sit and rest a while (30 min)' };
       if (near(R0.radio, 0.8)) return { kind: 'radio', text: '<span class="key">F</span>Turn on the radio' };
       if (near(R0.mat, 1.0) || near(R0.mamaSpot, 1.4)) return { kind: 'sleep', text: '<span class="key">F</span>Sleep till morning' };
+      if (near(R0.clothes, 1.1) && !L.suit) {
+        if (game.job?.clockedIn) return { kind: 'none', text: 'You\'re on shift: the uniform stays on till you clock out.' };
+        const nx = nextFit();
+        return { kind: 'clothes', text: `<span class="key">F</span>Change into ${nx === 'uniform' ? 'your <b>SwiftDrop uniform</b>' : `the <b>${fitName(nx).toLowerCase()}</b>`}` };
+      }
       return null;
     }
     const near = (q, r = 1.3) => dist2(q, player.pos) < r * r;
@@ -564,6 +569,7 @@ export function createGame(ctx) {
       case 'fuse': opt.tf.cool = 120; startBlackout(38, true); return true;
       // at home
       case 'out': game.leaveHome(opt.story); return true;
+      case 'clothes': L.wear = nextFit(); game.refreshFit(); audio.grab(); hud.popup(L.wear === 'uniform' ? 'UNIFORM ON' : fitName(L.wear).toUpperCase()); return true;
       case 'bag': L.bag = !L.bag; updateBackpack(); audio.grab(); hud.popup(L.bag ? 'SUIT PACKED' : 'SUIT IN THE DRUM'); return true;
       case 'suit': L.suit = !L.suit; player.setOutfit(L.suit ? OUTFITS.bolaji : dayFit()); reattachBag(); audio.grab(); hud.popup(L.suit ? 'SUITED UP' : 'SUIT HIDDEN'); return true;
       case 'eat': L.meals--; L.eat(45, "MAMA'S JOLLOF"); return true;
@@ -596,13 +602,25 @@ export function createGame(ctx) {
   })();
   game.refreshBag = () => updateBackpack();
   // what he wears by day: the SwiftDrop uniform while he has the job, plain clothes when he doesn't
-  const dayFit = () => (game.mode === 'patrol' && game.sub !== 'free' && game.job && !game.job.employed) ? OUTFITS.bolajiCivil : OUTFITS.bolajiDay;
+  // On shift it's always the uniform; off duty, whatever he last picked from the nail at home (L.wear)
+  const dayFit = () => {
+    if (game.job?.clockedIn) return OUTFITS.bolajiDay;
+    if (L.wear && L.wear !== 'uniform' && OUTFITS[L.wear]) return OUTFITS[L.wear];
+    return (game.mode === 'patrol' && game.sub !== 'free' && game.job && !game.job.employed) ? OUTFITS.bolajiCivil : OUTFITS.bolajiDay;
+  };
+  const fitName = (id) => CASUAL_FITS.find(f => f[0] === id)?.[1] || 'Uniform';
+  // the uniform (while he has the job), then each of his own clothes in turn
+  const nextFit = () => {
+    const order = [...(game.job?.employed ? ['uniform'] : []), ...CASUAL_FITS.map(f => f[0])];
+    const now = !L.wear || (L.wear === 'uniform' && !game.job?.employed) ? order[0] : L.wear;
+    return order[(order.indexOf(now) + 1) % order.length];
+  };
   game.refreshFit = () => { if (!L.suit) player.setOutfit(dayFit()); reattachBag(); updateBackpack(); };
   function updateBackpack() {
     if (!backpack) { backpack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.18), new THREE.MeshStandardMaterial({ color: '#2b2f36', roughness: 0.9 })); backpack.position.set(0, 0.0, -0.17); }
     backpack.parent?.remove(backpack);
     deliveryBox.parent?.remove(deliveryBox);
-    if (!L.suit && game.job?.hasCycle && game.sub !== 'free') player.rig.b.chest.add(deliveryBox); // the SwiftDrop box (the suit rides inside it)
+    if (!L.suit && game.job?.hasCycle && game.sub !== 'free' && dayFit() === OUTFITS.bolajiDay) player.rig.b.chest.add(deliveryBox); // the SwiftDrop box (the suit rides inside it)
     else if (L.bag && !L.suit) player.rig.b.chest.add(backpack); // the suit is on him, so the bag hangs empty out of sight
   }
   function witnesses() { // anyone within 16 m with a clear line of sight
@@ -1496,7 +1514,7 @@ export function createGame(ctx) {
         v: 1, night: L.night, phase: L.phase,
         story: { homePending: game.story.homePending || null, midMission: game.story.active && !game.story.active.m.day ? game.story.active.m.title : null, index: game.story.progress(), unlocked: Math.max(game.story.unlocked, game.story.saved?.unlocked ?? 0), dayDone: game.story.dayDone, dayUnlocked: game.story.dayUnlocked, recon: game.story.recon, flags: game.story.flags, places: game.story.places },
         respect: game.respect, stats: game.stats, job: game.job?.serialize(), general: game.general?.serialize(),
-        life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy },
+        life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy, wear: L.wear || 'uniform' },
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois as Record<string, any>).filter(q => q.found).map(q => q.id),
         // where he is right now, so a reload puts him back on the street (not at home)

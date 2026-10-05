@@ -779,7 +779,11 @@ export function createPlayer(scene, world, traffic) {
       case 'wallrun': Pose.wallrun(rig, p.anim, p.wallrun?.side || 1); bodyYaw = p.yaw; rate = 18; break;
       case 'act': Pose.strike(rig, p.act.kind, p.act.t / p.act.dur); bodyYaw = p.yaw; rate = 34; break;
       case 'ride': Pose.idle(rig, time, false); rig.set('hipsY', HIP_H - 0.35); rig.set('thLX', -1.4); rig.set('thRX', -1.4); rig.set('knLX', 1.3); rig.set('knRX', 1.3); rig.set('thLZ', 0.35); rig.set('thRZ', -0.35); rig.set('shLX', -0.8); rig.set('shRX', -0.8); rig.set('elLX', -0.6); rig.set('elRX', -0.6); bodyYaw = p.yaw; break;
-      case 'bike': Pose.idle(rig, time, false); rig.set('hipsY', HIP_H - 0.35); rig.set('thLX', -1.3); rig.set('thRX', -1.3); rig.set('knLX', 1.2); rig.set('knRX', 1.2); rig.set('thLZ', 0.3); rig.set('thRZ', -0.3); rig.set('spineX', 0.35); rig.set('shLX', -1.2); rig.set('shRX', -1.2); rig.set('elLX', -0.3); rig.set('elRX', -0.3); rig.set('hipsRZ', p.lean || 0); bodyYaw = p.heading; lift = 0.5; rate = 20;
+      case 'bike': Pose.idle(rig, time, false); rig.set('hipsY', HIP_H - 0.35); rig.set('thLX', -1.3); rig.set('thRX', -1.3); rig.set('knLX', 1.2); rig.set('knRX', 1.2); rig.set('thLZ', 0.3); rig.set('thRZ', -0.3); rig.set('hipsRZ', p.lean || 0); bodyYaw = p.heading; lift = 0.5; rate = 20;
+        // leaning in with both hands on the grips (angles measured against each handlebar, about 1 cm off)
+        rig.set('spineX', 0.7); rig.set('chestX', 0.15);
+        if (p.kind === 'bicycle') { rig.set('shLX', -1.01); rig.set('shRX', -1.01); rig.set('shLZ', 0.056); rig.set('shRZ', -0.056); rig.set('elLX', -0.25); rig.set('elRX', -0.25); }
+        else { rig.set('shLX', -1.28); rig.set('shRX', -1.28); rig.set('shLZ', 0.16); rig.set('shRZ', -0.16); rig.set('elLX', -0.16); rig.set('elRX', -0.16); }
         if (p.kind === 'bicycle') { p.pedal = (p.pedal || 0) + dt * Math.min(12, p.speed * 1.1); const a = Math.sin(p.pedal); rig.set('thLX', -1.2 + a * 0.45); rig.set('thRX', -1.2 - a * 0.45); rig.set('knLX', 1.0 - a * 0.4); rig.set('knRX', 1.0 + a * 0.4); rig.set('thLZ', 0.08); rig.set('thRZ', -0.08); lift = 0.42; }
         break;
       case 'roll': Pose.roll(rig, Math.min(1, p.rollT / 0.5)); rate = 40; break;
