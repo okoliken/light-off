@@ -680,3 +680,6 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 #hud:has(.overlay) .marker.lock, #hud:has(.mm) .marker.lock { display: none !important; }
 
 .suitline { display: flex; align-items: center; gap: 8px; } .suitline .meter { width: 120px; } .suitline .lbl { font-size: 10px; letter-spacing: 0.14em; color: var(--dim); font-weight: 800; }
+
+.demo-cap { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; text-align: center; background: rgba(8,10,16,0.82); border: 1px solid rgba(255,26,26,0.5); padding: 8px 16px; pointer-events: none; }
+.demo-cap b { display: block; font: 400 22px Anton, Impact, sans-serif; color: #ff3b30; letter-spacing: 0.06em; } .demo-cap span { font: 600 12px Inter, sans-serif; color: #ddd; }

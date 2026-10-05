@@ -73,6 +73,7 @@ function applyQuality(q) {
 }
 
 hud.setHudVisible(false);
+const DEMO = new URLSearchParams(location.search).get('demo'); // ?demo=hunter: watch the Hunter run a route of his own (nothing is saved)
 const saved = game.loadSave();
 const lifeSaved = game.loadSave('story'), freeSaved = game.loadSave('free');
 hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.missions[saved.story.index]?.title, respect: saved.respect } : null, ({ fresh, quality, mode }: any) => {
@@ -173,7 +174,7 @@ function frame() {
   else if (state === 'play' && pendingReports.length) game.onMissionComplete(pendingReports.shift());
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
-  touch?.show(state === 'play');
+  touch?.show(state === 'play' && !DEMO);
   tutorial.show(state === 'play' && !hudRoot.querySelector('.overlay'));
   const inp = input.poll();
   if (state === 'play') {
@@ -181,10 +182,11 @@ function frame() {
     if (inp.pressed.map) { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.help) showControls();
     if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub !== 'free') tutorial.event('job'), openMenu(done => hud.jobSheet({ ...game.job.sheet(), case: game.general.caseFile() }, done));
-    game.update(dt, inp);
+    game.update(dt, DEMO ? { ...inp, move: { x: 0, y: 0 }, held: {}, pressed: {} } : inp);
     tutorial.update(dt, inp);
     if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
-    camera.update(dt, inp, player);
+    if (DEMO) { player.pos.copy(game.hunter.body.pos); player.vel.set(0, 0, 0); player.rig.root.visible = false; } // Bolaji tags along unseen, so the city fills in around the Hunter
+    camera.update(dt, inp, DEMO ? game.hunter.body : player);
     nav.update(dt, game, game.time);
   } else if (state === 'scene') {
     cinema.update(dt, inp);
@@ -216,3 +218,17 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && (st
 // debug hooks (used by the automated smoke test)
 import('./game/thugs.js').then(m => { window.__ThugClass = m.Thug; });
 window.__game = { game, player, traffic, world, camera, input, fx, nav, hud, tutorial, state: () => state, start: () => hudRoot.querySelector<HTMLElement>('[data-start]')?.click() };
+
+// ---- the Hunter demo ----
+if (DEMO === 'hunter') {
+  setTimeout(() => {
+    hud.destroyMenus?.(); hudRoot.querySelectorAll('.overlay').forEach((o) => o.remove());
+    audio.start(); game.save = () => {}; // a demo never touches your saves
+    game.mode = 'patrol'; game.sub = 'free'; game.startPatrol(true); game.life.suit = false; game.heat = 0;
+    hud.setHudVisible(false); state = 'play';
+    game.hunter.demo();
+    const cap = document.createElement('div'); cap.className = 'demo-cap';
+    cap.innerHTML = '<b>THE HUNTER</b><span>Demo: he runs his own route. Drag or move the mouse to look around him.</span>';
+    document.body.appendChild(cap);
+  }, 600);
+}

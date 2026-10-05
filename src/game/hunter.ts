@@ -119,6 +119,28 @@ export function createHunter(game) {
   };
   H.remove = () => leave('quiet');
 
+  // ---- demo (?demo=hunter): he runs a route of his own, rooftops and all, so you can watch him move ----
+  H.body = body;
+  let goal = null, goalT = 0, flourishT = 0;
+  function nextGoal() {
+    const p = body.pos, roofs: any[] = [];
+    for (const s of col.solids.query(p.x - 20, p.z - 20, p.x + 20, p.z + 20, [])) {
+      if (s.maxx - s.minx < 2.5 || s.maxz - s.minz < 2.5 || s.maxy < 2 || s.maxy > 8.5) continue;
+      const x = Math.min(Math.max(p.x, s.minx + 1), s.maxx - 1), z = Math.min(Math.max(p.z, s.minz + 1), s.maxz - 1), d = Math.hypot(x - p.x, z - p.z);
+      if (d < 5 || d > 16 || Math.abs(s.maxy - p.y) < 0.6) continue;
+      if (col.solids.query(x - 0.4, z - 0.4, x + 0.4, z + 0.4, []).some(o => o !== s && o.maxy > s.maxy + 0.3 && o.miny < s.maxy + 1.9)) continue;
+      roofs.push({ x, y: s.maxy, z });
+    }
+    const onRoof = p.y > 1.5;
+    if (roofs.length && (!onRoof || Math.random() < 0.6)) return roofs[Math.floor(Math.random() * roofs.length)]; // up a wall, or across to the next roof
+    const st = world.spots.filter(q => { const d = Math.hypot(q.x - p.x, q.z - p.z); return d > 8 && d < 22; });
+    const q = st[Math.floor(Math.random() * st.length)] || { x: p.x + 10, z: p.z, nx: 0, nz: 0 };
+    return { x: q.x + q.nx * 2, y: 0.15, z: q.z + q.nz * 2 }; // down to the street (he drops like a cat)
+  }
+  H.demo = () => {
+    H.start(player.pos.x + 6, player.pos.z); H.state = 'demo'; H.demoing = true; goal = null;
+  };
+
   // ---- every frame (called from the game's enemy loop, like any other enemy) ----
   H.update = (dt) => {
     if (!H.active) return null;
@@ -204,6 +226,16 @@ export function createHunter(game) {
         if (H.t > 2.5) { H.state = 'retreat'; H.t = 0; hud.say('The Hunter', 'This is not finished.', 3); }
         break;
       }
+      case 'demo': {
+        goalT += dt; flourishT -= dt;
+        const gd = goal ? Math.hypot(goal.x - H.pos.x, goal.z - H.pos.z) : 0;
+        if (!goal || (gd < 1.6 && Math.abs(goal.y - H.pos.y) < 0.8) || goalT > 9) { goal = nextGoal(); goalT = 0; if (Math.random() < 0.35) flourishT = 0.9; } // a new mark, sometimes a flourish with the blade first
+        if (flourishT > 0) { body.update(dt, { move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 }, held: {}, pressed: {} }, body.yaw, game.time); const r = body.rig; r.set('shRX', -2.8 + (0.9 - flourishT) * 3); r.set('chestY', 0.6 - (0.9 - flourishT) * 1.2); r.update(dt, 22); break; }
+        if (body.onGround && Math.random() < dt * 0.25 && gd > 6) { body.update(dt, { move: { x: 0, y: 1 }, look: { dx: 0, dy: 0 }, held: { sprint: true }, pressed: { roll: true } }, Math.atan2(goal.x - H.pos.x, goal.z - H.pos.z), game.time); break; } // a roll, for the flow of it
+        drive(dt, goal, true);
+        if (!body.onGround && body.airFlips < 1 && body.vel.y > 2 && Math.random() < dt * 1.2) body.update(0.0001, { move: { x: 0, y: 1 }, look: { dx: 0, dy: 0 }, held: {}, pressed: { jump: true } }, body.yaw, game.time); // and a flip off the top
+        break;
+      }
       case 'retreat': { // away from him, fast; gone once out of sight
         const away = Math.atan2(H.pos.x - P.x, H.pos.z - P.z);
         drive(dt, { x: H.pos.x + Math.sin(away) * 30, z: H.pos.z + Math.cos(away) * 30, y: H.pos.y }, true);
@@ -218,7 +250,7 @@ export function createHunter(game) {
   // ---- when he comes: at night, for the boy in black, more likely once the police are after him ----
   H.cd = 200 + Math.random() * 120;
   H.tick = (dt) => {
-    if (H.active || game.mode !== 'patrol' || !L.suit || L.inside || L.phase !== 'night' || game.story?.active || game.arrest) return;
+    if (H.demoing || H.active || game.mode !== 'patrol' || !L.suit || L.inside || L.phase !== 'night' || game.story?.active || game.arrest) return;
     H.cd -= dt * (game.heat > 0 ? 2.5 : 1);
     if (H.cd <= 0) H.start();
   };
