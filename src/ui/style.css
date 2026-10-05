@@ -563,3 +563,30 @@ body.arrested .catch { animation: tutNudge 2.2s ease-in-out infinite; border: 1p
   /* no room for the job checklist beside the thumbs: the objective line and JOB carry it */
   .tracker { display: none; }
 }
+
+/* the struggle card: knocked down, grabbed, held, in the police car, slipping cuffs */
+.strug { position: absolute; left: 50%; bottom: 190px; transform: translateX(-50%); width: min(380px, 86vw); background: rgba(8,10,16,0.9); border: 2px solid #ffd54f; box-shadow: 0 12px 40px rgba(0,0,0,0.6); padding: 12px 16px 14px; text-align: center; z-index: 6; }
+.strug.danger { border-color: #ff5252; box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 26px rgba(255,82,82,0.45); }
+.strug.hot { border-color: #69f0ae; }
+.strug .st-t { font: 400 26px Anton, Impact, sans-serif; letter-spacing: 0.03em; color: #ffd54f; line-height: 1.05; }
+.strug.danger .st-t { color: #ff6e60; }
+.strug .st-do { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0 4px; }
+.strug .st-do .key { font-size: 18px; padding: 8px 16px; min-width: 70px; border-radius: 8px; box-shadow: 0 4px 0 #8a8678; margin: 0; }
+.strug .st-do b { font: 800 14px Inter, sans-serif; letter-spacing: 0.18em; color: #fff; }
+.strug.mash .st-do .key { animation: stMash 0.32s ease-in-out infinite; }
+.strug.hold .st-do .key { animation: stHold 1.2s ease-in-out infinite; }
+@keyframes stMash { 50% { transform: translateY(3px) scale(0.94); box-shadow: 0 1px 0 #8a8678; } }
+@keyframes stHold { 50% { box-shadow: 0 2px 0 #8a8678, 0 0 18px rgba(255,213,79,0.8); } }
+.strug .st-sub { font: 600 13px Inter, sans-serif; color: #d6d2c6; line-height: 1.35; }
+.strug .st-bar { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; margin-top: 8px; text-align: left; }
+.strug .st-bar span { font: 800 10px Inter, sans-serif; letter-spacing: 0.14em; color: #aaa; }
+.strug .st-bar div { height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; }
+.strug .st-bar i { display: block; height: 100%; width: 0; transition: width 0.08s linear; }
+.strug .good span { color: #69f0ae; } .strug .good i { background: #69f0ae; box-shadow: 0 0 8px #69f0ae; }
+.strug .bad span { color: #ff8a80; } .strug .bad i { background: #ff5252; }
+body.arrested .strug { animation: none; }
+@media (pointer: coarse) and (max-height: 500px) {
+  .strug { bottom: 64px; left: 44%; width: 300px; padding: 7px 12px 9px; }
+  .strug .st-t { font-size: 19px; } .strug .st-do { margin: 6px 0 2px; } .strug .st-do .key { font-size: 14px; padding: 5px 12px; }
+  .strug .st-sub { font-size: 11px; } .strug .st-bar { margin-top: 5px; grid-template-columns: 78px 1fr; }
+}

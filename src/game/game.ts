@@ -681,8 +681,9 @@ export function createGame(ctx) {
   function updatePick(dt, input) {
     if (!player.cuffed || game.arrest || (game.mode !== 'patrol' && (!L.items.pins || !game.story.flags.canPick)) || !input.held.act) { if (pickT > 0 && !input.held.act) pickT = 0; return; }
     const watched = cuffWatched();
-    if (watched) { if (!game.cuffWarnT || game.time - game.cuffWarnT > 2) { game.cuffWarnT = game.time; hud.popup('POLICE CAN SEE YOU · <b>GET OUT OF SIGHT FIRST</b>'); } pickT = Math.max(0, pickT - dt * 2); game.hudMeter = pickT / 3.5; return; }
+    if (watched) { if (!game.cuffWarnT || game.time - game.cuffWarnT > 2) { game.cuffWarnT = game.time; hud.popup('POLICE CAN SEE YOU · <b>GET OUT OF SIGHT FIRST</b>'); } pickT = Math.max(0, pickT - dt * 2); game.hudMeter = pickT / 3.5; game.struggle = { title: 'POLICE CAN SEE YOU', key: 'F', verb: 'HOLD', sub: 'Get out of their sight first, then hold to slip the cuffs.', good: pickT / 3.5, goodLabel: 'CUFFS OFF', warn: true }; return; }
     pickT += dt; game.hudMeter = pickT / 2.5; game.catchLabel = 'SLIPPING THE CUFFS · KEEP HOLDING F'; game.pickShown = game.time;
+    game.struggle = { title: 'SLIPPING THE CUFFS', key: 'F', verb: 'HOLD', sub: 'Keep holding until the bar is full.', good: pickT / 2.5, goodLabel: 'CUFFS OFF' };
     if (pickT >= 2.5) { pickT = 0; player.cuffed = false; if (game.mode !== 'patrol') L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
   }
   let dayAttT = 0, dayToldT = -999;
@@ -924,6 +925,7 @@ export function createGame(ctx) {
     game.officerGrab = false;
     game.catchMeter = Math.max(0, game.catchMeter + (grabbing ? dt * (player.mode === 'crawl' ? 0.5 : 0.35) : -dt * 0.9));
     if (grabbing && R() < dt * 0.8) hud.say('Police', ['Oya stop there!', 'Where you dey run go?', 'Hold am! Hold am!'][Math.floor(R() * 3)], 1.6);
+    if (game.catchMeter > 0.01 && !game.arrest) game.struggle = { title: 'AN OFFICER HAS GRABBED YOU', key: null, verb: 'RUN', sub: 'Run away from him. Standing still gets you cuffed.', bad: game.catchMeter, badLabel: 'CUFFED' };
     if (game.catchMeter >= 1) { game.catchMeter = 0; busted(); }
   }
   function busted() { arrest(); }
@@ -973,12 +975,14 @@ export function createGame(ctx) {
       v.police.target.copy(player.pos);
       const d = Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z);
       game.hudMeter = Math.min(1, A.t / 6); game.catchMeter = 0; game.catchLabel = 'THEY\'RE HOLDING YOU · THE CAR IS COMING';
+      game.struggle = { title: 'THEY\'RE HOLDING YOU', key: null, verb: 'GET READY', sub: 'The police car is coming. Once you\'re inside, kick the door out.', bad: Math.min(1, A.t / 6), badLabel: 'CAR ARRIVES' };
       if (A.t > 3 && (d < 10 || A.t > 7)) intoCar(A);
       return;
     }
     const window = v.speed < 4; // the car slows at a junction: that's when a kick really counts
     if (input.pressed.act || input.pressed.jump) { A.struggle += (A.second ? 0.045 : 0.06) * (0.7 + 0.5 * player.hp / Math.max(1, player.cap())) * (window ? 2 : 1); camera.shake = 0.25; audio.clank?.(v.pos); }
     A.struggle = Math.max(0, A.struggle - dt * 0.1);
+    game.struggle = { title: window ? 'THE CAR IS SLOWING: KICK NOW!' : 'KICK THE DOOR OPEN', key: 'SPACE', verb: 'TAP FAST', sub: window ? 'Kicks count double while the car is slow.' : 'Kick hardest when the car slows at a junction.', good: A.struggle, goodLabel: 'DOOR OPEN', bad: Math.min(1, A.t / 50), badLabel: `STATION IN ${Math.max(0, Math.ceil(50 - A.t))}s`, hot: window };
     game.hudMeter = A.struggle; game.catchMeter = 0; game.catchLabel = window ? 'THE CAR IS SLOWING · KICK NOW! (F / SPACE)' : `KICK THE DOOR: MASH F / SPACE · ${Math.max(0, Math.ceil(50 - A.t))}s TO THE STATION`;
     if (A.struggle >= 1) {
       // the door gives: out onto the road, still in cuffs. The car stops dead; the officers get out and come after him on foot
@@ -1012,7 +1016,7 @@ export function createGame(ctx) {
   function hostilesNear() { return [...game.thugs.filter(t => t.alive && t.engaged), ...game.gunmen.filter(g => g.alive)]; }
   function updateDowned(dt) {
     if (game.respawnT > 0) return;
-    if (player.mode !== 'crawl') { crawlSafeT = 0; beatT = 0; game.beingKicked = false; return; }
+    if (player.mode !== 'crawl') { crawlSafeT = 0; beatT = 0; game.beingKicked = false; game.beatMeter = 0; return; }
     const hs = hostilesNear();
     const close = hs.some(h => h.role !== 'police' && dist2(h.pos, player.pos) < 1.7 * 1.7); // police cuff him through the catch bar, they don't kick him into the gutter
     const seen = hs.some(h => dist2(h.pos, player.pos) < 14 * 14 && !col.blocked(h.pos.x, h.pos.y + 1.5, h.pos.z, player.pos.x, player.pos.y + 0.5, player.pos.z, 1.0));
@@ -1020,7 +1024,7 @@ export function createGame(ctx) {
     // critical and an officer on him: the cuffs come through the catch bar (updatePolice), never instantly
     if (!hs.length || crawlSafeT > 2.5) { player.getUp(15); hud.notice('YOU GOT AWAY', 'Barely. Get somewhere safe and eat something.', 'green', 2.5); game.addRespect(100, 'SURVIVED'); return; }
     // they have to stay on him for a few seconds before it's over: time to mash for the adrenaline burst or drag himself clear
-    beatT = close ? beatT + dt : Math.max(0, beatT - dt * 0.5); game.beingKicked = close;
+    beatT = close ? beatT + dt : Math.max(0, beatT - dt * 0.5); game.beingKicked = close; game.beatMeter = beatT / 3;
     if (beatT > 3 || player.crawlT > 14) beatenOut();
   }
   function beatenOut() {
@@ -1118,6 +1122,7 @@ export function createGame(ctx) {
   // ---------- main update ----------
   game.update = (dt, input) => {
     game.time += dt; game.stats.time += dt;
+    game.struggle = null; // the struggle card (hud): whatever needs the player's hands this frame sets it below
     updateStreetSense(dt);
     game.timeScale += ((game.sense ? 0.45 : TR.hurry(input) ? 3 : 1) - game.timeScale) * Math.min(1, dt * 8);
     env.grade.uniforms.sense.value += ((game.sense ? 1 : 0) - env.grade.uniforms.sense.value) * Math.min(1, dt * 6);
@@ -1239,7 +1244,12 @@ export function createGame(ctx) {
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
 
     updateDowned(dt);
-    if (['down', 'crawl'].includes(player.mode) && !game.arrest) { game.hudMeter = Math.max(0.02, player.adren); game.catchLabel = game.beingKicked ? 'THEY\'RE KICKING YOU · MASH JUMP (SPACE) TO GET UP!' : player.adren > 0.03 ? 'ADRENALINE · KEEP MASHING JUMP (SPACE)' : 'DOWN · MASH JUMP (SPACE) FOR AN ADRENALINE BURST'; }
+    if (['down', 'crawl'].includes(player.mode) && !game.arrest) {
+      const crawl = player.mode === 'crawl', cops = game.catchMeter > 0.01;
+      game.struggle = { title: game.beingKicked ? 'THEY\'RE KICKING YOU!' : crawl ? 'YOU\'RE BADLY HURT' : 'YOU\'RE DOWN', key: 'SPACE', verb: 'TAP FAST',
+        sub: game.beingKicked ? 'Get up now, or they leave you in the gutter.' : crawl ? 'Tap to get back up, or crawl away with the stick.' : 'Tap to get up faster.',
+        good: player.adren, goodLabel: 'GET UP', bad: cops ? game.catchMeter : crawl ? game.beatMeter || 0 : null, badLabel: cops ? 'CUFFED' : 'BEATEN' };
+      game.hudMeter = Math.max(0.02, player.adren); game.catchLabel = game.beingKicked ? 'THEY\'RE KICKING YOU · MASH JUMP (SPACE) TO GET UP!' : player.adren > 0.03 ? 'ADRENALINE · KEEP MASHING JUMP (SPACE)' : 'DOWN · MASH JUMP (SPACE) FOR AN ADRENALINE BURST'; }
     else if (!game.arrest && game.hudMeter != null && game.time - (game.pickShown || -9) > 0.15) { game.hudMeter = null; game.catchLabel = null; }
     if (!game.injuryTold && player.cap() < 88) { game.injuryTold = true; hud.toast('<b>Injury:</b> hits leave damage that caps your health (the striped part of the bar). Health refills up to the cap on its own; <b>food and sleep</b> heal the injury itself.', 'blue'); }
     if (game.respawnT > 0) { game.respawnT -= dt; if (game.respawnT <= 0) respawn(); }

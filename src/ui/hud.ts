@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.ts';
 import { buildStyledMap } from './mapstyle.ts';
 
-const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', act: 'Fighting', bike: 'Okada', ride: 'Riding', zip: 'Wire ride' };
+const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', crawl: 'Badly hurt', getup: 'Getting up', act: 'Fighting', bike: 'Okada', ride: 'Riding', zip: 'Wire ride' };
 
 const FILLER = [
   'Residents say the situation has gone on for too long. "We are tired," said one trader who asked not to be named.',
@@ -62,6 +62,7 @@ export function createHUD(root, world) {
       <div class="gripwrap hidden"><div class="meterlbl">GRIP</div><div class="meter grip"><b></b></div></div>
       <div><div class="meterlbl">STREET SENSE</div><div class="meter sense"><b></b></div></div>
     </div>
+    <div class="strug hidden"></div>
     <div class="catch hidden"><div class="meterlbl">OFFICER GRABBING YOU — MOVE!</div><div class="meter"><b></b></div></div>
     <div class="prompt hidden"></div>
     <div class="say hidden"></div>
@@ -76,7 +77,7 @@ export function createHUD(root, world) {
     hbar: $('.health .hbar b'), hcap: $('.health .hbar .cap'), hv: $('.health .hv'), held: $('.gadgets .held'), gThrow: $('.gadgets .g-throw'), gLaunch: $('.gadgets .g-launch'),
     roomM: $('.roommeters'), noise: $('.meter.noise b'), susp: $('.meter.susp b'), stars: [...root.querySelectorAll('.heat .star')], naira: $('.naira'), objective: $('.objective'), map: $('.minimap canvas'),
     mapWrap: $('.minimap'), power: $('.power'), mode: $('.mode'), grip: $('.gripwrap'), gripB: $('.meter.grip b'), sense: $('.meter.sense b'),
-    catchW: $('.catch'), catchB: $('.catch .meter b'), prompt: $('.prompt'), say: $('.say'), toasts: $('.toasts'), markers: $('.markers'),
+    catchW: $('.catch'), catchB: $('.catch .meter b'), strug: $('.strug'), prompt: $('.prompt'), say: $('.say'), toasts: $('.toasts'), markers: $('.markers'),
     banner: $('.bannerwrap'), overlays: $('.overlays'), help: $('.help'),
     chargeW: $('.chargewrap'), chargeB: $('.meter.charge b'),
     brandSub: $('.brand small'),
@@ -125,6 +126,31 @@ export function createHUD(root, world) {
       .replace(/\((F|C|G|V|T|E|Q|N|J|R|SHIFT|U|L|X|M)\)/g, (all, k) => `(${m[k] || k})`);
   };
   H.setPad = (t) => { padType = t; };
+  // The struggle card: what is happening, the button to press (named for this device), and two bars,
+  // green for getting out of it and red for how close it is to going wrong
+  const PAD_KEYS = { SPACE: 'jump', F: 'act' };
+  let strugSig = '', strugKey = null;
+  const drawStruggle = (S, game) => {
+    el.strug.classList.toggle('hidden', !S);
+    const key = S?.key || null;
+    if (key !== strugKey) { strugKey = key; game.input?.touch?.focus?.(key ? PAD_KEYS[key] : null); } // on a phone the real button lights up too
+    if (!S) { strugSig = ''; return; }
+    const sig = [S.title, S.key, S.verb, S.sub, S.goodLabel, S.badLabel, padType, S.hot, S.warn].join('|');
+    if (sig !== strugSig) {
+      strugSig = sig;
+      const cap = S.key ? glyph(`<span class="key">${S.key}</span>`) : '';
+      el.strug.className = `strug${S.hot ? ' hot' : ''}${S.warn ? ' warn' : ''}${S.verb === 'TAP FAST' ? ' mash' : S.verb === 'HOLD' ? ' hold' : ''}`;
+      el.strug.innerHTML = `<div class="st-t">${S.title}</div>
+        <div class="st-do">${cap}<b>${S.verb}</b></div><div class="st-sub">${S.sub || ''}</div>
+        ${S.good != null ? `<div class="st-bar good"><span>${S.goodLabel}</span><div><i></i></div></div>` : ''}
+        ${S.bad != null ? `<div class="st-bar bad"><span>${S.badLabel}</span><div><i></i></div></div>` : ''}`;
+    }
+    const g = el.strug.querySelector('.good i'), b = el.strug.querySelector('.bad i'), bl = el.strug.querySelector('.bad span');
+    if (g) g.style.width = Math.min(100, Math.max(2, S.good * 100)) + '%';
+    if (b) b.style.width = Math.min(100, S.bad * 100) + '%';
+    if (bl && bl.textContent !== S.badLabel) bl.textContent = S.badLabel;
+    el.strug.classList.toggle('danger', (S.bad || 0) > 0.6);
+  };
   let toastN = 0, sayT = 0, bannerT = 0, bigMap = false;
 
   H.toast = (text, kind = '') => {
@@ -418,7 +444,8 @@ export function createHUD(root, world) {
     el.sense.style.width = game.senseMeter + '%';
     el.power.textContent = game.power > 0.5 ? 'GRID: ON' : 'NEPA TOOK LIGHT';
     el.power.classList.toggle('off', game.power <= 0.5);
-    const meterV = game.hudMeter ?? game.catchMeter;
+    const S = game.struggle, meterV = S ? 0 : game.hudMeter ?? game.catchMeter;
+    drawStruggle(S, game);
     el.catchW.classList.toggle('hidden', meterV <= 0.01);
     { const lbl = el.catchW.querySelector('.meterlbl'), want = game.catchLabel || 'OFFICER GRABBING YOU · MOVE!'; if (lbl.textContent !== want) lbl.textContent = want; }
     el.catchB.style.width = Math.min(100, meterV * 100) + '%';
