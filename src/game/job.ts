@@ -161,12 +161,13 @@ export function createJob(game) {
   };
   // turning a parcel down: it goes to whichever SwiftDrop rider is nearest the address. The customer
   // still gets it on time, so no bad review, but the pay goes with it
+  const takerFor = (o) => { const by = riders.map(r => ({ r, d: Math.hypot(r.x - o.place.x, r.z - o.place.z) })).sort((a, b) => a.d - b.d)[0]; return by ? by.r.name : RIVALS[0]; };
   J.pass = (id) => {
     const o = J.orders.find(q => q.id === id);
-    if (!J.clockedIn || !o || o.status !== 'pending' || L.clock > o.due) return false;
-    const by = riders.map(r => ({ r, d: Math.hypot(r.x - o.place.x, r.z - o.place.z) })).sort((a, b) => a.d - b.d)[0];
-    const name = by ? by.r.name : pick(RIVALS);
+    if (!J.clockedIn || !o || o.status !== 'pending') return false;
+    const name = takerFor(o), late = L.clock > o.due;
     o.status = 'passed'; o.by = name; o.lost = o.pay ?? PAY_ON_TIME;
+    if (late) J.reviews.push({ who: o.who, stars: 2, text: pick([`${name} finally brought it. Late, but it came.`, 'The first rider gave up on me. Another one came.', 'Waited all morning. At least somebody showed up.']), day: L.night }); // already late: the customer still remembers
     const rv = J.rivals.find(q => q.name === name); if (rv) rv.week++;
     hud.say('Mr Tunde (phone)', pick([`Okay. ${name} dey near ${o.place.name}, he go carry am. That one no go enter your pay o.`, `${name} go take am. Na your money you dash am.`, `Fine. ${name} will do it. Don't make it a habit.`]), 4);
     hud.toast(`<b>${o.item}</b> for ${o.who} passed to <b>${name}</b> · <span style="color:#ff8a80">−₦${o.lost.toLocaleString()} from today's pay</span>`, 'blue');
@@ -279,7 +280,8 @@ export function createJob(game) {
     if (!J.employed && L.night >= J.rehireDay) MM.push({ x: office.x, z: office.z, color: '#ff9100' });
     for (const o of pending()) { MM.push({ x: o.place.x, z: o.place.z, color: L.clock > o.due ? '#ff5252' : '#ffab40' }); if (o === next()) M.push({ x: o.place.x, y: 3, z: o.place.z, kind: 'deliver', label: `${o.who.toUpperCase()} · ${dstr(o.place.x, o.place.z)}` }); }
   };
-  J.sheet = () => ({ rating: J.rating(), stars: stars(J.rating()), employed: J.employed, clockedIn: J.clockedIn, shift: J.shiftName(), orders: J.orders.map(o => ({ ...o, dueStr: fmt(o.due), late: L.clock > o.due, km: Math.hypot(o.place.x - player.pos.x, o.place.z - player.pos.z) / 1000, canPass: J.clockedIn && o.status === 'pending' && L.clock <= o.due })),
+  J.sheet = () => ({ rating: J.rating(), stars: stars(J.rating()), employed: J.employed, clockedIn: J.clockedIn, shift: J.shiftName(), orders: J.orders.map(o => ({ ...o, dueStr: fmt(o.due), late: L.clock > o.due, km: Math.hypot(o.place.x - player.pos.x, o.place.z - player.pos.z) / 1000, lateBy: Math.round(L.clock - o.due), canPass: J.clockedIn && o.status === 'pending', takes: o.status === 'pending' ? takerFor(o) : null })),
+    rentDays: J.rentDue - L.night,
     pass: (id) => { J.pass(id); return J.sheet(); }, payEach: J.shift ? SHIFTS[J.shift].pay : PAY_ON_TIME, reviews: J.reviews.slice(-6).reverse(),
     weekEarned: J.weekEarned, weekDone: J.weekDone, payDay: J.payDay, unpaid: J.unpaid, rentDue: J.rentDue, rent: RENT + J.rentDebt, rivals: J.rivals.map(r => ({ ...r })).concat([{ name: 'Bolaji (you)', week: J.weekDone, rating: J.rating(), me: true }]).sort((a, b) => b.week - a.week), day: L.night });
   J.officePlace = () => ({ name: office.name, x: office.x, z: office.z, kind: 'place' });

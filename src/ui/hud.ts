@@ -766,22 +766,43 @@ export function createHUD(root, world) {
   };
   // J: the SwiftDrop job sheet. Today's parcels, reviews, the weekly race against the other riders, rent
   H.jobSheet = (j, onClose) => {
-    const wrap = document.createElement('div'); wrap.className = 'overlay ccard';
-    const caseFile = j.case;
-    const icon = (o) => o.status === 'pending' ? (o.late ? '⚠' : '○') : o.status === 'passed' ? '↷' : o.status === 'failed' || o.status === 'reassigned' ? '✕' : '✓';
-    const tag = (o) => o.status === 'pending' ? (o.late ? 'LATE' : 'by ' + o.dueStr) : o.status === 'reassigned' ? 'GIVEN TO ' + (o.by || 'ANOTHER RIDER').toUpperCase() : o.status === 'passed' ? `PASSED TO ${(o.by || 'A RIDER').toUpperCase()} · −₦${(o.lost || 0).toLocaleString()}` : o.status.toUpperCase();
+    const wrap = document.createElement('div'); wrap.className = 'overlay jsx';
+    const caseFile = j.case, money = (n) => '₦' + Math.round(n || 0).toLocaleString();
+    const dist = (km) => km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km';
+    const STATUS = { done: ['✓', 'Delivered'], late: ['✓', 'Delivered late'], failed: ['✕', 'Never delivered'], reassigned: ['✕', 'Taken off you'], passed: ['↷', 'Cancelled'] };
     const paint = (j) => {
-      const ord = j.orders.length ? j.orders.map(o => `<div class="js-o ${o.status}"><b>${icon(o)}</b><span><b>${o.who}</b> · ${o.item}<i>${o.place.name}${o.place.area ? ' · ' + o.place.area : ''}${o.status === 'pending' ? ` · ${o.km < 1 ? Math.round(o.km * 1000) + ' m' : o.km.toFixed(1) + ' km'} away` : ''}</i></span><em>${tag(o)}</em>${o.canPass ? `<button class="js-pass" data-pass="${o.id}" title="Give it to the rider nearest the address. You lose ₦${j.payEach.toLocaleString()}.">Pass<small>−₦${j.payEach.toLocaleString()}</small></button>` : '<i></i>'}</div>`).join('')
-        : `<p class="cc-note">${j.employed ? (j.clockedIn ? '' : 'No parcels yet. Clock in at the SwiftDrop office (Ojuelegba): mornings before noon, extra shifts in the afternoon (12:30–4 PM) and at night (10 PM–12:30 AM).') : 'You don\'t work at SwiftDrop right now.'}</p>`;
-      wrap.innerHTML = `<div class="cc-box"><div class="cc-k">SWIFTDROP DISPATCH · DAY ${j.day}${j.shift ? ` · ${j.shift.toUpperCase()} SHIFT` : ''}</div><h1>JOB SHEET</h1>
-      <div class="js-top"><div><b>${j.stars}</b><i>RATING ${j.rating.toFixed(1)}</i></div><div><b>₦${j.weekEarned.toLocaleString()}</b><i>THIS WEEK · ${j.unpaid ? `₦${j.unpaid.toLocaleString()} AT CLOCK-OUT` : 'PAID DAILY'}</i></div><div><b>₦${j.rent.toLocaleString()}</b><i>RENT DUE DAY ${j.rentDue}</i></div></div>
-      <div class="cc-grid"><section style="grid-column: span 2"><h3>Today's parcels</h3>${ord}${j.orders.some(o => o.canPass) ? '<p class="cc-note">Too far? <b>Pass</b> gives a parcel to the SwiftDrop rider nearest the address. No bad review, but you lose its pay.</p>' : ''}</section>
-      <section><h3>Riders this week</h3>${j.rivals.map((r, k) => `<div class="js-r ${r.me ? 'me' : ''}"><b>${k + 1}</b><span>${r.name}</span><em>${r.week} · ★${r.rating.toFixed(1)}</em></div>`).join('')}</section>
-      <section style="grid-column: 1 / -1"><h3>Case file · ${caseFile?.chapter || ''}</h3>${caseFile?.leads.length ? caseFile.leads.map(l => `<div class="js-v"><span>🗂 ${l}</span></div>`).join('') : '<p class="cc-note">No leads yet. Keep your eyes open: the men in black are everywhere.</p>'}</section>
-      <section><h3>Latest reviews</h3>${j.reviews.length ? j.reviews.map(r => `<div class="js-v"><b>${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</b><span>${r.who}: "${r.text}"</span></div>`).join('') : '<p class="cc-note">No reviews yet.</p>'}</section></div>
-      <button class="cc-go">Back to work</button></div>`;
-      wrap.querySelector<HTMLElement>('.cc-go').onclick = done;
-      wrap.querySelectorAll<HTMLElement>('[data-pass]').forEach(btn => btn.onclick = () => paint(j.pass(+btn.dataset.pass)));
+      const todo = j.orders.filter(o => o.status === 'pending').sort((a, b) => a.due - b.due), fin = j.orders.filter(o => o.status !== 'pending');
+      const row = (o) => `<div class="jsx-p${o.late ? ' late' : ''}">
+          <div class="jsx-time"><b>${o.dueStr.replace(/ (AM|PM)/, '')}<small>${o.dueStr.slice(-2)}</small></b><span>${o.late ? `${o.lateBy}m LATE` : 'DUE'}</span></div>
+          <div class="jsx-what"><b>${o.who}</b><span>${o.item}</span><i>${o.place.name}${o.place.area && !o.place.area.startsWith(o.place.name) ? ' · ' + o.place.area : ''} · ${dist(o.km)} away</i></div>
+          ${o.canPass ? `<button class="jsx-cancel" data-pass="${o.id}"><b>Cancel</b><small>${o.takes.split(' ')[0]} takes it · −${money(o.pay ?? j.payEach)}</small>${o.late ? '<small class="rv">and a 2★ review</small>' : ''}</button>` : ''}
+        </div>`;
+      const done = (o) => { const [ic, lbl] = STATUS[o.status] || ['·', o.status]; return `<div class="jsx-f ${o.status}"><em>${ic}</em><span><b>${o.who}</b> · ${o.item}</span><i>${o.status === 'passed' || o.status === 'reassigned' ? `${lbl} · ${o.by || 'another rider'}${o.lost ? ' · −' + money(o.lost) : ''}` : lbl}</i></div>`; };
+      wrap.innerHTML = `<div class="jsx-box">
+        <header class="jsx-head"><div><div class="jsx-k">SWIFTDROP DISPATCH · DAY ${j.day}${j.shift ? ` · ${j.shift.toUpperCase()} SHIFT` : ''}</div><h1>Job sheet</h1></div>
+          <button class="jsx-close">Back to work <kbd>J</kbd></button></header>
+        <div class="jsx-stats">
+          <div><b>★ ${j.rating.toFixed(1)}</b><i>Your rating</i></div>
+          <div><b>${money(j.unpaid)}</b><i>Paid at clock-out</i></div>
+          <div><b>${money(j.weekEarned)}</b><i>Earned this week</i></div>
+          <div class="${j.rentDays <= 1 ? 'warn' : ''}"><b>${money(j.rent)}</b><i>Rent ${j.rentDays <= 0 ? 'due today' : j.rentDays === 1 ? 'due tomorrow' : 'due day ' + j.rentDue}</i></div>
+        </div>
+        <div class="jsx-main">
+          <section class="jsx-card">
+            <h3>To deliver <span>${todo.length}</span></h3>
+            ${todo.length ? todo.map(row).join('') : `<p class="jsx-none">${!j.employed ? 'You don\'t work at SwiftDrop right now.' : j.clockedIn ? 'All delivered. Clock out at the office in Ojuelegba to get paid.' : 'No parcels. Clock in at the SwiftDrop office in Ojuelegba: mornings before noon, extra shifts 12:30–4 PM and 10 PM–12:30 AM.'}</p>`}
+            ${todo.length ? '<p class="jsx-note">Too far, or running late? <b>Cancel</b> hands it to the rider nearest the address. You don\'t get paid for it.</p>' : ''}
+            ${fin.length ? `<h3 class="jsx-sub">Finished <span>${fin.length}</span></h3>${fin.map(done).join('')}` : ''}
+          </section>
+          <aside>
+            <section class="jsx-card"><h3>Riders this week</h3>${j.rivals.map((r, k) => `<div class="jsx-r${r.me ? ' me' : ''}"><em>${k + 1}</em><span>${r.name}</span><i>${r.week} drops · ★${r.rating.toFixed(1)}</i></div>`).join('')}</section>
+            <section class="jsx-card"><h3>Latest reviews</h3>${j.reviews.length ? j.reviews.slice(0, 4).map(r => `<div class="jsx-v"><em class="s${r.stars}">${'★'.repeat(r.stars)}<u>${'★'.repeat(5 - r.stars)}</u></em><span>"${r.text}" <i>${r.who}</i></span></div>`).join('') : '<p class="jsx-none">No reviews yet.</p>'}</section>
+          </aside>
+        </div>
+        <section class="jsx-card jsx-case"><h3>Case file${caseFile?.chapter ? ' · ' + caseFile.chapter : ''}</h3>${caseFile?.leads.length ? caseFile.leads.map(l => `<div class="jsx-lead">${l}</div>`).join('') : '<p class="jsx-none">No leads yet. Keep your eyes open: the men in black are everywhere.</p>'}</section>
+      </div>`;
+      wrap.querySelector<HTMLElement>('.jsx-close').onclick = done;
+      wrap.querySelectorAll<HTMLElement>('[data-pass]').forEach(btn => btn.onclick = () => paint({ ...j.pass(+btn.dataset.pass), pass: j.pass }));
     };
     el.overlays.appendChild(wrap);
     const done = () => { wrap.remove(); removeEventListener('keydown', key, true); onClose?.(); };
