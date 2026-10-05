@@ -45,7 +45,8 @@ export function createLockOn(game) {
     const ang = Math.abs(wrap(Math.atan2(dx, dz) - camera.yaw));
     if (ang > 1.05) return Infinity;
     if (c.kind === 'place' && col.blocked(p.x, p.y + 1.6, p.z, q.x, q.y + 0.4, q.z, 0.8)) return Infinity;
-    return ang * 9 + d * 0.22 + (c.kind === 'foe' ? (c.engaged ? -4 : -1) : c.kind === 'person' ? 1.5 : leapTo(q) ? 2.5 : 25); // places he can't reach still lock, but last
+    const threat = c.kind === 'foe' ? (c.ref?.state === 'windup' || c.ref?.state === 'aim' ? -3 : 0) + (c.engaged ? -4 : -1) : 0; // whoever is about to hit him, first
+    return ang * 9 + d * 0.22 + (c.kind === 'foe' ? threat : c.kind === 'person' ? 1.5 : leapTo(q) ? 2.5 : 25); // places he can't reach still lock, but last
   }
   const same = (a, b) => a && b && (a.ref ? a.ref === b.ref : a.key === b.key);
 
@@ -67,6 +68,19 @@ export function createLockOn(game) {
     const i = list.findIndex(o => same(o.c, L.target)), idOf = (c) => c.ref || c.key;
     for (let k = 1; k <= list.length; k++) { const o = list[(i + k) % list.length]; if (!L.seen.has(idOf(o.c))) { lock(o.c); return; } }
     L.release(); game.hud.popup('LOCK OFF');
+  };
+  // a flick of the camera while locked: the next target on that side (closest in angle)
+  L.flick = (dir) => {
+    const p = P(), cur = L.target, cq = posOf(cur), curA = wrap(Math.atan2(cq.x - p.x, cq.z - p.z) - camera.yaw);
+    let best = null, bd = Infinity;
+    for (const c of candidates()) {
+      if (same(c, cur) || (c.kind === 'place') !== (cur.kind === 'place')) continue;
+      const q = posOf(c), d = Math.hypot(q.x - p.x, q.z - p.z); if (d > 24) continue;
+      const a = wrap(Math.atan2(q.x - p.x, q.z - p.z) - camera.yaw), step = (a - curA) * -dir; // mouse right turns the camera right: smaller angles
+      if (step > 0.05 && step < bd) { bd = step; best = c; }
+    }
+    if (best) { lock(best); return true; }
+    return false;
   };
   // a tap on the screen (phones): lock whatever is under the finger, or let go
   L.tapAt = (sx, sy) => {
@@ -102,6 +116,10 @@ export function createLockOn(game) {
     }
     if (input.pressed.lockTap) L.tapAt(input.pressed.lockTap.x, input.pressed.lockTap.y);
     if (input.pressed.unlock && L.target) { L.release(); game.hud.popup('LOCK OFF'); }
+    // a quick flick of the camera (mouse, right stick, a swipe) switches to the next one that way
+    L.flickCd = Math.max(0, (L.flickCd || 0) - dt);
+    L.flickAcc = (L.flickAcc || 0) * Math.max(0, 1 - dt * 8) + (L.target ? input.look.dx : 0);
+    if (L.target && L.flickCd <= 0 && Math.abs(L.flickAcc) > 190) { L.flick(Math.sign(L.flickAcc)); L.flickAcc = 0; L.flickCd = 0.45; }
     let pull = true;
     const c = L.target;
     if (c) {
@@ -110,6 +128,11 @@ export function createLockOn(game) {
       const hs = Math.hypot(player.vel.x, player.vel.z), off = hs > 3.5 ? Math.abs(wrap(Math.atan2(dx, dz) - Math.atan2(player.vel.x, player.vel.z))) : 0;
       L.awayT = off > 1.9 ? (L.awayT || 0) + dt : 0; if (off > 1.6) pull = false;
       const tooFar = d > (c.kind === 'foe' ? 26 : 22);
+      L.losT = (L.losT || 0) - dt;
+      if (c.kind !== 'place' && L.losT <= 0) { L.losT = 0.25; L.hidden = col.blocked(P().x, P().y + 1.6, P().z, q.x, q.y + 1.2, q.z, 2) ? (L.hidden || 0) + 0.25 : 0; }
+      const landed = c.kind === 'place' && player.onGround && d < 1.6 && Math.abs(P().y - q.y) < 0.5; // he's on it: done
+      if (landed || (L.hidden || 0) > 2.5) { L.release(); L.hidden = 0; if (!landed) game.hud.popup('LOST SIGHT · LOCK OFF'); }
+      else
       if (L.awayT > 0.7 || tooFar || (c.kind === 'place' && player.hurtT < 0.05)) { L.release(); game.hud.popup('LOCK OFF'); }
       else if (!aliveOf(c) || (c.ref?.grounded && c.ref.state === 'ko')) { // down or gone: in a fight, the next one in front of him; otherwise let go
         const next = c.kind === 'foe' ? candidates().filter(o => o.kind === 'foe' && o.engaged).map(o => { const p2 = posOf(o); return { o, d: Math.hypot(p2.x - P().x, p2.z - P().z), a: Math.abs(wrap(Math.atan2(p2.x - P().x, p2.z - P().z) - camera.yaw)) }; }).filter(o => o.a < 1.6 && o.d < 15).sort((a, b) => a.d - b.d)[0] : null;
