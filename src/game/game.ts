@@ -73,7 +73,7 @@ export function createGame(ctx) {
     respawnT: 0, tipI: 0, spawnCd: 3, grindLen: 0, patrolT: 3, areaName: '',
   };
   game.logNight = (k, o: any = {}) => (game.nightLog ||= []).push({ k, ...o });
-  game.say = (npc, text, who = 'Red Cap', range = 45) => { if (!npc || !npc.pos || npc.pos.distanceTo(player.pos) < range) hud.say(who, text); };
+  game.say = (npc, text, who = 'Red Cap', range = 45) => { if (npc?.gboy && who === 'Red Cap') who = 'Boy in black'; if (!npc || !npc.pos || npc.pos.distanceTo(player.pos) < range) hud.say(who, text); };
   game.addRespect = (n, label) => { if (label && game.missionMoves) game.missionMoves.add(String(label).replace(/ X?\d+.*$/, '').replace(/^\d+-HIT /, '')); if (n <= 0) return; game.respect += Math.round(n); if (label) hud.popup(`${label} <b>+${Math.round(n)}</b>`); };
   game.life = createLife(game);
   game.combat = createCombat(game);

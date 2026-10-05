@@ -54,7 +54,7 @@ export function createGeneral(game) {
     const v = api.victim({ x: sp.x, z: sp.z, yaw: Math.atan2(sp.nx, sp.nz), mood: 'cower' }); v.name = pick(['Mama Kemi', 'Alhaji Sani', 'Uncle Tayo', 'Chioma', 'Mr. Okon']);
     const grp = gang(sp.x + sp.nx * 1.2, sp.z + sp.nz * 1.2, 3, L.phase === 'day' ? 0 : 1); // three boys, one gun at night: a fight, not a massacre
     G.squad = { ...grp, v, t: 0, woke: false, area: world.areaAt(sp.x, sp.z), lineT: 2 };
-    hud.notice('MEN IN BLACK', `${G.squad.area}: the General's boys are terrorising ${v.name}'s shop.`, 'red');
+    hud.notice('MEN IN BLACK', `${G.squad.area}: the General's boys are terrorising ${v.name}'s shop.${L.suit ? '' : ' They leave a rider alone: step in, or keep your head down and walk past.'}`, 'red');
     game.radio?.say(`Caller from ${G.squad.area}: "Boys in black don block our street! Dem get gun! Police no dey come!"`);
     audio.alert();
   }
@@ -64,7 +64,15 @@ export function createGeneral(game) {
     S.t += dt; S.lineT -= dt;
     const d = dist(S, player.pos);
     if (S.lineT <= 0 && d < 30 && !S.woke) { S.lineT = 4; if (Math.random() < 0.6) hud.say('Boy in black', pick(HAVOC), 2.8); else hud.say(S.v.name, pick(VICTIM), 2.8); }
-    if (!S.woke && (d < 9 || S.boys.some(t => t.alive && t.engaged) || S.boys.some(t => !t.alive))) {
+    // what sets them off: a hit on one of them, or the suit. A rider in uniform is nobody to them: walking
+    // past gets him told to move along, and only hanging about within arm's reach starts a fight
+    const provoked = S.boys.some(t => t.alive && t.engaged) || S.boys.some(t => !t.alive) || S.guns.some(g => !g.alive);
+    if (!L.suit && !S.woke) {
+      if (d < 10 && !S.warned) { S.warned = true; hud.say('Boy in black', pick(['Rider, comot for here! Dis one no concern you.', 'Face your delivery, rider. Waka pass!', 'You no see wetin dey happen? Commot before e reach you!']), 3); }
+      S.nearT = d < 3.2 ? (S.nearT || 0) + dt : 0;
+      if (S.nearT > 1.2 && !S.warned2) { S.warned2 = true; hud.say('Boy in black', 'I say commot! Last warning!', 2.4); }
+    }
+    if (!S.woke && (provoked || (L.suit && d < 9) || (S.nearT || 0) > 2.8)) {
       S.woke = true; wake(S); hud.say('Boy in black', L.suit ? 'Who be this one wey dress like us?! Finish am!' : 'Rider, you wan die? Oya!', 3);
       // the police are paid to look away while the General's boys work: no units pile in mid-fight
     }
