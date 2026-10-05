@@ -331,6 +331,25 @@ export function createTraffic(scene, world) {
   // corners, so nobody U-turns in the middle of the bridge any more.
   const LZs = -HALF - 56, LZe = -1215;
   const LOOP_PTS: number[][] = [[LANE, LZs], [LANE, -1290 + LANE], [92 - LANE, -1290 + LANE], [92 - LANE, -1371 + LANE], [-92 + LANE, -1371 + LANE], [-92 + LANE, -1290 + LANE], [-LANE, -1290 + LANE], [-LANE, LZs]];
+  // a closed path through corner points, every corner rounded: { len, at(s) -> [x, z, yaw] }
+  function makeLoop(PTS: number[][], RAD = 7) {
+    const SEG: any[] = [], n = PTS.length, pts: number[][] = [];
+    for (let k = 0; k < n; k++) {
+      const P = PTS[(k - 1 + n) % n], Q = PTS[k], N2 = PTS[(k + 1) % n];
+      const d1 = Math.hypot(Q[0] - P[0], Q[1] - P[1]), d2 = Math.hypot(N2[0] - Q[0], N2[1] - Q[1]), r = Math.min(RAD, d1 / 2.2, d2 / 2.2);
+      const a = [Q[0] + (P[0] - Q[0]) * r / d1, Q[1] + (P[1] - Q[1]) * r / d1], c = [Q[0] + (N2[0] - Q[0]) * r / d2, Q[1] + (N2[1] - Q[1]) * r / d2];
+      for (let t = 0; t <= 1.001; t += 1 / 6) pts.push([(1 - t) ** 2 * a[0] + 2 * (1 - t) * t * Q[0] + t * t * c[0], (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * Q[1] + t * t * c[1]]);
+    }
+    let acc = 0;
+    for (let k = 0; k < pts.length; k++) { const A = pts[k], B2 = pts[(k + 1) % pts.length], L = Math.hypot(B2[0] - A[0], B2[1] - A[1]); if (L < 1e-3) continue; SEG.push({ A, B: B2, s: acc, L, yaw: Math.atan2(B2[0] - A[0], B2[1] - A[1]) }); acc += L; }
+    const len = acc;
+    return { len, at(s) {
+      s = ((s % len) + len) % len;
+      let lo = 0, hi = SEG.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (SEG[m].s <= s) lo = m; else hi = m - 1; }
+      const g = SEG[lo], t = (s - g.s) / g.L;
+      return [g.A[0] + (g.B[0] - g.A[0]) * t, g.A[1] + (g.B[1] - g.A[1]) * t, g.yaw];
+    } };
+  }
   const LSEG: any[] = [];
   {
     const RAD = 7, n = LOOP_PTS.length, pts: number[][] = [];
@@ -361,13 +380,18 @@ export function createTraffic(scene, world) {
     v.group.rotation.order = 'YXZ';
   });
 
-  // ---- Ojuelegba flyover: traffic over the top, both ways, all day ----
-  const FZa = -HALF - 40, FZb = HALF + 40, FL = FZb - FZa;
-  const flyAt = (s) => { s = ((s % (2 * FL)) + 2 * FL) % (2 * FL); return s < FL ? [FLY.x + LANE, FZb - s, Math.PI] : [FLY.x - LANE, FZa + (s - FL), 0]; };
+  // ---- Ojuelegba flyover: traffic up one ramp, over, down the other, and round the streets back ----
+  // Two one-way circuits on real roads (right-hand traffic): southbound over the bridge then back up the
+  // road to the west of it; northbound over the bridge then back down the road to the east.
+  const RING = HALF, W = roadLine(4), E = roadLine(5);
+  const FLY_LOOPS = [
+    makeLoop([[FLY.x - LANE, -RING + LANE], [FLY.x - LANE, RING - LANE], [W + LANE, RING - LANE], [W + LANE, -RING + LANE]]),
+    makeLoop([[FLY.x + LANE, RING - LANE], [FLY.x + LANE, -RING + LANE], [E - LANE, -RING + LANE], [E - LANE, RING - LANE]]),
+  ];
   ['danfo', 'car', 'brt', 'danfo', 'car', 'okada', 'tanker', 'car', 'danfo', 'keke', 'car', 'danfo', 'car', 'okada', 'danfo', 'car', 'brt', 'car'].forEach((type, k, all) => {
-    const v = makeVehicle(type, 'loop'); v.loopFn = flyAt; v.fly = true;
-    v.cruise = (type === 'okada' ? 11 : 8) + R() * 4; v.ls = (k / all.length) * 2 * FL + R() * 6;
-    const [x, z, y] = flyAt(v.ls); v.pos.set(x, FLY.y, z); v.yaw = y; v.group.rotation.order = 'YXZ';
+    const loop = FLY_LOOPS[k % 2], v = makeVehicle(type, 'loop'); v.loopFn = loop.at; v.fly = true;
+    v.cruise = (type === 'okada' ? 11 : 8) + R() * 4; v.ls = (Math.floor(k / 2) / Math.ceil(all.length / 2)) * loop.len + R() * 6;
+    const [x, z, y] = loop.at(v.ls); v.pos.set(x, col.groundHeight(x, z, 30).h, z); v.yaw = y; v.group.rotation.order = 'YXZ';
   });
 
   // road route for navigation (the GPS line and the guide arrow)

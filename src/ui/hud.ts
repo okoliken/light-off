@@ -488,29 +488,35 @@ export function createHUD(root, world) {
   // ================= menus: title screen and pause =================
   // One shell for both: the city keeps moving behind, a vertical menu on the left, and sub-screens that
   // slide in from the right. Mouse, keyboard (arrows/WASD, Enter, Esc) and gamepad (D-pad/stick, A, B).
+  // [what, keyboard, gamepad, phone]
   const CONTROL_GROUPS: any[] = [
-    ['Game', [['Pause · menu', 'Esc · P', 'Start'], ['Map: search a place, pick how to get there', 'M', 'View'], ['This controls card', 'H', '—']]],
-    ['Moving', [['Move', 'W A S D', 'L-Stick'], ['Look around', 'Mouse', 'R-Stick'], ['Jump · climb a wall', 'Space', 'A'], ['Hold: charge a cat leap', 'Space', 'A'], ['Sprint', 'Shift', 'RT']]],
-    ['Skating', [['Board on / off', 'R', 'Y'], ['Ollie (faster or holding Shift = higher)', 'Space', 'A'], ['In the air: board flip (+ a direction)', 'F', 'X'], ['In the air: backflip / frontflip / 360 spin (pull back / push forward / sideways)', 'Space', 'A'],
-      ['Lie on your belly (when fast) · X again to get up', 'X', '—'], ['Skitch: grab a vehicle', 'E', 'RB']]],
-    ['Bicycle & okada', [['Get on your SwiftDrop bicycle (or take an okada)', 'F', 'X'], ['Ride · full throttle', 'W A S D · Shift', 'L-Stick · RT'], ['Brake', 'Space', 'A'], ['Get off', 'R', 'Y']]],
-    ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
-      ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
-    ['Escape kit', [['Pepper bomb · Ash cloud · Nail plank', '1 · 2 · 3', '—'], ['Hang on a danfo (Space: climb onto the roof)', 'E', 'RB'], ['Ride a NEPA wire (Coach Ayo teaches it)', 'E', 'RB'], ['Blackout: pull a transformer fuse', 'F', 'X']]],
-    ['The street', [['Interact · buy · talk', 'F', 'X'], ['Change into / out of the suit (nobody watching)', 'U', '—'], ['Pocket radio', 'N', 'D-Pad →'], ['Torch', 'L', '—'], ['Lock on · next target (hold to let go) · on a phone: tap them', 'Tab', 'R3'], ['Street Sense (hold)', 'Q', 'LB']]],
+    ['Game', [['Pause · menu', 'Esc · P', 'Start', '❚❚'], ['Map: search a place, pick how to get there', 'M', 'View', 'MAP'], ['Job sheet: parcels, pay, cancel a parcel', 'J', '—', 'JOB'], ['This controls card', 'H', '—', '❚❚ → Controls']]],
+    ['Moving', [['Move', 'W A S D', 'L-Stick', 'Left thumb'], ['Look around', 'Mouse', 'R-Stick', 'Drag on the right'], ['Jump · climb a wall', 'Space', 'A', 'JUMP'], ['Hold: charge a cat leap', 'Space', 'A', 'Hold JUMP'], ['Sprint', 'Shift', 'RT', 'Stick all the way'],
+      ['Lock on: whoever or whatever you look at · again: next one', 'Tab', 'R3', 'Tap it'], ['Let go of the lock', 'Hold Tab', 'Hold R3', 'Tap empty space'], ['Locked on a roof, ledge or car roof: leap onto it', 'Space', 'A', 'JUMP']]],
+    ['Fighting', [['Strike (the locked foe, or toward where you push)', 'F · Click', 'X', 'HIT/USE'], ['Counter when "!" flashes · Dodge', 'C', 'B', 'DODGE'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑', 'LAUNCH'],
+      ['Pounce onto an enemy (the locked one first)', 'V', 'D-Pad ↓', 'POUNCE'], ['Pick up · Throw', 'T', 'D-Pad ←', 'THROW'], ['Aim a throw', 'Right click', 'LT', '—'],
+      ['Knocked down: mash to get back up', 'Space', 'A', 'Tap JUMP fast'], ['An officer has you: run, don\'t stand still', 'W A S D', 'L-Stick', 'Left thumb']]],
+    ['Skating', [['Board on / off (the suit only)', 'R', 'Y', 'BOARD'], ['Ollie (faster or holding Shift = higher)', 'Space', 'A', 'JUMP'], ['In the air: board flip (+ a direction)', 'F', 'X', 'HIT/USE'], ['In the air: backflip / frontflip / 360 spin (pull back / push forward / sideways)', 'Space', 'A', 'JUMP'],
+      ['Lie on your belly (when fast) · again to get up', 'X', '—', 'BELLY'], ['Skitch: grab a vehicle', 'E', 'RB', 'GRAB']]],
+    ['Bicycle & okada', [['Get on your SwiftDrop bicycle (or take an okada)', 'F', 'X', 'HIT/USE'], ['Ride · full speed', 'W A S D · Shift', 'L-Stick · RT', 'Stick · all the way'], ['Brake', 'Space', 'A', 'JUMP'], ['Get off', 'R', 'Y', 'BOARD']]],
+    ['Police', [['Held for the car: get ready', '—', '—', '—'], ['In the police car: mash to kick the door out', 'F · Space', 'X · A', 'Tap JUMP fast'], ['In cuffs, out of sight: hold to slip them', 'F', 'X', 'Hold HIT/USE']]],
+    ['Escape kit', [['Pepper bomb · Ash cloud · Nail plank', '1 · 2 · 3', '—', 'PEPPER · SMOKE'], ['Hang on a danfo (Space: climb onto the roof)', 'E', 'RB', 'GRAB'], ['Ride a NEPA wire (Coach Ayo teaches it)', 'E', 'RB', 'GRAB'], ['Blackout: pull a transformer fuse', 'F', 'X', 'HIT/USE']]],
+    ['The street', [['Interact · buy · talk · hand over a parcel', 'F', 'X', 'HIT/USE'], ['Change into / out of the suit (nobody watching)', 'U', '—', 'SUIT'], ['At home: change clothes at the nail by the door', 'F', 'X', 'HIT/USE'], ['Pocket radio', 'N', 'D-Pad →', 'RADIO'], ['Torch (buy one at E-Centre Mall)', 'L', '—', 'TORCH'], ['Street Sense (hold)', 'Q', 'LB', 'SENSE']]],
   ];
   // the short version, shown the first time and on H
   H.controlsCard = (onDone, first = false) => {
     const wrap = document.createElement('div'); wrap.className = 'overlay ccard';
     const row = (k, t) => `<div><kbd>${k}</kbd><span>${t}</span></div>`;
+    const T = padType === 'touch', k = (kb, tch) => T ? tch : kb;
     wrap.innerHTML = `<div class="cc-box"><div class="cc-k">${first ? 'BEFORE YOU GO OUT' : 'CONTROLS'}</div><h1>HOW TO PLAY</h1>
       <div class="cc-grid">
-        <section><h3>Move</h3>${row('W A S D', 'Move')}${row('Mouse', 'Look around')}${row('Space', 'Jump · climb')}${row('Shift', 'Sprint')}</section>
-        <section><h3>Skate</h3>${row('R', 'Board on / off')}${row('Space', 'Ollie, then Space again to flip')}${row('F', 'Board trick in the air')}${row('X', 'Belly-board (when fast)')}${row('E', 'Grab a car')}</section>
-        <section><h3>Street</h3>${row('F', 'Hit · use · take an okada')}${row('C', 'Dodge · counter')}${row('M', 'Map: pick a place, pick a ride')}${row('U', 'Change into the suit')}${row('1 2 3', 'Pepper · ash cloud · nails')}${row('E', 'Grab a danfo · ride a wire')}</section>
-        <section class="cc-hot"><h3>Menu</h3>${row('Esc', 'Pause (any time)')}${row('H', 'This card')}</section>
+        <section><h3>Move</h3>${row(k('W A S D', 'LEFT THUMB'), 'Move')}${row(k('Mouse', 'DRAG RIGHT'), 'Look around')}${row(k('Space', 'JUMP'), 'Jump · climb · hold for a cat leap')}${row(k('Shift', 'STICK ALL THE WAY'), 'Sprint')}</section>
+        <section><h3>Lock on</h3>${row(k('Tab', 'TAP THEM'), 'Lock on someone or something · again: next')}${row(k('Hold Tab', 'TAP EMPTY'), 'Let go')}${row(k('Space', 'JUMP'), 'Locked on a roof or car roof: leap onto it')}</section>
+        <section><h3>Fight</h3>${row(k('F', 'HIT/USE'), 'Strike (the locked one first)')}${row(k('C', 'DODGE'), 'Dodge · counter the "!"')}${row(k('V', 'POUNCE'), 'Pounce from far')}${row(k('Space', 'JUMP'), 'Knocked down: mash to get up')}</section>
+        <section><h3>Street</h3>${row(k('F', 'HIT/USE'), 'Use · hand over a parcel · get on the bicycle')}${row(k('J', 'JOB'), 'Job sheet · cancel a parcel')}${row(k('M', 'MAP'), 'Map: pick a place, pick a ride')}${row(k('U', 'SUIT'), 'Change into the suit')}${row(k('E', 'GRAB'), 'Grab a car · ride a wire')}</section>
+        <section class="cc-hot"><h3>Menu</h3>${row(k('Esc', '❚❚'), 'Pause (any time)')}${row(k('H', '❚❚ → CONTROLS'), 'Every control')}</section>
       </div>
-      <button class="cc-go">${first ? 'Got it · click to play' : 'Back to the game'}</button><p class="cc-note">The mouse is captured while you play so it can turn the camera. Press <b>Esc</b> to get your cursor back (it pauses the game).</p></div>`;
+      <button class="cc-go">${first ? (T ? 'Got it · tap to play' : 'Got it · click to play') : 'Back to the game'}</button>${T ? '' : '<p class="cc-note">The mouse is captured while you play so it can turn the camera. Press <b>Esc</b> to get your cursor back (it pauses the game).</p>'}</div>`;
     el.overlays.appendChild(wrap);
     const done = () => { wrap.remove(); removeEventListener('keydown', key, true); onDone?.(); };
     const key = (e) => { if (['Enter', 'Escape', 'KeyH', 'Space'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); done(); } };
@@ -520,7 +526,7 @@ export function createHUD(root, world) {
   const keycaps = (k) => k.split(' · ').map(x => `<kbd>${x}</kbd>`).join('<i>or</i>');
   const PSN = { A: '✕', B: '○', X: '□', Y: '△', RB: 'R1', LB: 'L1', RT: 'R2', LT: 'L2', Back: 'Share', Start: 'Options' };
   const padLabel = (k) => padType === 'ps' ? (PSN[k] || k) : k;
-  const controlsPanel = () => `<div class="mm-controls">${CONTROL_GROUPS.map(([g, rows]) => `<section><h3>${g}</h3>${rows.map(([what, kb, pad]) => `<div class="cr"><span>${what}</span><span class="kb">${keycaps(kb)}</span><span class="pad"><kbd class="p">${padLabel(pad)}</kbd></span></div>`).join('')}</section>`).join('')}</div>`;
+  const controlsPanel = () => `<div class="mm-controls"><div class="cr cr-head"><span></span><span class="kb">KEYBOARD</span><span class="pad">GAMEPAD</span><span class="tch">PHONE</span></div>${CONTROL_GROUPS.map(([g, rows]) => `<section><h3>${g}</h3>${rows.map(([what, kb, pad, tch]) => `<div class="cr"><span>${what}</span><span class="kb">${keycaps(kb)}</span><span class="pad"><kbd class="p">${padLabel(pad)}</kbd></span><span class="tch">${tch || '—'}</span></div>`).join('')}</section>`).join('')}</div>`;
   const settingsPanel = (o: any) => `<div class="mm-sound"><span>SOUND</span><button class="mm-btn ${o.sound !== false ? 'hot' : ''}" data-snd="on" data-nav>On</button><button class="mm-btn ${o.sound === false ? 'hot' : ''}" data-snd="off" data-nav>Off</button></div><div class="mm-quality">${Object.entries(o.presets).map(([k, p]: [string, any]) => `<button class="qcard ${k === o.quality ? 'on' : ''}" data-q="${k}" data-nav><b>${k.toUpperCase()}</b><span>${p.label.split(' · ')[1] || ''}</span>
       <ul><li>${p.fps} fps cap</li><li>${p.shadows ? `Shadows ${p.shadowSize}` : 'No shadows'}</li><li>${p.bloom ? 'Glow on' : 'No glow'}</li><li>${p.crowd} people</li></ul></button>`).join('')}</div>
     <p class="mm-note">Resolution, shadows, glow and frame rate change right away. The crowd size and street lights change the next time the game loads. If your laptop runs hot, pick Low.</p>`;

@@ -11,7 +11,7 @@ const YABA_PAINT = ['#e6e2d8', '#cfd8dc', '#d7ccc8', '#f0ead6', '#b0bec5', '#dcd
 const MUSHIN_PAINT = ['#a1887f', '#8d6e63', '#bcaaa4', '#9e8b6e', '#b89b72', '#8a7f6d', '#c2a27c', '#7d6e5d'];
 const PAINT = ['#e8dcc0', '#e6d28a', '#b9d6ae', '#a9c4dc', '#e8b890', '#dcdcd6', '#e0b4bc', '#a3a39a', '#d9c7a0', '#c9d9c0', '#f0e6d0', '#bfb3a0'];
 // the Ojuelegba flyover runs north-south through the middle of block column 4
-export const FLY = { x: 108, half: 7, y: 8, clear: 13 };
+export const FLY = { x: 108, half: 7, y: 8, clear: 13, deck: 150, foot: 210 }; // deck between z = ±deck, ramps down to the ring roads at z = ±foot
 const BRIGHT = ['#d32f2f', '#1976d2', '#fbc02d', '#388e3c', '#f57c00', '#7b1fa2', '#00897b', '#e64a19'];
 
 let world_bad = null;
@@ -731,10 +731,22 @@ export function buildCity(scene, opt: any = {}) {
 
   // ---------- Ojuelegba flyover (the Red Caps live underneath) ----------
   {
-    const F = FLY, x0 = F.x - F.half, x1 = F.x + F.half, za = -HALF - 40, zb = HALF + 40;
+    // The flyover: a deck over the middle of Surulere and a ramp down to the ring road at each end, so it
+    // goes somewhere: up from Aguda Road in the south, down onto the road at the north edge (and back)
+    const F = FLY, x0 = F.x - F.half, x1 = F.x + F.half, za = -F.deck, zb = F.deck, RAMP = F.foot - F.deck;
     B.misc.box(F.half * 2, 0.6, zb - za, { p: [F.x, F.y - 0.3, (za + zb) / 2] }, '#8a857b');
     G.road.face([F.x, F.y + 0.01, (za + zb) / 2], [F.half, 0, 0], [0, 0, -(zb - za) / 2], [0, 1, 0], [0, -zb / 12, 1.17, -za / 12], white);
     S.add(x0, F.y - 0.6, za, x1, F.y, zb, 'deck');
+    for (const sgn of [-1, 1]) { // the ramps: a solid embankment you drive up, road surface on top
+      const foot = sgn * F.foot, top = sgn * F.deck, zc = (foot + top) / 2;
+      B.misc.add(wedge, { p: [F.x, 0, foot], ry: sgn < 0 ? -Math.PI / 2 : Math.PI / 2, s: [RAMP, F.y, F.half * 2] }, '#8a857b');
+      G.road.face([F.x, F.y / 2 + 0.02, zc], [F.half, 0, 0], [0, sgn < 0 ? -F.y / 2 : F.y / 2, -RAMP / 2], [0, 1, 0], [0, -Math.max(foot, top) / 12, 1.17, -Math.min(foot, top) / 12], white);
+      col.ramps.push({ x0, x1, z0: Math.min(foot, top), z1: Math.max(foot, top), axis: 'z', sign: sgn < 0 ? 1 : -1, h: F.y, base: 0 });
+      for (let k = 0; k < 6; k++) { // the embankment underneath, in steps just below the road, so nobody walks under the low end
+        const a = foot + (top - foot) * (k / 6), b = foot + (top - foot) * ((k + 1) / 6);
+        S.add(x0, 0, Math.min(a, b), x1, F.y * (k / 6), Math.max(a, b), 'ramp');
+      }
+    }
     // side barriers with a steel rail (grindable); a gap on the east side where the stair ramp arrives
     const RZ = roadLine(3) + ROAD / 2 + 8, RL = 26; // stair ramp in block (4,3): rises toward +z
     for (const sx of [-1, 1]) {
@@ -756,7 +768,7 @@ export function buildCity(scene, opt: any = {}) {
       B.misc.box(F.half * 2 - 1, 0.8, 1.4, { p: [F.x, F.y - 1, z] }, '#7d786f');
     }
     // under the bridge: a danfo park and hawkers, Ojuelegba's busiest corner
-    for (let z = -HALF + 8; z < HALF - 8; z += 7.5) {
+    for (let z = -F.deck + 8; z < F.deck - 8; z += 7.5) { // only under the deck: the ramps come down to the ground at the ends
       if (isRoad(F.x, z) || isRoad(F.x, z + 4) || isRoad(F.x, z - 4)) continue;
       const bj = Math.floor((z + HALF) / CELL); if (blockType(4, bj) === 'pitch') continue;
       if (R() < 0.6) world.parked.push({ type: 'danfo', x: F.x - 1.6, z, yaw: R() < 0.5 ? 0 : Math.PI });
@@ -783,14 +795,13 @@ export function buildCity(scene, opt: any = {}) {
       B.metal.box(0.08, 0.08, 1.8, { p: [x - sx * 0.9, F.y + 6.9, z], ry: Math.PI / 2 }, '#4a4d50');
       if (R() < 0.75) { B.lamp.box(0.55, 0.14, 0.3, { p: [hx, F.y + 6.8, z], ry: Math.PI / 2 }, '#ffffff'); G.pool.flat(hx - 7, z - 7, hx + 7, z + 7, F.y + 0.06, white, 1, [0, 0, 1, 1]); world.lights.push({ x: hx, y: F.y + 6.6, z }); }
     }
-    // broken-down trucks up on the deck
-    for (const z of [-120, 30, 150]) { B.misc.box(2.4, 2.6, 7, { p: [F.x - 3, F.y + 1.5, z] }, pick(['#6d4c41', '#37474f', '#8d6e63'])); S.add(F.x - 4.2, F.y, z - 3.5, F.x - 1.8, F.y + 2.8, z + 3.5, 'wreck'); }
     // "OJUELEGBA" sign on the side
     world.mapRects.push({ x0, z0: -HALF - 6, x1, z1: HALF + 6, color: '#70758a' });
     // under the bridge: dirt, shacks and fire barrels in every block along it
     world.underBridge = [];
     for (let bj = 0; bj < N; bj++) {
       const r = blockRect(4, bj); if (blockType(4, bj) === 'pitch') continue;
+      if (r.z0 < -F.deck - 1 || r.z1 > F.deck + 1) continue; // the end blocks are under the ramps now
       const u0 = F.x - F.clear + 0.5, u1 = F.x + F.clear - 0.5, v0 = r.z0 + WALK, v1 = r.z1 - WALK;
       G.dirt.flat(u0, v0, u1, v1, CURB + 0.006, color('#4a3f33'), 6);
       world.underBridge.push({ bj, x0: u0, x1: u1, z0: v0, z1: v1, cx: F.x, cz: (v0 + v1) / 2 });
