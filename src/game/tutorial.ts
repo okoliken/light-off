@@ -53,8 +53,12 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
   };
   const dev = (): Dev => input.usingPad ? 'pad' : touch ? 'touch' : 'kb';
   const fresh = () => ({ ev: new Set(), cb, sensed: 0, highUp: false, wasHigh: false, onGround: true, sparDone: false, walked: 0, looked: 0, sprinted: 0, jumped: false, mode: 'foot', speed: 0, ollied: false, flipped: false, wasBoard: false, mapped: false, paused: false });
+  // on a touch screen, the first button a step names lights up (and its row of the pad comes up)
+  const PAD_KEY: Record<string, string> = { BOARD: 'board', GRAB: 'skitch', BELLY: 'prone', SENSE: 'sense', LAUNCH: 'gadget', JUMP: 'jump', POUNCE: 'flash', DODGE: 'roll', 'HIT/USE': 'act', JOB: 'patrolBoard', MAP: 'map', '❚❚': 'pause' };
+  const point = (how: string) => { const m = how.match(/<b>([^<]+)<\/b>/g)?.map(b => PAD_KEY[b.slice(3, -4)]).find(Boolean); touch?.focus?.(m || null); };
   const draw = (tick = false) => {
     const st = list[i];
+    if (touch) point(tick ? '' : st.how.touch);
     el.innerHTML = `<div class="tut-k">${kind === 'night' ? 'THE BOY IN BLACK' : 'FIRST STEPS'} · ${i + 1} OF ${list.length}</div>
       <div class="tut-t">${tick ? '<span class="tut-ok">✓</span>' : ''}${st.title}</div><div class="tut-h">${st.how[dev()]}</div>
       <div class="tut-bar"><i style="width:${(i / list.length) * 100}%"></i></div><div class="tut-s">${touch ? 'Skip: ❚❚ → Skip tutorial' : 'Skip: Esc → Skip tutorial'}</div>`;
@@ -66,7 +70,7 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
   T.jump = (n: number) => { i = n; draw(); }; // for tests
   T.start = (k = 'day') => { kind = k; list = k === 'night' ? NIGHT : STEPS; for (const q in cb) delete cb[q]; spar = []; T.active = true; game.tutorialOn = true; document.body.classList.add('tut-on'); i = 0; s = fresh(); lastYaw = camera.yaw; el.classList.remove('hidden'); draw(); };
   T.stop = (finished = false) => {
-    T.active = false; game.tutorialOn = false; document.body.classList.remove('tut-on'); game.outT = 0; el.classList.add('hidden'); try { localStorage.setItem(kind === 'night' ? NKEY : KEY, '1'); } catch { /* */ }
+    touch?.focus?.(null); T.active = false; game.tutorialOn = false; document.body.classList.remove('tut-on'); game.outT = 0; el.classList.add('hidden'); try { localStorage.setItem(kind === 'night' ? NKEY : KEY, '1'); } catch { /* */ }
     if (finished) game.hud.banner(kind === 'night' ? 'THE BOY IN BLACK' : 'YOU\'RE READY', kind === 'night' ? 'The rooftops are yours. The police will chase the suit on sight: stay quick.' : 'Lagos is yours. Go anywhere: press M for the map.', 'green', 3.5);
   };
   T.event = (e: string) => { if (!T.active) return; if (e === 'map') s.mapped = true; if (e === 'job') s.jobbed = true; if (e === 'pause') s.paused = true; };

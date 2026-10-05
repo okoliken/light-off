@@ -12,15 +12,20 @@ const MAIN: Btn[] = [
   { id: 'roll', label: 'DODGE', key: 'roll', cls: 'c' },
   { id: 'flash', label: 'POUNCE', key: 'flash', cls: 'd' },
 ];
-const SMALL: Btn[] = [
-  { id: 'board', label: 'BOARD', key: 'board' },
-  { id: 'skitch', label: 'GRAB', key: 'skitch' },
-  { id: 'throw', label: 'THROW', key: 'throw' },
-  { id: 'gadget', label: 'LAUNCH', key: 'gadget' },
-  { id: 'prone', label: 'BELLY', key: 'prone' },
-  { id: 'sense', label: 'SENSE', key: 'sense' },
-  { id: 'g1', label: 'PEPPER', key: 'g1' },
-  { id: 'g2', label: 'SMOKE', key: 'g2' },
+// the small buttons come in two sets of four, one row at a time, so they never pile up mid-screen
+const SETS: { name: string; btns: Btn[] }[] = [
+  { name: 'MOVE', btns: [
+    { id: 'board', label: 'BOARD', key: 'board' },
+    { id: 'skitch', label: 'GRAB', key: 'skitch' },
+    { id: 'prone', label: 'BELLY', key: 'prone' },
+    { id: 'sense', label: 'SENSE', key: 'sense' },
+  ] },
+  { name: 'FIGHT', btns: [
+    { id: 'gadget', label: 'LAUNCH', key: 'gadget' },
+    { id: 'throw', label: 'THROW', key: 'throw' },
+    { id: 'g1', label: 'PEPPER', key: 'g1' },
+    { id: 'g2', label: 'SMOKE', key: 'g2' },
+  ] },
 ];
 const TOP: Btn[] = [
   { id: 'map', label: 'MAP', key: 'map' },
@@ -39,7 +44,7 @@ export function createTouchPad(root: HTMLElement) {
   const btn = (b: Btn) => `<button class="tb ${b.cls || ''}" data-k="${b.key}">${b.label}</button>`;
   el.innerHTML = `<div class="tp-stick"><div class="tp-knob"></div></div>
     <div class="tp-top">${TOP.map(btn).join('')}</div>
-    <div class="tp-small">${SMALL.map(btn).join('')}</div>
+    <div class="tp-small">${SETS.map((g, n) => `<div class="tp-set${n ? '' : ' on'}">${g.btns.map(btn).join('')}</div>`).join('')}<button class="tb tp-swap">${SETS[1].name}<i>⇄</i></button></div>
     <div class="tp-main">${MAIN.map(btn).join('')}</div>
     <div class="tp-rotate">Turn your phone sideways to play</div>`;
   root.appendChild(el);
@@ -55,11 +60,17 @@ export function createTouchPad(root: HTMLElement) {
     b.addEventListener('touchstart', down, { passive: false }); b.addEventListener('touchend', up); b.addEventListener('touchcancel', up);
   });
 
+  // the swap button flips the small row between its two sets
+  const sets = Array.from(el.querySelectorAll<HTMLElement>('.tp-set')), swap = el.querySelector<HTMLElement>('.tp-swap')!;
+  let setN = 0;
+  const showSet = (n: number) => { setN = n; sets.forEach((g, j) => g.classList.toggle('on', j === n)); swap.innerHTML = `${SETS[(n + 1) % SETS.length].name}<i>⇄</i>`; };
+  swap.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); showSet((setN + 1) % SETS.length); }, { passive: false });
+
   // the stick appears under the left thumb; the right side of the screen is a look pad
   const onStart = (e: TouchEvent) => {
     if (!st.active) return;
     for (const t of Array.from(e.changedTouches)) {
-      if ((t.target as HTMLElement).closest?.('[data-k]')) continue;
+      if ((t.target as HTMLElement).closest?.('[data-k], .tp-swap')) continue;
       if (t.clientX < innerWidth * 0.42 && stickId === null) {
         stickId = t.identifier; sx = t.clientX; sy = t.clientY;
         stick.style.left = sx + 'px'; stick.style.top = sy + 'px'; stick.classList.add('on');
@@ -93,6 +104,14 @@ export function createTouchPad(root: HTMLElement) {
   return {
     state: st,
     show(on: boolean) { st.active = on; el.classList.toggle('on', on); if (!on) { st.move.x = st.move.y = 0; st.held = {}; } },
+    // bring up the set that has this button and make it pulse (the tutorial points at buttons this way)
+    focus(key: string | null) {
+      el.querySelectorAll('.tb.hint').forEach(b => b.classList.remove('hint'));
+      if (!key) return;
+      const n = SETS.findIndex(g => g.btns.some(b => b.key === key));
+      if (n >= 0 && n !== setN) showSet(n);
+      el.querySelector(`[data-k="${key}"]`)?.classList.add('hint');
+    },
     // read and clear the one-frame parts
     take() { const out = { move: { ...st.move }, look: { ...st.look }, held: { ...st.held }, pressed: st.pressed }; st.pressed = {}; st.look.dx = st.look.dy = 0; return out; },
   };
