@@ -513,7 +513,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05070b; col
 .js-top { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
 .js-top div { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; flex: 1; min-width: 150px; }
 .js-top b { display: block; font: 400 26px Anton, Impact, sans-serif; color: #ffd54f; } .js-top i { font: 800 10px Inter, sans-serif; letter-spacing: 0.15em; color: #8d897f; font-style: normal; }
-.cc-grid .js-o { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 6px 0; }
+.cc-grid .js-o { display: grid; grid-template-columns: 22px 1fr auto auto; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 6px 0; }
+.js-pass { display: flex; flex-direction: column; align-items: center; gap: 1px; background: transparent; color: #f2f0ea; border: 1px solid rgba(255,255,255,0.25); font: 800 11px Inter, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 10px; cursor: pointer; min-width: 64px; }
+.js-pass small { font-size: 9px; color: #ff8a80; letter-spacing: 0.02em; }
+.js-pass:hover, .js-pass:active { background: #ffd54f; color: #111; border-color: #ffd54f; } .js-pass:hover small { color: #7a1010; }
+.js-o.passed em, .js-o.passed b { color: #90a4ae; }
 .js-o span i { display: block; font-style: normal; font-size: 11px; color: #8d897f; } .js-o em { font: 800 10px Inter, sans-serif; font-style: normal; letter-spacing: 0.1em; color: #ffd54f; }
 .js-o.done em, .js-o.done b { color: #69f0ae; } .js-o.late em { color: #ffab40; } .js-o.failed em, .js-o.failed b { color: #ff5252; }
 .cc-grid .js-r { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; } .js-r.me { color: #ffd54f; font-weight: 700; } .js-r em { font-style: normal; color: #aaa; font-size: 12px; }

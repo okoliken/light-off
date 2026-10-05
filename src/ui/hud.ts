@@ -740,19 +740,27 @@ export function createHUD(root, world) {
   // J: the SwiftDrop job sheet. Today's parcels, reviews, the weekly race against the other riders, rent
   H.jobSheet = (j, onClose) => {
     const wrap = document.createElement('div'); wrap.className = 'overlay ccard';
-    const ord = j.orders.length ? j.orders.map(o => `<div class="js-o ${o.status}"><b>${o.status === 'pending' ? (o.late ? '⚠' : '○') : o.status === 'failed' || o.status === 'reassigned' ? '✕' : '✓'}</b><span><b>${o.who}</b> · ${o.item}<i>${o.place.name}${o.place.area ? ' · ' + o.place.area : ''}</i></span><em>${o.status === 'pending' ? (o.late ? 'LATE' : 'by ' + o.dueStr) : o.status === 'reassigned' ? 'GIVEN TO ' + (o.by || 'ANOTHER RIDER').toUpperCase() : o.status.toUpperCase()}</em></div>`).join('')
-      : `<p class="cc-note">${j.employed ? (j.clockedIn ? '' : 'No parcels yet. Clock in at the SwiftDrop office (Ojuelegba) before noon.') : 'You don\'t work at SwiftDrop right now.'}</p>`;
-    wrap.innerHTML = `<div class="cc-box"><div class="cc-k">SWIFTDROP DISPATCH · DAY ${j.day}</div><h1>JOB SHEET</h1>
+    const caseFile = j.case;
+    const icon = (o) => o.status === 'pending' ? (o.late ? '⚠' : '○') : o.status === 'passed' ? '↷' : o.status === 'failed' || o.status === 'reassigned' ? '✕' : '✓';
+    const tag = (o) => o.status === 'pending' ? (o.late ? 'LATE' : 'by ' + o.dueStr) : o.status === 'reassigned' ? 'GIVEN TO ' + (o.by || 'ANOTHER RIDER').toUpperCase() : o.status === 'passed' ? `PASSED TO ${(o.by || 'A RIDER').toUpperCase()} · −₦${(o.lost || 0).toLocaleString()}` : o.status.toUpperCase();
+    const paint = (j) => {
+      const ord = j.orders.length ? j.orders.map(o => `<div class="js-o ${o.status}"><b>${icon(o)}</b><span><b>${o.who}</b> · ${o.item}<i>${o.place.name}${o.place.area ? ' · ' + o.place.area : ''}${o.status === 'pending' ? ` · ${o.km < 1 ? Math.round(o.km * 1000) + ' m' : o.km.toFixed(1) + ' km'} away` : ''}</i></span><em>${tag(o)}</em>${o.canPass ? `<button class="js-pass" data-pass="${o.id}" title="Give it to the rider nearest the address. You lose ₦${j.payEach.toLocaleString()}.">Pass<small>−₦${j.payEach.toLocaleString()}</small></button>` : '<i></i>'}</div>`).join('')
+        : `<p class="cc-note">${j.employed ? (j.clockedIn ? '' : 'No parcels yet. Clock in at the SwiftDrop office (Ojuelegba) before noon.') : 'You don\'t work at SwiftDrop right now.'}</p>`;
+      wrap.innerHTML = `<div class="cc-box"><div class="cc-k">SWIFTDROP DISPATCH · DAY ${j.day}</div><h1>JOB SHEET</h1>
       <div class="js-top"><div><b>${j.stars}</b><i>RATING ${j.rating.toFixed(1)}</i></div><div><b>₦${j.weekEarned.toLocaleString()}</b><i>THIS WEEK · ${j.unpaid ? `₦${j.unpaid.toLocaleString()} AT CLOCK-OUT` : 'PAID DAILY'}</i></div><div><b>₦${j.rent.toLocaleString()}</b><i>RENT DUE DAY ${j.rentDue}</i></div></div>
-      <div class="cc-grid"><section style="grid-column: span 2"><h3>Today's parcels</h3>${ord}</section>
+      <div class="cc-grid"><section style="grid-column: span 2"><h3>Today's parcels</h3>${ord}${j.orders.some(o => o.canPass) ? '<p class="cc-note">Too far? <b>Pass</b> gives a parcel to the SwiftDrop rider nearest the address. No bad review, but you lose its pay.</p>' : ''}</section>
       <section><h3>Riders this week</h3>${j.rivals.map((r, k) => `<div class="js-r ${r.me ? 'me' : ''}"><b>${k + 1}</b><span>${r.name}</span><em>${r.week} · ★${r.rating.toFixed(1)}</em></div>`).join('')}</section>
-      <section style="grid-column: 1 / -1"><h3>Case file · ${j.case?.chapter || ''}</h3>${j.case?.leads.length ? j.case.leads.map(l => `<div class="js-v"><span>🗂 ${l}</span></div>`).join('') : '<p class="cc-note">No leads yet. Keep your eyes open: the men in black are everywhere.</p>'}</section>
+      <section style="grid-column: 1 / -1"><h3>Case file · ${caseFile?.chapter || ''}</h3>${caseFile?.leads.length ? caseFile.leads.map(l => `<div class="js-v"><span>🗂 ${l}</span></div>`).join('') : '<p class="cc-note">No leads yet. Keep your eyes open: the men in black are everywhere.</p>'}</section>
       <section><h3>Latest reviews</h3>${j.reviews.length ? j.reviews.map(r => `<div class="js-v"><b>${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</b><span>${r.who}: "${r.text}"</span></div>`).join('') : '<p class="cc-note">No reviews yet.</p>'}</section></div>
       <button class="cc-go">Back to work</button></div>`;
+      wrap.querySelector<HTMLElement>('.cc-go').onclick = done;
+      wrap.querySelectorAll<HTMLElement>('[data-pass]').forEach(btn => btn.onclick = () => paint(j.pass(+btn.dataset.pass)));
+    };
     el.overlays.appendChild(wrap);
     const done = () => { wrap.remove(); removeEventListener('keydown', key, true); onClose?.(); };
     const key = (e) => { if (['Escape', 'KeyJ', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); done(); } };
-    addEventListener('keydown', key, true); wrap.querySelector<HTMLElement>('.cc-go').onclick = done;
+    addEventListener('keydown', key, true);
+    paint(j);
   };
   // first arrest: the game stops and explains the way out
   H.arrestCard = (onDone) => {

@@ -138,6 +138,19 @@ export function createJob(game) {
     }
     return false;
   };
+  // turning a parcel down: it goes to whichever SwiftDrop rider is nearest the address. The customer
+  // still gets it on time, so no bad review, but the pay goes with it
+  J.pass = (id) => {
+    const o = J.orders.find(q => q.id === id);
+    if (!J.clockedIn || !o || o.status !== 'pending' || L.clock > o.due) return false;
+    const by = riders.map(r => ({ r, d: Math.hypot(r.x - o.place.x, r.z - o.place.z) })).sort((a, b) => a.d - b.d)[0];
+    const name = by ? by.r.name : pick(RIVALS);
+    o.status = 'passed'; o.by = name; o.lost = PAY_ON_TIME;
+    const rv = J.rivals.find(q => q.name === name); if (rv) rv.week++;
+    hud.say('Mr Tunde (phone)', pick([`Okay. ${name} dey near ${o.place.name}, he go carry am. That one no go enter your pay o.`, `${name} go take am. Na your money you dash am.`, `Fine. ${name} will do it. Don't make it a habit.`]), 4);
+    hud.toast(`<b>${o.item}</b> for ${o.who} passed to <b>${name}</b> · <span style="color:#ff8a80">−₦${PAY_ON_TIME.toLocaleString()} from today's pay</span>`, 'blue');
+    routeNext(); game.save(); return true;
+  };
   // the weekly table with the other riders starts again (the money itself is paid every day)
   function newWeek() { J.weekEarned = 0; J.weekDone = 0; J.payDay = L.night + 7; for (const r of J.rivals) r.week = 0; }
   // the day's pay: in Mr Tunde's hand at the office, or by transfer when the shift runs out on the road
@@ -154,7 +167,8 @@ export function createJob(game) {
     J.clockedIn = false; J.shiftOver = true; J.daysWorked++;
     for (const r of J.rivals) { const d = 6 + Math.floor(Math.random() * 7); r.week += d; r.rating = Math.max(3, Math.min(5, r.rating + (Math.random() - 0.45) * 0.2)); }
     const done = J.orders.filter(o => o.status === 'done').length, late = J.orders.filter(o => o.status === 'late').length; missed += J.orders.filter(o => o.status === 'reassigned').length;
-    hud.banner(timeUp ? 'SHIFT OVER' : 'CLOCKED OUT', `${done} on time · ${late} late · ${missed} never delivered · rating ${J.rating().toFixed(1)}`, missed || late > done ? 'red' : 'green', 4.5);
+    const passed = J.orders.filter(o => o.status === 'passed').length;
+    hud.banner(timeUp ? 'SHIFT OVER' : 'CLOCKED OUT', `${done} on time · ${late} late · ${missed} never delivered${passed ? ` · ${passed} passed on (−₦${(passed * PAY_ON_TIME).toLocaleString()})` : ''} · rating ${J.rating().toFixed(1)}`, missed || late > done ? 'red' : 'green', 4.5);
     payOut(atOffice);
     if (J.employed) setTimeout(() => hud.toast('Off duty. At home you can <b>change out of the uniform</b> (your clothes hang on the nail by the door).', 'blue'), 5200);
     if ((J.reviews.length >= 6 && J.rating() < 2.8) || J.strikes >= 3) fire(J.strikes >= 3 ? 'You keep not showing up.' : 'Too many complaints.');
@@ -234,7 +248,8 @@ export function createJob(game) {
     if (!J.employed && L.night >= J.rehireDay) MM.push({ x: office.x, z: office.z, color: '#ff9100' });
     for (const o of pending()) { MM.push({ x: o.place.x, z: o.place.z, color: L.clock > o.due ? '#ff5252' : '#ffab40' }); if (o === next()) M.push({ x: o.place.x, y: 3, z: o.place.z, kind: 'deliver', label: `${o.who.toUpperCase()} · ${dstr(o.place.x, o.place.z)}` }); }
   };
-  J.sheet = () => ({ rating: J.rating(), stars: stars(J.rating()), employed: J.employed, clockedIn: J.clockedIn, orders: J.orders.map(o => ({ ...o, dueStr: fmt(o.due), late: L.clock > o.due })), reviews: J.reviews.slice(-6).reverse(),
+  J.sheet = () => ({ rating: J.rating(), stars: stars(J.rating()), employed: J.employed, clockedIn: J.clockedIn, orders: J.orders.map(o => ({ ...o, dueStr: fmt(o.due), late: L.clock > o.due, km: Math.hypot(o.place.x - player.pos.x, o.place.z - player.pos.z) / 1000, canPass: J.clockedIn && o.status === 'pending' && L.clock <= o.due })),
+    pass: (id) => { J.pass(id); return J.sheet(); }, payEach: PAY_ON_TIME, reviews: J.reviews.slice(-6).reverse(),
     weekEarned: J.weekEarned, weekDone: J.weekDone, payDay: J.payDay, unpaid: J.unpaid, rentDue: J.rentDue, rent: RENT + J.rentDebt, rivals: J.rivals.map(r => ({ ...r })).concat([{ name: 'Bolaji (you)', week: J.weekDone, rating: J.rating(), me: true }]).sort((a, b) => b.week - a.week), day: L.night });
   J.officePlace = () => ({ name: office.name, x: office.x, z: office.z, kind: 'place' });
   // ---- the other SwiftDrop riders, out on their bicycles all day ----
