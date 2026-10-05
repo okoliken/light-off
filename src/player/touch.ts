@@ -34,6 +34,7 @@ const TOP: Btn[] = [
   { id: 'change', label: 'SUIT', key: 'change' },
   { id: 'torch', label: 'TORCH', key: 'torch' },
   { id: 'pause', label: '❚❚', key: 'pause' },
+  { id: 'unlock', label: '✕ LOCK', key: 'unlock', cls: 'unlock' },
 ];
 
 export const isTouchDevice = () => matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -113,6 +114,7 @@ export function createTouchPad(root: HTMLElement) {
       if (n >= 0 && n !== setN) showSet(n);
       el.querySelector(`[data-k="${key}"]`)?.classList.add('hint');
     },
+    setLocked(on: boolean) { el.classList.toggle('locked', on); },
     // read and clear the one-frame parts
     take() { const out = { move: { ...st.move }, look: { ...st.look }, held: { ...st.held }, pressed: st.pressed, tap: st.tap }; st.pressed = {}; st.tap = null; st.look.dx = st.look.dy = 0; return out; },
   };

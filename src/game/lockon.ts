@@ -49,9 +49,11 @@ export function createLockOn(game) {
   }
   const same = (a, b) => a && b && (a.ref ? a.ref === b.ref : a.key === b.key);
 
+  L.seen = new Set();
   function lock(c) {
-    L.target = c;
-    if (game.time - L.toldT > 120) { L.toldT = game.time; game.hud.toast(game.input?.touch?.state.active ? '<b>Locked on.</b> Tap someone else to switch, tap empty space to let go.' : '<b>Locked on.</b> <span class="key">TAB</span> next target · hold <span class="key">TAB</span> to let go. Locked on a roof or ledge, <span class="key">SPACE</span> leaps to it.', 'blue'); }
+    if (!L.target) L.seen.clear();
+    L.target = c; L.seen.add(c.ref || c.key);
+    if (game.time - L.toldT > 120) { L.toldT = game.time; game.hud.toast(game.input?.touch?.state.active ? '<b>Locked on.</b> Tap someone else to switch. <b>✕ LOCK</b> (top) or running away lets go.' : '<b>Locked on.</b> <span class="key">TAB</span> next target (after the last: off) · hold <span class="key">TAB</span> or run away to let go. Locked on a roof or ledge, <span class="key">SPACE</span> leaps to it.', 'blue'); }
   }
   L.release = () => { L.target = null; };
   // Tab: lock what he's looking at, or step to the next one of the same kind, left to right
@@ -61,20 +63,23 @@ export function createLockOn(game) {
     if (!L.target) { all.sort((a, b) => a.s - b.s); lock(all[0].c); return; }
     const p = P(), kind = L.target.kind, pool = all.filter(o => o.c.kind === kind || (kind === 'person' && o.c.kind === 'foe') || (kind === 'foe' && o.c.kind === 'person'));
     const list = (pool.length ? pool : all).map(o => { const q = posOf(o.c); return { c: o.c, a: wrap(Math.atan2(q.x - p.x, q.z - p.z) - camera.yaw) }; }).sort((a, b) => b.a - a.a);
-    const i = list.findIndex(o => same(o.c, L.target));
-    lock(list[(i + 1) % list.length].c);
+    // left to right from the current one, each once; when every one has had a turn, off
+    const i = list.findIndex(o => same(o.c, L.target)), idOf = (c) => c.ref || c.key;
+    for (let k = 1; k <= list.length; k++) { const o = list[(i + k) % list.length]; if (!L.seen.has(idOf(o.c))) { lock(o.c); return; } }
+    L.release(); game.hud.popup('LOCK OFF');
   };
   // a tap on the screen (phones): lock whatever is under the finger, or let go
   L.tapAt = (sx, sy) => {
-    const cam = camera.cam, W = innerWidth, H = innerHeight;
-    let best = null, bd = 70;
+    const cam = camera.cam, W = innerWidth, H = innerHeight, locked = !!L.target;
+    let best = null, bd = Infinity;
     for (const c of candidates()) {
+      if (locked && c.kind === 'place') continue; // already locked: a tap only switches to another person, anything else lets go
       const q = posOf(c); _v.set(q.x, q.y + (c.kind === 'place' ? 0.2 : 1.1), q.z).project(cam);
       if (_v.z > 1) continue;
       const d = Math.hypot((_v.x * 0.5 + 0.5) * W - sx, (-_v.y * 0.5 + 0.5) * H - sy);
-      if (d < bd && Math.hypot(q.x - P().x, q.z - P().z) < 30) { bd = d; best = c; }
+      if (d < (c.kind === 'place' ? 40 : 70) && d < bd && Math.hypot(q.x - P().x, q.z - P().z) < 30) { bd = d; best = c; }
     }
-    if (!best || same(best, L.target)) L.release(); else lock(best);
+    if (!best || same(best, L.target)) { if (locked) { L.release(); game.hud.popup('LOCK OFF'); } } else lock(best);
   };
 
   // a leap that lands on the locked place: up and over, or down onto it
@@ -96,16 +101,24 @@ export function createLockOn(game) {
       else { L.down = false; L.next(); }
     }
     if (input.pressed.lockTap) L.tapAt(input.pressed.lockTap.x, input.pressed.lockTap.y);
+    if (input.pressed.unlock && L.target) { L.release(); game.hud.popup('LOCK OFF'); }
+    let pull = true;
     const c = L.target;
-    if (c) { // gone, down or out of reach: in a fight, slide on to the next one; otherwise let go
-      const q = posOf(c), d = Math.hypot(q.x - P().x, q.z - P().z);
-      if (!aliveOf(c) || d > 40 || (c.ref?.grounded && c.ref.state === 'ko')) {
-        const next = c.kind === 'foe' ? candidates().filter(o => o.kind === 'foe' && o.engaged).map(o => ({ o, d: Math.hypot(posOf(o).x - P().x, posOf(o).z - P().z) })).sort((a, b) => a.d - b.d)[0] : null;
-        L.target = next && next.d < 20 ? next.o : null;
+    if (c) {
+      const q = posOf(c), dx = q.x - P().x, dz = q.z - P().z, d = Math.hypot(dx, dz);
+      // running away from it: he's done with it. Don't fight him for the camera, and let go soon after
+      const hs = Math.hypot(player.vel.x, player.vel.z), off = hs > 3.5 ? Math.abs(wrap(Math.atan2(dx, dz) - Math.atan2(player.vel.x, player.vel.z))) : 0;
+      L.awayT = off > 1.9 ? (L.awayT || 0) + dt : 0; if (off > 1.6) pull = false;
+      const tooFar = d > (c.kind === 'foe' ? 26 : 22);
+      if (L.awayT > 0.7 || tooFar || (c.kind === 'place' && player.hurtT < 0.05)) { L.release(); game.hud.popup('LOCK OFF'); }
+      else if (!aliveOf(c) || (c.ref?.grounded && c.ref.state === 'ko')) { // down or gone: in a fight, the next one in front of him; otherwise let go
+        const next = c.kind === 'foe' ? candidates().filter(o => o.kind === 'foe' && o.engaged).map(o => { const p2 = posOf(o); return { o, d: Math.hypot(p2.x - P().x, p2.z - P().z), a: Math.abs(wrap(Math.atan2(p2.x - P().x, p2.z - P().z) - camera.yaw)) }; }).filter(o => o.a < 1.6 && o.d < 15).sort((a, b) => a.d - b.d)[0] : null;
+        L.target = next ? next.o : null;
       }
     }
     player.lockLeap = L.leapVel(); // the jump reads this
-    camera.lockOn = L.target ? posOf(L.target) : null;
+    camera.lockOn = L.target && pull ? posOf(L.target) : null;
+    game.input?.touch?.setLocked?.(!!L.target); // phones: the ✕ LOCK button shows while locked
   };
   L.debug = () => candidates().map(c => { const p = P(), q = posOf(c); return { kind: c.kind, name: c.name, y: +q.y.toFixed(2), s: +score(c).toFixed(2), ang: +Math.abs(wrap(Math.atan2(q.x - p.x, q.z - p.z) - camera.yaw)).toFixed(2), d: +Math.hypot(q.x - p.x, q.z - p.z).toFixed(1), los: !col.blocked(p.x, p.y + 1.6, p.z, q.x, q.y + 0.4, q.z, 0.8) }; }); // for tests
   // the foe he's locked on, for combat

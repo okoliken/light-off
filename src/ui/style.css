@@ -671,3 +671,10 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
   .cc-grid kbd { min-width: 0; font-size: 9px; padding: 2px 5px; }
   .cc-go { margin-top: 8px; font-size: 16px; padding: 7px 16px; }
 }
+
+/* phones: the unlock button only while locked on something */
+.tpad .tb.unlock { display: none; border-color: #ff5a4e; color: #ff8a80; }
+.tpad.locked .tb.unlock { display: flex; }
+/* menus over the game (pause, map, job sheet, cards): the struggle card and lock reticle wait underneath */
+#hud:has(.overlay) .strug, #hud:has(.mm) .strug, #hud:has(.bigmap) .strug, #hud:has(.ccard) .strug { display: none !important; }
+#hud:has(.overlay) .marker.lock, #hud:has(.mm) .marker.lock { display: none !important; }
