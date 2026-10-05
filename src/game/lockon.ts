@@ -23,9 +23,9 @@ export function createLockOn(game) {
   function candidates() {
     const out: any[] = [], p = P();
     for (const t of game.thugs) if (t.alive && !t.hidden) out.push({ kind: 'foe', ref: t, name: t.variant === 'general' ? 'THE GENERAL' : t.gboy ? 'BOY IN BLACK' : 'RED CAP', engaged: t.engaged });
-    for (const g of game.gunmen) if (g.alive) { const cop = g.role === 'police'; out.push({ kind: cop && game.heat <= 0 ? 'person' : 'foe', ref: g, name: g.soldier ? 'SOLDIER' : cop ? 'POLICE' : g.gboy ? 'BOY IN BLACK' : 'GUNMAN' }); }
-    for (const c of game.civilians) if (!c.gone) out.push({ kind: 'person', ref: c, name: (c.name || 'SOMEONE').toUpperCase() });
-    for (const v of game.traffic?.vehicles || []) if (v.spec?.platform && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 26) out.push({ kind: 'place', ref: v, name: `${v.spec.label.toUpperCase()} ROOF` });
+    // only people he'd fight: the General's boys, Red Caps, gunmen, and the police or army when they're after him
+    for (const g of game.gunmen) if (g.alive) { const law = g.role === 'police'; if (law && (game.heat <= 0 || g.foe)) continue; out.push({ kind: 'foe', ref: g, name: g.soldier ? 'SOLDIER' : law ? 'POLICE' : g.gboy ? 'BOY IN BLACK' : 'GUNMAN' }); }
+    for (const v of game.traffic?.vehicles || []) if (v.spec?.platform && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 18) out.push({ kind: 'place', ref: v, name: `${v.spec.label.toUpperCase()} ROOF` });
     // rooftops and ledges: the near edge of every flat top in reach he could stand on
     for (const s of col.solids.query(p.x - 22, p.z - 22, p.x + 22, p.z + 22, _s)) {
       const w = s.maxx - s.minx, d = s.maxz - s.minz;
@@ -35,18 +35,17 @@ export function createLockOn(game) {
       if (col.solids.query(x - 0.4, z - 0.4, x + 0.4, z + 0.4, _o).some(o => o !== s && o.maxy > s.maxy + 0.3 && o.miny < s.maxy + 1.9)) continue; // a taller block stands on this spot: no room
       out.push({ kind: 'place', at: { x, y: s.maxy, z }, name: s.maxy - p.y > 2 ? 'ROOFTOP' : s.maxy - p.y < -2 ? 'DROP' : 'LEDGE', key: s });
     }
-    return out;
+    return out.filter(c => c.kind !== 'place' || leapTo(posOf(c))); // places: only the ones he can actually escape to
   }
   // how good a pick it is, looking where the camera looks: lower is better
   function score(c) {
     const p = P(), q = posOf(c), dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
     const range = c.kind === 'foe' ? 30 : c.kind === 'person' ? 22 : 20;
     if (d > range || d < (c.kind === 'place' ? 1.5 : 0.8)) return Infinity;
-    const ang = Math.abs(wrap(Math.atan2(dx, dz) - camera.yaw));
-    if (ang > 1.05) return Infinity;
+    const ang = Math.abs(wrap(Math.atan2(dx, dz) - camera.yaw)), behind = ang > 1.05 ? 12 : 0; // out of view still counts, after everything in view
     if (c.kind === 'place' && col.blocked(p.x, p.y + 1.6, p.z, q.x, q.y + 0.4, q.z, 0.8)) return Infinity;
     const threat = c.kind === 'foe' ? (c.ref?.state === 'windup' || c.ref?.state === 'aim' ? -3 : 0) + (c.engaged ? -4 : -1) : 0; // whoever is about to hit him, first
-    return ang * 9 + d * 0.22 + (c.kind === 'foe' ? threat : c.kind === 'person' ? 1.5 : leapTo(q) ? 2.5 : 25); // places he can't reach still lock, but last
+    return behind + Math.min(ang, 1.05) * 9 + d * 0.22 + (c.kind === 'foe' ? threat : 2.5);
   }
   const same = (a, b) => a && b && (a.ref ? a.ref === b.ref : a.key === b.key);
 
@@ -59,14 +58,24 @@ export function createLockOn(game) {
   L.release = () => { L.target = null; };
   // Tab: lock what he's looking at, or step to the next one of the same kind, left to right
   L.next = () => {
-    const all = candidates().map(c => ({ c, s: score(c) })).filter(o => o.s < Infinity);
+    const scored = candidates().map(c => ({ c, s: score(c) })).filter(o => o.s < Infinity).sort((a, b) => a.s - b.s);
+    // every fight-able person, but only the 4 best escape spots, at least 4 m apart (not every ledge in Lagos)
+    const spots: any[] = [];
+    for (const o of scored) if (o.c.kind === 'place' && spots.length < 4 && spots.every(q => { const a = posOf(q.c), b = posOf(o.c); return Math.hypot(a.x - b.x, a.z - b.z) > 4; })) spots.push(o);
+    const all = [...scored.filter(o => o.c.kind !== 'place'), ...spots];
     if (!all.length) { L.release(); return; }
-    if (!L.target) { all.sort((a, b) => a.s - b.s); lock(all[0].c); return; }
-    const p = P(), kind = L.target.kind, pool = all.filter(o => o.c.kind === kind || (kind === 'person' && o.c.kind === 'foe') || (kind === 'foe' && o.c.kind === 'person'));
-    const list = (pool.length ? pool : all).map(o => { const q = posOf(o.c); return { c: o.c, a: wrap(Math.atan2(q.x - p.x, q.z - p.z) - camera.yaw) }; }).sort((a, b) => b.a - a.a);
-    // left to right from the current one, each once; when every one has had a turn, off
-    const i = list.findIndex(o => same(o.c, L.target)), idOf = (c) => c.ref || c.key;
-    for (let k = 1; k <= list.length; k++) { const o = list[(i + k) % list.length]; if (!L.seen.has(idOf(o.c))) { lock(o.c); return; } }
+    if (!L.target) { // the first press: a threat within 15 m always beats a rooftop, wherever it is; otherwise the best thing in view
+      const near = all.filter(o => o.c.kind === 'foe' && Math.hypot(posOf(o.c).x - P().x, posOf(o.c).z - P().z) < 15).sort((a, b) => a.s - b.s);
+      lock((near[0] || all.sort((a, b) => a.s - b.s)[0]).c); return;
+    }
+    // the order Tab goes through: people to fight left to right, then places to escape to left to right, then off
+    const p = P(), ang = (c) => { const q = posOf(c); return wrap(Math.atan2(q.x - p.x, q.z - p.z) - camera.yaw); };
+    const byAng = (k) => all.filter(o => (o.c.kind === 'place') === k).map(o => ({ c: o.c, a: ang(o.c) })).sort((a, b) => b.a - a.a);
+    const people = byAng(false), places = byAng(true), onPlace = L.target.kind === 'place';
+    const rot = (l) => { const i = l.findIndex(o => same(o.c, L.target)); return i < 0 ? l : [...l.slice(i + 1), ...l.slice(0, i)]; };
+    // from where he is: the rest of this kind first (left to right), then the other kind; each once, then off
+    const order = onPlace ? [...rot(places), ...people] : [...rot(people), ...places], idOf = (c) => c.ref || c.key;
+    for (const o of order) if (!L.seen.has(idOf(o.c))) { lock(o.c); return; }
     L.release(); game.hud.popup('LOCK OFF');
   };
   // a flick of the camera while locked: the next target on that side (closest in angle)
@@ -109,7 +118,7 @@ export function createLockOn(game) {
 
   L.update = (dt, input) => {
     // a tap (even one that starts and ends in the same frame) locks / switches; holding lets go
-    if (input.pressed.lock) { L.down = true; L.holdT = 0; }
+    if (input.pressed.lock) { L.down = true; L.holdT = 0; if (!L.target) { L.next(); L.down = false; if (!L.target) game.hud.popup('NOTHING TO LOCK ON'); } } // nothing locked: lock now, on the press
     if (L.down) {
       if (input.held.lock) { L.holdT += dt; if (L.holdT > 0.45) { L.down = false; if (L.target) { L.release(); game.hud.popup('LOCK OFF'); } } }
       else { L.down = false; L.next(); }
