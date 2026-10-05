@@ -72,9 +72,11 @@ export function createPlayer(scene, world, traffic) {
   }
   p.getUp = (hp) => { p.mode = 'getup'; p.getupT = 0; p.hp = Math.min(p.cap(), hp); p.critical = false; emit('getup'); };
   function startBail(up = 3) {
+    // only a fall off the board sends the board flying (not a crash off the bicycle or okada)
+    const onBoard = p.mode === 'board' || p.mode === 'grind' || (p.mode === 'skitch' && !p.noBoard);
     p.mode = 'bail'; p.bailT = 0; p.grind = p.skitch = p.trick = null; p.riding = null; p.airTricks = [];
     p.vel.y = Math.max(p.vel.y, up); p.onGround = false;
-    p.boardFly = { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, vx: p.vel.x * 0.6, vy: 4, vz: p.vel.z * 0.6, spin: 0 };
+    p.boardFly = onBoard ? { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, vx: p.vel.x * 0.6, vy: 4, vz: p.vel.z * 0.6, spin: 0 } : null;
     emit('bail');
   }
 
@@ -598,7 +600,7 @@ export function createPlayer(scene, world, traffic) {
   })();
   p.skills = {}; // taught by Coach Ayo: wire, wallrun2, leap2, roll, smoke2
   p.bike = null; // { x, z, yaw } where the bike stands when he's not on it
-  p.bikeMesh = bikeMesh;
+  p.bikeMesh = bikeMesh; p.boardMesh = board;
   // his SwiftDrop bicycle: a sturdy black roadster with a rack, given out with the job
   const cycleMesh = (() => {
     const g = new THREE.Group(), m = (c, mt = 0.4) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: mt });
@@ -744,7 +746,7 @@ export function createPlayer(scene, world, traffic) {
   function pose(dt, time) {
     const hs = Math.hypot(p.vel.x, p.vel.z);
     let rate = 14, bodyYaw = p.yaw, lift = 0;
-    const onBoard = p.mode === 'board' || p.mode === 'grind' || p.mode === 'skitch';
+    const onBoard = p.mode === 'board' || p.mode === 'grind' || (p.mode === 'skitch' && !p.noBoard); // by day he hangs on by hand
     switch (p.mode) {
       case 'foot':
         if (!p.onGround) {

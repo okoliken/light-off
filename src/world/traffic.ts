@@ -3,7 +3,7 @@
 // brake for the vehicle ahead and for Bolaji standing in the road. Police drive freely along an L-shaped
 // route over the grid, then straight at the player once they have line of sight.
 import * as THREE from 'three';
-import { N, LANE, INT, HALF, CELL, roadLine, nearestNode, rng, CURB, I0, I1 } from './layout.ts';
+import { N, LANE, INT, HALF, CELL, roadLine, nearestNode, rng, CURB, I0, I1, CAMPUS } from './layout.ts';
 import { buildTemplate, vehicleMats, SPECS } from './vehicles.ts';
 import { FLY } from './city.ts';
 import { glowTexture } from '../core/textures.ts';
@@ -198,12 +198,26 @@ export function createTraffic(scene, world) {
   // ---- free driving (police, getaway car) ----
   const contacts: any[] = [];
   const _p = new THREE.Vector3();
-  const northOf = z => z < -HALF - 8; // on the bridge approach, the bridge or at UNILAG
+  const northOf = z => z < -HALF - 8; // on the bridge approach, the bridge or on Lagos Island
+  // Lagos Island's own streets (city.ts ISL_ROADS): three running north-south (the middle one comes off
+  // the bridge) and two cross roads. A trip there follows them instead of cutting through the blocks.
+  const ISL_X = [-92, 0, 92], ISL_Z = [-1290, -1371];
+  const onIsland = z => z < CAMPUS.z1 + 2;
+  const nearest = (a, v) => a.reduce((b, q) => Math.abs(q - v) < Math.abs(b - v) ? q : b);
+  function islandPath(sx, sz, tx, tz) {
+    const xs = onIsland(sz) ? nearest(ISL_X, sx) : 0, xt = onIsland(tz) ? nearest(ISL_X, tx) : 0;
+    const a = onIsland(sz) ? sz : CAMPUS.z1, b = onIsland(tz) ? tz : CAMPUS.z1;
+    if (xs === xt) return [[xs, a], [xt, b]];
+    const zh = nearest(ISL_Z, (a + b) / 2);
+    return [[xs, a], [xs, zh], [xt, zh], [xt, b]];
+  }
   function routeTo(v, tx, tz) {
+    // both ends north of the district: stay up there (over the bridge, round the Island's roads)
+    if (northOf(v.pos.z) && northOf(tz)) return [...islandPath(v.pos.x, v.pos.z, tx, tz), [tx, tz]];
     const pre = [], post = [];
     let sx = v.pos.x, sz = v.pos.z, ex = tx, ez = tz;
-    if (northOf(sz)) { pre.push([0, -HALF - 20], [0, -HALF]); sx = 0; sz = -HALF; }
-    if (northOf(tz)) { post.push([0, -HALF - 20], [tx, tz]); ex = 0; ez = -HALF; } else post.push([tx, tz]);
+    if (northOf(sz)) { pre.push(...(onIsland(sz) ? islandPath(sx, sz, 0, CAMPUS.z1) : []), [0, -HALF - 20], [0, -HALF]); sx = 0; sz = -HALF; }
+    if (northOf(tz)) { post.push([0, -HALF - 20], ...(onIsland(tz) ? islandPath(0, CAMPUS.z1, tx, tz) : []), [tx, tz]); ex = 0; ez = -HALF; } else post.push([tx, tz]);
     const [ai, aj] = nearestNode(sx, sz), [bi, bj] = nearestNode(ex, ez);
     const pts: any[] = [[roadLine(ai), roadLine(aj)]];
     // L-shaped route over the grid; pick the corner closer to the car's heading

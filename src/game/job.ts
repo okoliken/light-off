@@ -78,7 +78,12 @@ export function createJob(game) {
     }
     for (const [id, c] of npcs) if (!J.orders.some(o => o.id === id)) { npcs.delete(id); if (!c.gone) c.remove(scene); }
   };
-  const next = () => pending().sort((a, b) => a.due - b.due)[0];
+  // the parcel to go for: one you're already near (say, after riding out to the Island) before the
+  // earliest-due one, so the arrow never turns you round and sends you back across the bridge
+  const next = () => {
+    const ps = pending(), d = (o) => Math.hypot(o.place.x - player.pos.x, o.place.z - player.pos.z);
+    return ps.filter(o => d(o) < 220).sort((a, b) => d(a) - d(b))[0] || ps.sort((a, b) => a.due - b.due)[0];
+  };
   const routeNext = () => { const o = next(); if (o) game.setWaypoint({ x: o.place.x, z: o.place.z, title: `${o.who} · ${o.place.name}` }, true); else game.setWaypoint({ x: office.x, z: office.z, title: J.clockedIn ? 'SwiftDrop: all delivered, clock out' : 'SwiftDrop office · clock in' }, true); };
 
   function review(o, kind) {

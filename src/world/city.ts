@@ -567,7 +567,7 @@ export function buildCity(scene, opt: any = {}) {
   sign3('OBALENDE · CMS · MARINA →', '#1b5e20', '#ffffff', 7.5, 1.3, 5.2, 4.9, GZ + 0.3, 0);
   world.gate = { x: 0, z: GZ };
   // dense old Island blocks between the roads, with a few towers toward Marina (east)
-  const ISL_KEEP: any[] = [[-68, -1344, -52, -1326], [26, -1354, 54, -1326], [22, -1218, 58, -1206]]; // Tinubu Square, the mosque, the BRT terminal
+  const ISL_KEEP: any[] = [[-68, -1344, -52, -1326], [26, -1354, 54, -1326], [22, -1218, 58, -1206], [-50, -1232, -24, -1212]]; // Tinubu Square, the mosque, the BRT terminal, the danfo park
   const inRoad = (x0, z0, x1, z1) => [...ISL_ROADS, ...ISL_KEEP].some(([a, b, c, d]) => x1 > a - 3 && x0 < c + 3 && z1 > b - 3 && z0 < d + 3);
   const islB: any[] = [];
   // landmarks get their ground first; the ordinary blocks fill in around them
