@@ -1008,18 +1008,20 @@ export function createGame(ctx) {
     return { kind: 'uncuff', text: '<span class="key">F</span>Knock for Baba Kolade: he has bolt cutters' };
   };
   // beaten: down for a while then back up; critical: crawl away or wake up robbed at dawn
-  let crawlSafeT = 0;
+  let crawlSafeT = 0, beatT = 0;
   function hostilesNear() { return [...game.thugs.filter(t => t.alive && t.engaged), ...game.gunmen.filter(g => g.alive)]; }
   function updateDowned(dt) {
     if (game.respawnT > 0) return;
-    if (player.mode !== 'crawl') { crawlSafeT = 0; return; }
+    if (player.mode !== 'crawl') { crawlSafeT = 0; beatT = 0; game.beingKicked = false; return; }
     const hs = hostilesNear();
     const close = hs.some(h => h.role !== 'police' && dist2(h.pos, player.pos) < 1.7 * 1.7); // police cuff him through the catch bar, they don't kick him into the gutter
     const seen = hs.some(h => dist2(h.pos, player.pos) < 14 * 14 && !col.blocked(h.pos.x, h.pos.y + 1.5, h.pos.z, player.pos.x, player.pos.y + 0.5, player.pos.z, 1.0));
     crawlSafeT = seen ? 0 : crawlSafeT + dt;
     // critical and an officer on him: the cuffs come through the catch bar (updatePolice), never instantly
     if (!hs.length || crawlSafeT > 2.5) { player.getUp(15); hud.notice('YOU GOT AWAY', 'Barely. Get somewhere safe and eat something.', 'green', 2.5); game.addRespect(100, 'SURVIVED'); return; }
-    if (close || player.crawlT > 14) beatenOut();
+    // they have to stay on him for a few seconds before it's over: time to mash for the adrenaline burst or drag himself clear
+    beatT = close ? beatT + dt : Math.max(0, beatT - dt * 0.5); game.beingKicked = close;
+    if (beatT > 3 || player.crawlT > 14) beatenOut();
   }
   function beatenOut() {
     game.respawnT = 999; audio.busted();
@@ -1237,7 +1239,7 @@ export function createGame(ctx) {
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
 
     updateDowned(dt);
-    if (['down', 'crawl'].includes(player.mode) && !game.arrest) { game.hudMeter = Math.max(0.02, player.adren); game.catchLabel = player.adren > 0.03 ? 'ADRENALINE · KEEP MASHING SPACE' : 'DOWN · MASH SPACE FOR AN ADRENALINE BURST'; }
+    if (['down', 'crawl'].includes(player.mode) && !game.arrest) { game.hudMeter = Math.max(0.02, player.adren); game.catchLabel = game.beingKicked ? 'THEY\'RE KICKING YOU · MASH JUMP (SPACE) TO GET UP!' : player.adren > 0.03 ? 'ADRENALINE · KEEP MASHING JUMP (SPACE)' : 'DOWN · MASH JUMP (SPACE) FOR AN ADRENALINE BURST'; }
     else if (!game.arrest && game.hudMeter != null && game.time - (game.pickShown || -9) > 0.15) { game.hudMeter = null; game.catchLabel = null; }
     if (!game.injuryTold && player.cap() < 88) { game.injuryTold = true; hud.toast('<b>Injury:</b> hits leave damage that caps your health (the striped part of the bar). Health refills up to the cap on its own; <b>food and sleep</b> heal the injury itself.', 'blue'); }
     if (game.respawnT > 0) { game.respawnT -= dt; if (game.respawnT <= 0) respawn(); }

@@ -42,7 +42,8 @@ export function nightReport(game, ending) {
 
   const S = game.story, next = S.next(), up = S.upcoming();
   const nextLine = S.complete ? 'Surulere is quieter than it has been in years. For now.' : next ? `Tomorrow night: <b>${next.title}</b>.` : up ? 'Keep your radio on tomorrow. Lagos will tell you what\'s next.' : '';
-  const mamaLine = L.suspicion > 70 ? 'Mama has started watching you over breakfast. She knows something.' : L.suspicion > 40 ? (tonight.down ? 'Mama asked why your knuckles are scraped. You said football.' : 'Mama keeps asking where you go at night. You\'re running out of answers.') : '';
+  // he lives alone in a face-me-I-face-you: it's the compound that notices
+  const mamaLine = L.suspicion > 70 ? 'The woman across the corridor has started watching your door at night. She knows something.' : L.suspicion > 40 ? (tonight.down ? 'Your knuckles are scraped again. You tell the neighbours it was football.' : 'The compound gate creaks every time you go out at night. Somebody is going to ask.') : '';
 
   let kicker, title, story, tone;
   if (ending === 'beaten') {
@@ -52,32 +53,32 @@ export function nightReport(game, ending) {
     if ((game.beatenHeat || 0) > 0) { title = 'The clinic bench'; kicker = `Night ${L.night} · Police still out looking`; story = 'You woke on a bench outside the clinic by the stadium. The night nurse cleaned your cuts and asked no questions, because the police were asking enough of them outside. You walked home the long way, through the back roads.'; }
     else if (kolade && Math.random() < 0.5) { title = "Kolade's floor"; kicker = `Night ${L.night} · Picked up and hidden`; story = 'You woke on the oily floor of Baba Kolade\'s workshop with a jacket over you. "The street talks," he said, handing you tea. "Tonight it said a boy in black was lying in a gutter. Drink, then go home before your mother wakes."'; }
     else story = pick([
-      'Iya Bose, on her way to fry akara, found you by the gutter at first light. She asked no questions, just helped you home before Mama woke.',
+      'Iya Bose, on her way to fry akara, found you by the gutter at first light. She asked no questions, just helped you back to your room.',
       'A keke driver starting his early run saw you on the roadside. He carried you to your gate and drove off before you could thank him.',
-      'Tobi went out to fetch water at dawn and found you by the gutter. He dragged you inside and swore he would never tell Mama.',
+      'The night guard from the next compound found you at dawn and dragged you to your door. He said nothing. In Lagos, that is a kindness.',
       'The mallam who sells suya found you at dawn, poured water on your face and walked you home, muttering prayers the whole way.',
     ]) + ' Your pockets are empty. Your ribs will remember this for days.';
   } else if (ending === 'arrested') {
     tone = 'red'; title = 'A night in the cell'; kicker = `Night ${L.night} · Surulere Division`;
     story = pick([
-      'They held you in the cell until 6 AM with nine other boys and one bucket. Nobody asked your name twice. At dawn Mama came with ₦20,000 she did not have, and said nothing the whole walk home.',
-      'An officer wrote "suspected cultist" on a sheet and forgot about you. At six they let you out through the back because the morning shift wanted the space. Mama was waiting at the gate. She had been crying.',
+      'They held you in the cell until 6 AM with nine other boys and one bucket. Nobody asked your name twice. At dawn an officer took ₦20,000 "for bail" that you did not have, and pushed you out of the back gate.',
+      'An officer wrote "suspected cultist" on a sheet and forgot about you. At six they let you out through the back because the morning shift wanted the space. Nobody was waiting at the gate. Nobody ever is.',
     ]);
   } else if (ending === 'dawn') {
-    tone = 'red'; title = 'Caught at dawn'; kicker = `Night ${L.night} · Mama was already up`;
+    tone = 'red'; title = 'Caught at dawn'; kicker = `Night ${L.night} · The compound was already up`;
     story = pick([
-      'Mama\'s voice cuts through the morning: "Bolaji! Where are you coming from this early?" You say you went to ease yourself. She doesn\'t believe you.',
-      'Mama is standing at the door with her market basket when you slip in. She says nothing at all. That\'s worse.',
-      '"Since when do you wake before me?" Mama asks, looking at the dust on your socks. You mumble something about a football match.',
+      'The landlord is sweeping the compound when you slip in: "Bolaji! Where are you coming from this early?" You say you went to ease yourself. He doesn\'t believe you.',
+      'The woman across the corridor is at her door with her market basket when you slip in. She says nothing at all. That\'s worse.',
+      '"Na this hour you dey come back?" the landlord asks, looking at the dust on your shoes. You mumble something about a night shift.',
     ]);
   } else {
     tone = 'green'; title = 'Home safe'; kicker = `Night ${L.night} · Nobody saw you come in`;
     story = game.sleptInSuit
-      ? 'You fell asleep still in the black hoodie. In the morning Mama picks it up off the floor, turns it over in her hands, and puts it down without a word.'
-      : pick(['The door creaks. Mama turns over but doesn\'t wake. You hide the suit in the water drum and lie down next to Tobi.',
-        'You slip past the curtain and lie down on your mat. Next door, the generator coughs itself to sleep.',
+      ? 'You fell asleep still in the black hoodie, with the door half open. In the morning the landlord\'s son is standing in the corridor, looking at it. He doesn\'t say anything. Yet.'
+      : pick(['The door creaks. The compound is asleep. You roll the suit into the bag and lie down on your mat.',
+        'You slip into your room and lie down on your mat. Next door, the generator coughs itself to sleep.',
         'The suit goes back in the drum. The lantern goes out. Somewhere outside, a danfo conductor is already shouting "Oshodi!"']);
-    if (game.sleptInSuit) { tone = 'red'; title = 'Slept in the suit'; kicker = `Night ${L.night} · Mama found the hoodie`; }
+    if (game.sleptInSuit) { tone = 'red'; title = 'Slept in the suit'; kicker = `Night ${L.night} · Somebody saw the hoodie`; }
   }
 
   let headline;
