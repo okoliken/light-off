@@ -6,6 +6,7 @@ import { Civilian, makeBag } from './npcs.ts';
 import { Thug } from './thugs.ts';
 import { Gunman } from './enemies.ts';
 import { createCombat } from './combat.ts';
+import { createLockOn } from './lockon.ts';
 import { createLife } from './life.ts';
 import { createStory } from './story.ts';
 import { createThrowables } from './throwables.ts';
@@ -77,6 +78,7 @@ export function createGame(ctx) {
   game.addRespect = (n, label) => { if (label && game.missionMoves) game.missionMoves.add(String(label).replace(/ X?\d+.*$/, '').replace(/^\d+-HIT /, '')); if (n <= 0) return; game.respect += Math.round(n); if (label) hud.popup(`${label} <b>+${Math.round(n)}</b>`); };
   game.life = createLife(game);
   game.combat = createCombat(game);
+  game.lockOn = createLockOn(game);
   const L = game.life, combat = game.combat;
 
   // ---------- helpers ----------
@@ -276,6 +278,17 @@ export function createGame(ctx) {
 
   // ---------- shooting at Bolaji (police officers) ----------
   const _chest = new THREE.Vector3(), _miss = new THREE.Vector3(), _t = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
+  // one NPC shooting at another (police or soldiers against the General's boys): soldiers rarely miss
+  function npcShot(g, foe) {
+    const from = g.muzzle().clone(), to = _miss.set(foe.pos.x, foe.pos.y + 1.2, foe.pos.z), d = from.distanceTo(to);
+    const los = !col.blocked(from.x, from.y, from.z, to.x, to.y, to.z, 1.2);
+    const hit = los && R() < (g.soldier ? 0.8 : 0.5) * Math.max(0.4, Math.min(1, 1 - d / 60));
+    if (!hit) { to.x += (R() - 0.5) * 3; to.y += (R() - 0.3) * 1.5; to.z += (R() - 0.5) * 3; }
+    fx.tracer(from, to); fx.flash(from.x, from.y, from.z); audio.gun(from);
+    if (!hit) return;
+    if (foe.takeHit) { foe.koCounted = true; foe.takeHit(g.soldier ? 5 : g.duty ? 3 : 2, from.x, from.z, R() < 0.5 ? 'heavy' : 'light'); if (foe.hp > 0) foe.koCounted = false; } // his knockouts only count when he did them
+    else foe.hit?.(g.soldier ? 2 : 1, from.x, from.z, 3);
+  }
   function resolveShot(from) {
     if (game.arrest || player.mode === 'ride') return; // he's in the back of a car: nobody shoots
     _chest.set(player.pos.x, player.pos.y + 1.2, player.pos.z);
@@ -1189,6 +1202,7 @@ export function createGame(ctx) {
     updateRoom(dt);
     // evening rolls into night: once it's dark and he's home, Mama and Tobi eat and go to sleep (no need to 'wait')
     if (L.phase === 'day' && L.inside && L.clock >= 20 * 60 && !game.story.active) game.toNight();
+    if (!L.inside && !game.arrest && !game.inMall) game.lockOn.update(dt, input); else if (game.lockOn.target) { game.lockOn.release(); camera.lockOn = null; player.lockLeap = null; }
     combat.update(sdt);
 
     // Red Caps
@@ -1205,8 +1219,10 @@ export function createGame(ctx) {
     for (const g of game.gunmen) {
       if (g.removed) continue;
       const r = g.update(sdt, game);
-      if (g.state === 'aim') { const m = g.muzzle(); fx.laser(g, m, _t.set(player.pos.x, player.pos.y + 1.2, player.pos.z), g.aimT / 1.0, game.sense); }
-      if (r?.shoot && !game.arrest) resolveShot(g.muzzle().clone());
+      if (g.state === 'aim') { const tp = g.foe?.alive ? g.foe.pos : player.pos, m = g.muzzle(); fx.laser(g, m, _t.set(tp.x, tp.y + 1.2, tp.z), g.aimT / 1.0, game.sense); }
+      if (r?.shoot && r.foe) npcShot(g, r.foe);
+      if (r?.melee?.takeHit) { const f = r.melee; f.koCounted = true; f.takeHit(3, g.pos.x, g.pos.z, 'heavy'); if (f.hp > 0) f.koCounted = false; audio.punch(); }
+      else if (r?.shoot && !game.arrest) resolveShot(g.muzzle().clone());
       if (r?.grab) game.officerGrab = true;
     }
     for (let i = game.gunmen.length - 1; i >= 0; i--) if (game.gunmen[i].removed) game.gunmen.splice(i, 1);
@@ -1384,6 +1400,7 @@ export function createGame(ctx) {
     // danger sense: always on for anyone about to hit him
     for (const t of game.thugs) if (t.alive && t.state === 'windup') M.push({ x: t.pos.x, y: t.pos.y + 2.35, z: t.pos.z, kind: t.unblockable ? 'dangerRed' : 'danger', label: t.unblockable ? 'DODGE' : 'C', edge: false });
     for (const g of game.gunmen) if (g.alive && g.state === 'aim') M.push({ x: g.pos.x, y: g.pos.y + 2.3, z: g.pos.z, kind: 'dangerRed', label: 'GUN', edge: false });
+    game.lockOn?.marker(M);
     const st = game.story.target();
     if (st) { M.push({ x: st.x, y: 2.6, z: st.z, kind: 'story', label: `${game.story.active?.m.title.toUpperCase() || 'STORY'} · ${dstr(st.x, st.z)}` }); MM.push({ x: st.x, z: st.z, color: '#ffd54f' }); }
     const sd = game.story.sideTarget();
@@ -1423,7 +1440,8 @@ export function createGame(ctx) {
       case 'grind': game.grindLen = 0; audio.grab(); break;
       case 'grindEnd': if (game.grindLen > 3) game.addRespect(game.grindLen * 6, `GRIND ${game.grindLen.toFixed(0)}M`); break;
       case 'bail': audio.bail(); camera.shake = 0.5; break;
-      case 'hurt': game.hitsTaken = (game.hitsTaken || 0) + 1; audio.hurt(); env.grade.uniforms.hurt.value = 1; combat.hit(); break;
+      case 'hurt': game.hitsTaken = (game.hitsTaken || 0) + 1; audio.hurt(); env.grade.uniforms.hurt.value = 1; combat.hit();
+        game.hitStop = Math.max(game.hitStop || 0, (ev.dmg || 0) >= 15 ? 0.09 : 0.04); fx.dust(player.pos.x, player.pos.y + 1.1, player.pos.z, 3); break; // a beat of stillness as it lands
       case 'carhit': hud.toast(`Hit by a ${ev.v.spec.label.toLowerCase()}!`, 'red'); break;
       case 'skitch': audio.grab(); if (ev.v.type === 'danfo') hud.say('Conductor', ['Ehn? Who dey hold my motor?', 'Oya! Oshodi, Oshodi!', 'Wetin you dey do for back there?'][Math.floor(R() * 3)], 2); break;
       case 'conductor': hud.say('Conductor', 'Comot for my motor! You wan die?!', 1.8); audio.horn(player.pos); break;

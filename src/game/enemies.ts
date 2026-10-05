@@ -24,14 +24,15 @@ export class Gunman {
   get alive() { return this.state !== 'down' && !this.removed; }
   hit(dmg, fx, fz, knock) {
     if (!this.alive) return false;
-    this.hp -= dmg;
+    this.hp -= dmg; this.hitSide = Pose.hitSide(this.pos.x, this.pos.z, this.yaw, fx, fz); this.hitPow = Math.min(1, dmg / 2);
     const dx = this.pos.x - fx, dz = this.pos.z - fz, d = Math.hypot(dx, dz) || 1;
     this.vel.x = (dx / d) * knock; this.vel.z = (dz / d) * knock;
     if (this.hp <= 0) { this.state = 'down'; this.t = 0; return true; }
-    this.state = 'stunned'; this.t = 0; this.stunDur = 0.6;
+    if (this.soldier) return false; // trained: a slash doesn't stop a soldier
+    this.state = 'stunned'; this.t = 0; this.stunDur = this.duty ? 0.35 : 0.6;
     return false;
   }
-  stun(dur) { if (this.alive) { this.state = 'stunned'; this.t = 0; this.stunDur = dur; } }
+  stun(dur) { if (this.alive) { this.state = 'stunned'; this.t = 0; this.stunDur = dur; this.hitSide = null; } }
   blind(dur) { if (this.alive) { this.state = 'blinded'; this.t = 0; this.blindDur = dur; } }
   remove() { this.removed = true; this.scene.remove(this.rig.root); }
   muzzle() { this.rig.root.updateMatrixWorld(true); return (this.rig.muzzle || this.rig.b.haR).getWorldPosition(this.muzzleW); }
@@ -39,11 +40,13 @@ export class Gunman {
   // returns { shoot: true } on the frame they fire, { grab: true } while holding onto him, else null
   update(dt, game) {
     if (this.removed) return null;
-    const p = game.player, col = this.world.collision, r = this.rig;
+    // a foe: police and soldiers fighting the General's boys (and the boys fighting back) aim at each other, not at him
+    const foe = this.foe && this.foe.alive && !this.foe.removed ? this.foe : null;
+    const p = foe || game.player, col = this.world.collision, r = this.rig;
     this.t += dt; this.shootCd -= dt; this.bark -= dt;
     const dx = p.pos.x - this.pos.x, dz = p.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
-    const reachable = p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
-    const canShoot = this.role === 'thief' || this.role === 'hitman' || game.heat >= 2;
+    const reachable = foe ? true : p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
+    const canShoot = !!foe || this.role === 'thief' || this.role === 'hitman' || game.heat >= 2;
     let face = this.yaw, speed = 0, out = null;
     const eye = () => !col.blocked(this.pos.x, this.pos.y + 1.5, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2);
 
@@ -61,13 +64,23 @@ export class Gunman {
         break;
       }
       case 'chase': {
-        if (game.arrest && this.role !== 'thief') { this.state = 'return'; break; } // he's already in the car
+        if (!foe && game.arrest && this.role !== 'thief') { this.state = 'return'; break; } // he's already in the car
         face = toP;
-        if (game.heat <= 0 && this.role === 'police') { this.state = 'return'; break; }
-        if (this.post && dist > 60) { this.state = 'return'; break; }
-        if (canShoot && this.shootCd <= 0 && dist > 5 && dist < 32 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; if (this.bark <= 0) { this.bark = 5; game.say(this, pick(this.role === 'police' ? ['Stop or I shoot!', 'Freeze there!', 'Hands up!'] : ['Back off!', 'You wan die?!', 'Commot for road!']), this.role === 'police' ? 'Police' : 'Robber'); } break; }
-        if (dist < 1.3 && reachable && this.role === 'police') { out = { grab: true }; Pose.idle(r, game.time, false); r.set('shLX', -1.3); r.set('shRX', -1.3); r.set('elLX', -0.3); r.set('elRX', -0.3); break; }
+        if (foe && this.duty) { // police and soldiers against the General's boys: keep the distance, keep shooting
+          this.meleeCd = (this.meleeCd || 0) - dt;
+          if (this.soldier && dist < 2 && this.meleeCd <= 0) { this.meleeCd = 1; out = { melee: foe }; Pose.idle(r, game.time, false); Pose.punch(r, 'R', 1); break; } // rifle butt
+          if (dist < 4.5 && !this.soldier) { face = toP + Math.PI; speed = 4.2; break; } // too close to a machete: back off
+          if (this.shootCd <= 0 && dist < 32 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; break; }
+          if (dist < 13 && eye()) { Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('elRX', -0.4); break; }
+          speed = 6.5; break;
+        }
+        if (!foe && game.heat <= 0 && this.role === 'police' && !this.duty) { this.state = 'return'; break; }
+        if (!foe && this.duty) { Pose.idle(r, game.time, false); break; } // on duty, nobody left to fight: stand down
+        if (!foe && this.post && dist > 60) { this.state = 'return'; break; }
+        if (canShoot && this.shootCd <= 0 && dist > (foe ? 1.5 : 5) && dist < 32 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; if (this.bark <= 0) { this.bark = 5; game.say(this, pick(this.role === 'police' ? ['Stop or I shoot!', 'Freeze there!', 'Hands up!'] : ['Back off!', 'You wan die?!', 'Commot for road!']), this.role === 'police' ? 'Police' : 'Robber'); } break; }
+        if (!foe && dist < 1.3 && reachable && this.role === 'police') { out = { grab: true }; Pose.idle(r, game.time, false); r.set('shLX', -1.3); r.set('shRX', -1.3); r.set('elLX', -0.3); r.set('elRX', -0.3); break; }
         speed = reachable ? 7.6 : 0; // faster than his jog, slower than his sprint: he gets away on his feet, not by strolling
+        if (foe && dist < 13 && eye()) { speed = 0; Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('elRX', -0.4); } // a firefight: hold the ground and shoot
         if (!reachable && dist < 6) { face = toP + Math.PI; speed = 2; } // back off the wall so they can see up
         if (!reachable) { Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('headX', -0.5); } // shouting up at the roof
         break;
@@ -80,13 +93,14 @@ export class Gunman {
         break;
       }
       case 'aim': {
-        if (game.arrest) { this.state = this.role === 'thief' ? 'flee' : 'return'; break; }
+        if (game.arrest && !foe) { this.state = this.role === 'thief' ? 'flee' : 'return'; break; }
         face = toP; Pose.idle(r, game.time, false);
         r.set('shRX', -1.55); r.set('elRX', 0); r.set('shRZ', 0.1); r.set('chestY', -0.2); r.set('shLX', -1.2); r.set('elLX', -0.9); r.set('shLZ', -0.3);
         this.aimT += dt;
         if (!eye()) this.losT += dt; else this.losT = 0;
         if (this.losT > 0.35) { this.state = this.role === 'thief' ? 'flee' : 'chase'; this.shootCd = 0.8; break; }
-        if (this.aimT >= (this.role === 'police' ? 1.7 : 1.4)) { out = { shoot: true, dist }; this.state = 'recover'; this.t = 0; this.shootCd = 2.3 + Math.random() * 1.6; }
+        const aimFor = foe && this.duty ? (this.soldier ? 0.6 : 1.0) : this.aimTime ?? (this.role === 'police' ? 1.7 : 1.4);
+        if (this.aimT >= aimFor) { out = { shoot: true, dist, foe }; this.state = 'recover'; this.t = 0; this.shootCd = foe && this.duty ? (this.soldier ? 0.9 : 1.5) + Math.random() * 0.8 : 2.3 + Math.random() * 1.6; }
         break;
       }
       case 'recover': {
@@ -95,7 +109,7 @@ export class Gunman {
         break;
       }
       case 'stunned': {
-        Pose.idle(r, game.time, false); Pose.stagger(r, this.t / (this.stunDur || 0.6));
+        Pose.idle(r, game.time, false); if (this.hitSide != null && this.t < (this.stunDur || 0.6)) Pose.hitReact(r, this.t / (this.stunDur || 0.6), this.hitSide, this.hitPow ?? 0.5); else Pose.stagger(r, this.t / (this.stunDur || 0.6));
         if (this.t > (this.stunDur || 0.6)) this.state = this.role === 'thief' ? 'flee' : 'chase';
         break;
       }
@@ -106,7 +120,7 @@ export class Gunman {
       }
       case 'down': {
         Pose.down(r);
-        if (this.role === 'police' && this.t > 16) { this.hp = this.maxHp; this.state = game.heat > 0 ? 'chase' : 'return'; }
+        if (this.role === 'police' && this.t > 16) { this.hp = this.maxHp; this.state = game.heat > 0 || this.duty ? 'chase' : 'return'; }
         break;
       }
       case 'return': {

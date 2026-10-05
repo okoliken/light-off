@@ -66,23 +66,89 @@ export function createGeneral(game) {
     if (S.lineT <= 0 && d < 30 && !S.woke) { S.lineT = 4; if (Math.random() < 0.6) hud.say('Boy in black', pick(HAVOC), 2.8); else hud.say(S.v.name, pick(VICTIM), 2.8); }
     // what sets them off: a hit on one of them, or the suit. A rider in uniform is nobody to them: walking
     // past gets him told to move along, and only hanging about within arm's reach starts a fight
-    const provoked = S.boys.some(t => t.alive && t.engaged) || S.boys.some(t => !t.alive) || S.guns.some(g => !g.alive);
+    const provoked = !S.cops && (S.boys.some(t => t.alive && t.engaged) || S.boys.some(t => !t.alive) || S.guns.some(g => !g.alive)); // once the police are in, they're the ones it's with
     if (!L.suit && !S.woke) {
       if (d < 10 && !S.warned) { S.warned = true; hud.say('Boy in black', pick(['Rider, comot for here! Dis one no concern you.', 'Face your delivery, rider. Waka pass!', 'You no see wetin dey happen? Commot before e reach you!']), 3); }
       S.nearT = d < 3.2 ? (S.nearT || 0) + dt : 0;
       if (S.nearT > 1.2 && !S.warned2) { S.warned2 = true; hud.say('Boy in black', 'I say commot! Last warning!', 2.4); }
     }
     if (!S.woke && (provoked || (L.suit && d < 9) || (S.nearT || 0) > 2.8)) {
-      S.woke = true; wake(S); hud.say('Boy in black', L.suit ? 'Who be this one wey dress like us?! Finish am!' : 'Rider, you wan die? Oya!', 3);
-      // the police are paid to look away while the General's boys work: no units pile in mid-fight
+      S.woke = true; S.byPlayer = true; wake(S); hud.say('Boy in black', L.suit ? 'Who be this one wey dress like us?! Finish am!' : 'Rider, you wan die? Oya!', 3);
+    }
+    if (S.woke && d < 6) S.byPlayer = true; // in the thick of it: whoever finishes it, he helped
+    law(S, dt);
+    if (S.woke && alive(S) === 0 && !S.byPlayer) { // the police (or the army) cleared the street without him
+      S.v.mood = 'idle'; hud.say(S.v.name, S.army ? pick(['Soldiers! God bless Nigeria Army!', 'Na the army finally come!']) : pick(['Thank God for police today!', 'Officer, God bless you!']), 3.5);
+      if (d < 120) hud.toast(`${S.army ? 'Soldiers' : 'The police'} cleared the General's boys off ${S.area}.`, 'blue');
+      standDown(S); setTimeout(() => S.v.gone || S.v.runHome(S.v.pos.x + 30, S.v.pos.z), 4000); G.squad = null; return;
     }
     if (S.woke && alive(S) === 0) {
+      standDown(S);
       S.v.mood = 'idle'; S.v.faceTarget = player.pos; hud.say(S.v.name, pick(['God bless you!', 'Who are you?! Thank you!', 'Those boys... they say na General send them.']), 3.5);
       const tip = 1000 + Math.floor(Math.random() * 4) * 500; L.wallet += tip; hud.toast(`${S.v.name} pressed <b>₦${tip}</b> into your hand.`, 'green'); game.addRespect(400, 'BOYS IN BLACK DOWN');
       if (story() && !G.case.leads.includes('phone') && G.case.ch >= 1) lead('phone');
       setTimeout(() => S.v.gone || S.v.runHome(S.v.pos.x + 30, S.v.pos.z), 4000); G.squad = null; return;
     }
-    if ((S.t > 150 && d > 90) || S.t > 300) { clear(S); if (!S.v.gone) S.v.runHome(S.v.pos.x + 30, S.v.pos.z); G.squad = null; }
+    if ((S.t > 150 && d > 90) || S.t > 300) { clear(S); standDown(S, true); if (!S.v.gone) S.v.runHome(S.v.pos.x + 30, S.v.pos.z); G.squad = null; }
+  }
+
+  // ---- the law: the police come for the General's boys, and the army when the police can't hold them ----
+  // Somebody always calls: the police arrive after a while (slower at night) and fight the boys; if the
+  // boys are too much for them (officers down, or guns at night) soldiers are sent: tougher, quicker on
+  // the trigger, rarely miss. In the suit Bolaji looks like one more boy in black to all of them.
+  const nearestOf = (list, pos) => { let b = null, bd = Infinity; for (const q of list) { const dd = (q.pos.x - pos.x) ** 2 + (q.pos.z - pos.z) ** 2; if (dd < bd) { bd = dd; b = q; } } return b; };
+  const arrival = (S, r0, r1) => { // a street spot near the squad, toward the edge of the action
+    const c = world.spots.filter(q => { const dd = Math.hypot(q.x - S.x, q.z - S.z); return dd > r0 && dd < r1; });
+    const q = c[Math.floor(Math.random() * c.length)]; return q ? { x: q.x + q.nx * 2, z: q.z + q.nz * 2 } : { x: S.x + r0, z: S.z };
+  };
+  function callPolice(S) {
+    const a = arrival(S, 26, 42); S.cops = [];
+    for (let k = 0; k < 2; k++) { const g = api.gunman({ x: a.x + k * 1.4, z: a.z, yaw: Math.atan2(S.x - a.x, S.z - a.z), role: 'police' }); g.duty = true; g.name = 'Police'; S.cops.push(g); }
+    S.lawT = 0; game.radio?.say(`Police radio: "All units, armed boys in black at ${S.area}. Move!"`, true);
+    if (dist(S, player.pos) < 150) { hud.notice('POLICE ON THE SCENE', `Officers are going in after the General's boys at ${S.area}.`, 'blue', 3); game.say(S.cops[0], 'Police! Drop your weapons! Everybody down!', 'Police', 60); }
+    if (!S.woke) { S.woke = true; wake(S); }
+  }
+  function callArmy(S) {
+    S.armyCalled = true; S.armyT = 7;
+    game.radio?.say(`Police radio: "We're outgunned at ${S.area}. Requesting army support!"`, true);
+    if (dist(S, player.pos) < 150) hud.notice('SOLDIERS ON THE WAY', `The police can't hold ${S.area}. The army is coming in.`, 'red', 3.5);
+  }
+  function sendArmy(S) {
+    const a = arrival(S, 30, 48); S.army = [];
+    for (let k = 0; k < 4; k++) {
+      const g = api.gunman({ x: a.x + (k % 2) * 1.6, z: a.z + Math.floor(k / 2) * 1.6, yaw: Math.atan2(S.x - a.x, S.z - a.z), role: 'police', outfit: OUTFITS.soldier });
+      g.duty = true; g.soldier = true; g.name = 'Soldier'; g.maxHp = g.hp = 7; g.aimTime = 0.8; g.shootCd = 0.6; S.army.push(g);
+    }
+    game.say(S.army[0], pick(['Army! Nobody move!', 'Drop am! Drop am now!', 'Clear the street! Go, go!']), 'Soldier', 70); audio.alert();
+  }
+  function law(S, dt) {
+    if (!S.cops) { S.callT = (S.callT ?? (L.phase === 'day' ? 20 : 35)) - dt; if (S.callT <= 0) callPolice(S); return; }
+    S.lawT += dt;
+    if (S.armyT > 0) { S.armyT -= dt; if (S.armyT <= 0) sendArmy(S); }
+    const boys = [...S.boys.filter(t => t.alive), ...S.guns.filter(g => g.alive && !g.removed)];
+    const lawmen = [...S.cops, ...(S.army || [])].filter(g => g.alive && !g.removed);
+    for (const g of [...S.cops, ...(S.army || [])]) g.foe = boys.length ? nearestOf(boys, g.pos) : null;
+    for (const t of boys) {
+      const o = nearestOf(lawmen, t.pos), dp = dist(t.pos, player.pos);
+      // he's in it with them (or in the suit) and closer than any officer: they stay on him
+      t.foe = o && !((S.byPlayer || L.suit) && dp < dist(t.pos, o.pos)) ? o : null;
+      if (t.foe && t.calm !== undefined && t.calm) { t.calm = false; t.engage?.(0.3); }
+      if (t.foe && t.state === 'post') t.state = 'chase';
+    }
+    // too much for them: officers down, guns at night, or still three boys standing after a long fight
+    const copsUp = S.cops.filter(g => g.alive).length;
+    if (!S.armyCalled && boys.length && S.lawT > 6 && (copsUp === 0 || (S.guns.some(g => g.alive) && S.lawT > 12) || (boys.length >= 3 && S.lawT > 25) || S.lawT > 40)) callArmy(S);
+    // the suit: to the police and the army he's one more of them
+    if (L.suit && !S.suitSeen && lawmen.some(g => dist(g.pos, player.pos) < 16)) { S.suitSeen = true; game.addHeat?.(1, `${S.army ? 'Soldier' : 'Police'}: "Another one in black! Him too!"`); }
+  }
+  // when it's over: the police and soldiers hang about, then go
+  G.leaving = [];
+  function standDown(S, now = false) {
+    for (const g of [...(S.cops || []), ...(S.army || [])]) { if (g.removed) continue; g.foe = null; if (now) g.remove(); else G.leaving.push({ g, t: game.time + 12 }); }
+    for (const t of S.boys) t.foe = null;
+  }
+  function updateLeaving() {
+    G.leaving = G.leaving.filter(q => { if (q.g.removed) return false; if (game.time > q.t && (dist(q.g.pos, player.pos) > 40 || game.time > q.t + 30)) { q.g.remove(); return false; } return true; });
   }
 
   // ---- one chance: a danfo that robs its own passengers ----
@@ -249,7 +315,7 @@ export function createGeneral(game) {
     if (L.inside) return;
     updateCase(dt);
     if (C.on) return; // during a chapter, the city waits
-    updateSquad(dt); updateOneChance(dt); updatePick(dt);
+    updateSquad(dt); updateLeaving(); updateOneChance(dt); updatePick(dt);
   };
   G.serialize = () => ({ ch: C.ch, leads: C.leads, lastDay: C.lastDay ?? -1 });
   G.load = (d) => { if (!d) return; C.ch = d.ch || 0; C.leads = d.leads || []; C.lastDay = d.lastDay ?? -1; if (C.ch >= 6) setTimeout(() => G.endRedCaps(), 0); C.on = false; C.st = 0; }; // a chapter in progress restarts from its first step

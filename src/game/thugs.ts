@@ -64,6 +64,7 @@ export class Thug {
     if (!this.alive) return false;
     const dx = this.pos.x - fx, dz = this.pos.z - fz, d = Math.hypot(dx, dz) || 1, nx = dx / d, nz = dz / d;
     this.lastBlocked = false;
+    this.hitSide = Pose.hitSide(this.pos.x, this.pos.z, this.yaw, fx, fz); this.hitPow = Math.min(1, dmg / 3);
     // brutes and Scorpion guard against light hits from the front
     const facing = (Math.sin(this.yaw) * -nx + Math.cos(this.yaw) * -nz);
     if (this.big && kind === 'light' && facing > 0.35 && ['circle', 'recover', 'idle', 'alert'].includes(this.state)) {
@@ -84,7 +85,7 @@ export class Thug {
       this.state = 'down'; this.t = 0; this.vel.set(nx * 6, 0, nz * 6); return this.hp <= 0;
     }
     if (this.big && Math.random() < 0.5) { this.vel.set(nx * 1.2, 0, nz * 1.2); return false; } // brutes shrug off some jabs
-    this.state = 'stagger'; this.t = 0; this.stagDur = 0.38; this.vel.set(nx * 2.4, 0, nz * 2.4);
+    this.state = 'stagger'; this.t = 0; this.stagDur = 0.5; this.vel.set(nx * 2.4, 0, nz * 2.4);
     return false;
   }
   webUp(dur = 6) {
@@ -97,10 +98,12 @@ export class Thug {
 
   update(dt, game) {
     if (this.removed) return null;
-    const p = game.player, col = this.world.collision, r = this.rig;
+    // a foe: one of the General's boys squaring up to a police officer or a soldier instead of him
+    const foe = this.foe && this.foe.alive && !this.foe.removed ? this.foe : null;
+    const p = foe || game.player, col = this.world.collision, r = this.rig;
     this.t += dt; this.cd -= dt;
     const dx = p.pos.x - this.pos.x, dz = p.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
-    const reachable = p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
+    const reachable = foe ? true : p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
     let face = this.yaw, speed = 0, out = null, rate = 12, ax = 0, az = 0;
 
     switch (this.state) {
@@ -134,6 +137,12 @@ export class Thug {
       }
       case 'circle': {
         face = toP;
+        if (foe) { // nobody hands out turns against an officer: close in and swing
+          Pose.idle(r, game.time, true);
+          if (dist > 1.8) speed = dist > 6 ? 6.2 : 4.2;
+          if (this.cd <= 0 && dist < 2.4) { this.telegraph(); this.cd = 1.6 + Math.random() * 1.6; }
+          break;
+        }
         if (p.mode === 'down' || p.mode === 'getup') { // he's down: gloat, don't hit a man on the ground
           Pose.idle(r, game.time, false); r.set('shRX', -2.2 + Math.sin(game.time * 6) * 0.3); r.set('elRX', -0.6);
           if (dist < 3.5) { ax = -Math.sin(toP) * 2; az = -Math.cos(toP) * 2; }
@@ -171,7 +180,8 @@ export class Thug {
         if (!this.hitDone && this.t >= 0.12) {
           this.hitDone = true;
           const fwd = (Math.sin(this.yaw) * dx + Math.cos(this.yaw) * dz);
-          if (dist < (this.weapon === 'axe' ? 2.4 : 1.9) && fwd > 0 && reachable && !['down', 'crawl', 'getup'].includes(p.mode)) out = { hit: this.damage };
+          if (foe) { if (dist < 2.2 && fwd > 0) foe.hit?.(this.damage >= 20 ? 2 : 1, this.pos.x, this.pos.z, 3); }
+          else if (dist < (this.weapon === 'axe' ? 2.4 : 1.9) && fwd > 0 && reachable && !['down', 'crawl', 'getup'].includes(p.mode)) out = { hit: this.damage };
         }
         if (this.t > 0.35) { this.state = 'recover'; this.t = 0; }
         rate = 28;
@@ -216,7 +226,7 @@ export class Thug {
         break;
       }
       case 'recover': { face = toP; Pose.idle(r, game.time, true); r.set('spineX', 0.25); if (this.t > 0.5) { this.state = 'circle'; this.t = 0; this.cd = 1.2 + Math.random(); } break; }
-      case 'stagger': { Pose.idle(r, game.time, false); Pose.stagger(r, this.t / this.stagDur); if (this.t > this.stagDur) { this.state = 'circle'; this.t = 0; } break; }
+      case 'stagger': { Pose.idle(r, game.time, false); Pose.hitReact(r, this.t / this.stagDur, this.hitSide ?? 0, this.hitPow ?? 0.5); rate = 22; if (this.t > this.stagDur) { this.state = 'circle'; this.t = 0; } break; }
       case 'air': {
         Pose.tumble(r, 0.6); r.set('hipsRX', -1.2 + Math.sin(this.t * 6) * 0.3);
         this.juggle = Math.max(0, (this.juggle || 0) - dt);

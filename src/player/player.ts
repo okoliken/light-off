@@ -51,6 +51,7 @@ export function createPlayer(scene, world, traffic) {
     if (p.invuln > 0 || ['roll', 'down', 'crawl', 'getup'].includes(p.mode)) return false;
     if (p.mode === 'act') { if (p.act.invuln) return false; p.mode = 'foot'; p.act = null; p.onGround = p.pos.y <= p.lastGround + 0.05; }
     p.hp -= dmg; p.hurtT = 0; p.invuln = 0.45; p.staggerT = 0;
+    p.hitSide = Pose.hitSide(p.pos.x, p.pos.z, p.yaw, fx, fz); p.hitPow = Math.min(1, dmg / 25);
     p.injury = Math.min(55, p.injury + dmg * 0.22); // injury never caps him below 45
     emit('hurt', { dmg });
     const dx = p.pos.x - fx, dz = p.pos.z - fz, d = Math.hypot(dx, dz) || 1;
@@ -238,7 +239,8 @@ export function createPlayer(scene, world, traffic) {
     const max = (p.adrenT > 0 ? 1.15 : 1) * (p.cuffed ? 0.88 : 1) * (cond === 'flood' && p.onGround ? 0.55 : 1) * (p.aiming ? 3.2 * mag : sprint ? 11.2 : 7.4 * Math.max(0.35, mag)) * (0.7 + 0.3 * p.eff) * (p.hp < 35 ? 0.8 : p.hp < 15 ? 0.7 : 1);
     const acc = p.onGround ? (p.guard > 0 ? 32 : 60) : 8; // quick off the mark and quick to stop: light on his feet
     const tx = mag > 0.05 ? (w.x / (w.length() || 1)) * max * mag : 0, tz = mag > 0.05 ? (w.z / (w.length() || 1)) * max * mag : 0;
-    if (p.onGround || mag > 0.05) { // in the air with no input he keeps his momentum (leaps carry)
+    if (p.leapT > 0) p.leapT -= dt;
+    if ((p.onGround || mag > 0.05) && !(p.leapT > 0 && !p.onGround)) { // in the air with no input he keeps his momentum (leaps carry); a locked leap flies true
       p.vel.x += clamp(tx - p.vel.x, -acc * dt, acc * dt);
       p.vel.z += clamp(tz - p.vel.z, -acc * dt, acc * dt);
     }
@@ -276,11 +278,18 @@ export function createPlayer(scene, world, traffic) {
       else if (inp.held.jump && p.charge < 0.6) { p.charge += dt; p.vel.x *= 1 - Math.min(1, dt * 6); p.vel.z *= 1 - Math.min(1, dt * 6); }
       else {
         const k = Math.max(0, Math.min(1, (p.charge - 0.08) / 0.5)), f = 0.8 + 0.2 * p.eff;
+        const lk = p.lockLeap;
+        if (lk) { // locked on a roof, a ledge or a car: one leap, right onto it
+          p.vel.set(lk.x, lk.y, lk.z); p.yaw = Math.atan2(lk.x, lk.z); p.leapT = lk.t;
+          p.onGround = false; p.riding = null; p.charge = null; p.airFlips = 0; p.flip = lk.t > 0.9 ? { kind: 'front', t: 0, dur: Math.min(1, lk.t * 0.8) } : null;
+          emit('jump', { power: 1 });
+        } else {
         p.vel.y = (9.2 + 6.4 * k) * f * (p.skills.leap2 ? 1.15 : 1);
         const hs = Math.hypot(p.vel.x, p.vel.z);
         if (hs > 2 || k > 0.3) { const boost = 1 + k * 0.6; p.vel.x = (hs > 2 ? p.vel.x : Math.sin(p.yaw) * 2) * boost; p.vel.z = (hs > 2 ? p.vel.z : Math.cos(p.yaw) * 2) * boost; }
         p.onGround = false; p.riding = null; p.charge = null; p.airFlips = 0;
         emit('jump', { power: k });
+        }
       }
     }
     // grab a wall while falling / jumping into it with jump held
@@ -637,8 +646,8 @@ export function createPlayer(scene, world, traffic) {
       else {
         const rate = 2.6 - 1.4 * Math.min(1, p.speed / 26);
         steer = clamp(diff, -rate * dt, rate * dt); p.heading += steer;
-        const cyc = p.kind === 'bicycle', top = cyc ? (inp.held.sprint ? 9.5 : 7) : (inp.held.sprint ? 27 : 21), fwd = Math.cos(diff) * mag;
-        if (fwd > 0.2 && p.speed < top) p.speed += (cyc ? 4.5 : p.speed < 8 ? 9 : 5) * fwd * dt;
+        const cyc = p.kind === 'bicycle', top = cyc ? (inp.held.sprint ? 15 : 11.5) : (inp.held.sprint ? 27 : 21), fwd = Math.cos(diff) * mag; // the bicycle beats running, never the okada
+        if (fwd > 0.2 && p.speed < top) p.speed += (cyc ? (inp.held.sprint ? 8 : 6.5) : p.speed < 8 ? 9 : 5) * fwd * dt;
       }
     }
     if (inp.held.jump) p.speed -= 10 * dt; // Space: brake hard
@@ -795,7 +804,7 @@ export function createPlayer(scene, world, traffic) {
       case 'getup': Pose.getup(rig, p.getupT / 0.9); rate = 12; break;
     }
     if (p.punch.t < 0.3 && (p.mode === 'foot' || p.mode === 'board')) { Pose.punch(rig, p.punch.side, p.punch.t / 0.28, p.punch.kick); rate = 30; }
-    if (p.staggerT < 0.4 && p.mode === 'foot') Pose.stagger(rig, p.staggerT / 0.4);
+    if (p.staggerT < 0.55 && (p.mode === 'foot' || p.mode === 'act')) { Pose.hitReact(rig, p.staggerT / 0.55, p.hitSide ?? 0, p.hitPow ?? 0.5); rate = Math.max(rate, 22); }
     if (p.holding && ['foot', 'board'].includes(p.mode)) { rig.set('shRX', p.aiming ? -2.6 : -2.1); rig.set('elRX', -1.3); rig.set('shRZ', -0.2); if (p.aiming) { bodyYaw = p.yaw; rig.set('chestY', -0.4); } }
     if (p.hp < p.cap() * 0.6 && p.mode === 'foot' && p.onGround && hs < 0.4 && p.guard <= 0) { rig.set('spineX', 0.25); rig.set('shLX', -0.5); rig.set('elLX', -1.4); } // holding his side
     if (p.throwT < 0.35) { Pose.throw(rig, p.throwT / 0.35); rate = 30; }
@@ -817,7 +826,7 @@ export function createPlayer(scene, world, traffic) {
       _c.set(0, 0.85, 0); _c2.copy(_c).applyEuler(rig.root.rotation); rig.root.position.x += _c.x - _c2.x; rig.root.position.y += _c.y - _c2.y; rig.root.position.z += _c.z - _c2.z;
     } else if (rig.root.rotation.z) rig.root.rotation.z = 0;
     // flicker while invulnerable after a hit
-    rig.root.visible = p.mode === 'ride' ? !!p.ride?.visible : !(p.invuln > 0 && p.hurtT < 1 && Math.floor(p.t * 20) % 2 === 0);
+    rig.root.visible = p.mode === 'ride' ? !!p.ride?.visible : true; // no blinking when hit: the body shows it
     const onCycle = p.mode === 'bike' && p.kind === 'bicycle', onOkada = p.mode === 'bike' && !onCycle;
     if (onOkada) { bikeMesh.visible = true; bikeMesh.position.set(p.pos.x, p.pos.y, p.pos.z); bikeMesh.rotation.set(0, p.heading, -(p.lean || 0), 'YXZ'); }
     else if (!p.bike) bikeMesh.visible = false;

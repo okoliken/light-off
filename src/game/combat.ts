@@ -106,6 +106,8 @@ export function createCombat(game) {
 
   // pick the enemy in the direction he's pushing (or facing)
   function pickTarget(dir, range = 7, filter: (x: any) => boolean = () => true) {
+    const lk = game.lockOn?.foe();
+    if (lk && filter(lk) && dist(lk, player) <= range && Math.abs(lk.pos.y - player.pos.y) <= (lk.airborne ? 4.5 : 1.4)) return lk; // locked on: that one, even in a crowd
     let best = null, bs = Infinity;
     for (const t of foes()) {
       if (!filter(t)) continue;
@@ -220,6 +222,7 @@ export function createCombat(game) {
       if (ang > 0.8 || game.world.collision.blocked(player.pos.x, player.pos.y + 1.6, player.pos.z, t.pos.x, ty, t.pos.z, 2.2)) continue;
       const sc = d * 0.4 + ang * 6; if (sc < bs) { bs = sc; best = t; }
     }
+    const lk = game.lockOn?.foe(); if (lk && foes().includes(lk) && !lk.grounded && !lk.airborne && dist(lk, player) > 2.2 && dist(lk, player) < 16) best = lk;
     if (!best) return player.leap(dir);
     player.leapCd = 1.2; if (player.mode === 'board') player.mode = 'foot';
     const fromRoof = player.pos.y - best.pos.y > 2.5, unawareFoe = ['idle', 'patrol', 'return'].includes(best.state);

@@ -641,3 +641,13 @@ body.arrested .strug { animation: none; }
   .jsx-main { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
   .jsx-p { grid-template-columns: 52px minmax(0, 1fr) auto; padding: 7px 10px; gap: 10px; } .jsx-time b { font-size: 19px; }
 }
+
+/* lock-on reticle: red on a foe, white on a person, green on a place he can leap to, grey when out of reach */
+.marker.lock { color: #ffd54f; font-size: 10px; letter-spacing: 0.1em; }
+.marker.lock .pin { width: 26px; height: 26px; margin: 0 auto 4px; border: none; background: none; transform: none; position: relative; animation: lockIn 0.25s ease-out; }
+.marker.lock .pin::before, .marker.lock .pin::after { content: ''; position: absolute; inset: 0; border: 3px solid currentColor; }
+.marker.lock .pin::before { clip-path: polygon(0 0, 35% 0, 35% 12%, 12% 12%, 12% 35%, 0 35%, 0 0, 65% 0, 100% 0, 100% 35%, 88% 35%, 88% 12%, 65% 12%); }
+.marker.lock .pin::after { clip-path: polygon(0 65%, 12% 65%, 12% 88%, 35% 88%, 35% 100%, 0 100%, 0 65%, 100% 65%, 100% 100%, 65% 100%, 65% 88%, 88% 88%, 88% 65%); }
+.marker.lock.foe { color: #ff5a4e; } .marker.lock.person { color: #ffffff; } .marker.lock.place { color: #69f0ae; } .marker.lock.far { color: #9e9e9e; }
+.marker.lock .pin { filter: drop-shadow(0 0 4px rgba(0,0,0,0.8)); }
+@keyframes lockIn { from { transform: scale(1.8); opacity: 0; } }

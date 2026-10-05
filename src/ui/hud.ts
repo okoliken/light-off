@@ -497,7 +497,7 @@ export function createHUD(root, world) {
     ['Fighting', [['Strike (toward where you push)', 'F · Click', 'X'], ['Counter when "!" flashes · Dodge', 'C', 'B'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑'],
       ['Pounce onto an enemy', 'V', 'D-Pad ↓'], ['Pick up · Throw', 'T', 'D-Pad ←'], ['Aim a throw', 'Right click', 'LT']]],
     ['Escape kit', [['Pepper bomb · Ash cloud · Nail plank', '1 · 2 · 3', '—'], ['Hang on a danfo (Space: climb onto the roof)', 'E', 'RB'], ['Ride a NEPA wire (Coach Ayo teaches it)', 'E', 'RB'], ['Blackout: pull a transformer fuse', 'F', 'X']]],
-    ['The street', [['Interact · buy · talk', 'F', 'X'], ['Change into / out of the suit (nobody watching)', 'U', '—'], ['Pocket radio', 'N', 'D-Pad →'], ['Torch', 'L', '—'], ['Street Sense (hold)', 'Q', 'LB']]],
+    ['The street', [['Interact · buy · talk', 'F', 'X'], ['Change into / out of the suit (nobody watching)', 'U', '—'], ['Pocket radio', 'N', 'D-Pad →'], ['Torch', 'L', '—'], ['Lock on · next target (hold to let go) · on a phone: tap them', 'Tab', 'R3'], ['Street Sense (hold)', 'Q', 'LB']]],
   ];
   // the short version, shown the first time and on H
   H.controlsCard = (onDone, first = false) => {

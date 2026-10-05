@@ -40,7 +40,11 @@ export function createCamera(aspect, world) {
     const onBoard = ['board', 'grind', 'skitch', 'ride', 'bike'].includes(player.mode);
     const hs = Math.hypot(player.vel.x, player.vel.z);
     // auto-follow: swing behind the direction of travel when the player isn't steering the camera
-    if (c.idle > 1.1 && (onBoard || hs > 3) && player.mode !== 'climb' && !player.aiming) {
+    if (c.lockOn && !player.aiming) { // locked on: swing round so the target stays in view, the player can still look away
+      const want = Math.atan2(c.lockOn.x - player.pos.x, c.lockOn.z - player.pos.z);
+      let d = want - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.hypot(c.lockOn.x - player.pos.x, c.lockOn.z - player.pos.z) > 1.5) c.yaw += d * Math.min(1, dt * (c.idle > 0.5 ? 4 : 1.2));
+    } else if (c.idle > 1.1 && (onBoard || hs > 3) && player.mode !== 'climb' && !player.aiming) {
       const want = onBoard ? player.heading : Math.atan2(player.vel.x, player.vel.z);
       let d = want - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       c.yaw += d * Math.min(1, dt * (onBoard ? 1.6 : 0.9) * Math.min(1, hs / 6));

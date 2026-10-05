@@ -40,7 +40,7 @@ export function createInput(canvas) {
   };
 
   const padPrev: any = {};
-  const MAP = { jump: 0, roll: 1, act: 2, board: 3, sense: 4, skitch: 5, aim: 6, sprint: 7, pause: 9, gadget: 12, flash: 13, throw: 14, map: 8, radio: 15 };
+  const MAP = { jump: 0, roll: 1, act: 2, board: 3, sense: 4, skitch: 5, aim: 6, sprint: 7, pause: 9, gadget: 12, flash: 13, throw: 14, map: 8, radio: 15, lock: 11 };
   const dz = v => (Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85);
 
   st.poll = () => {
@@ -49,11 +49,11 @@ export function createInput(canvas) {
     let my = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
     const held: any = {
       jump: k('Space'), sprint: k('ShiftLeft') || k('ShiftRight'), board: k('KeyR'), skitch: k('KeyE'),
-      act: k('KeyF') || mouse.down, roll: k('KeyC'), sense: k('KeyQ'), pause: false, map: k('KeyM'), aim: mouse.right,
+      act: k('KeyF') || mouse.down, roll: k('KeyC'), sense: k('KeyQ'), pause: false, map: k('KeyM'), aim: mouse.right, lock: k('Tab'),
     };
     const pressed: any = {
       jump: t('Space'), board: t('KeyR'), skitch: t('KeyE'), act: t('KeyF') || mouse.clicked, roll: t('KeyC'),
-      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'), change: t('KeyU'), prone: t('KeyX'), torch: t('KeyL'), g1: t('Digit1'), g2: t('Digit2'), g3: t('Digit3'),
+      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'), change: t('KeyU'), prone: t('KeyX'), torch: t('KeyL'), lock: t('Tab'), g1: t('Digit1'), g2: t('Digit2'), g3: t('Digit3'),
     };
     let lx = mouse.dx, ly = mouse.dy;
     mouse.dx = mouse.dy = 0; mouse.clicked = false; tapped.clear();
@@ -80,6 +80,7 @@ export function createInput(canvas) {
       lx += T.look.dx; ly += T.look.dy;
       for (const [k, v] of Object.entries(T.held)) if (v) held[k] = true;
       for (const [k, v] of Object.entries(T.pressed)) if (v) pressed[k] = true;
+      if (T.tap) pressed.lockTap = T.tap; // a quick tap on the right of the screen: lock on what's under it
     }
     // while aiming, the strike button / RT fires the catapult instead
     if (held.aim) { pressed.fire = pressed.act || (pressed.sprint ?? false); pressed.act = false; held.sprint = false; }

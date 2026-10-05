@@ -39,6 +39,7 @@ export const OUTFITS = {
   egungun: { skin: '#2a1a12', top: '#7b1fa2', bottom: '#1b1b1b', sock: '#111', sole: '#0a0a0a', glove: '#3e2723', hood: false, shorts: false, egungun: true, scale: 1.02, sheen: '#664477' },
   chairman: { skin: '#3a2317', top: '#ddd6c8', bottom: '#d6cfc0', sock: '#222', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#b71c1c', scale: 1.14, sheen: '#aaaaaa' },
   elder: { skin: '#4a2e1f', top: '#d7ccc8', bottom: '#5d4037', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, cap: '#5d4037', sheen: '#888877' },
+  soldier: { skin: '#3e2418', top: '#4b5320', bottom: '#3d4a26', sock: '#1b1b14', sole: '#14140f', glove: '#22261a', hood: false, shorts: false, beret: '#2b3a1c', gun: true, scale: 1.1, sheen: '#556644', badge: true }, // Nigerian Army fatigues and beret
   police: { skin: '#4a2e1f', top: '#13161c', bottom: '#13161c', sock: '#0a0a0a', sole: '#050505', glove: null, hood: false, shorts: false, beret: '#0b0b0b', gun: true, scale: 1.05, sheen: '#3a4458', badge: true },
   thief: { skin: '#3f2618', top: '#4e342e', bottom: '#1f2a36', sock: '#2b2b2b', sole: '#1a1a1a', glove: null, hood: false, shorts: false, mask: 'bandana', gun: true, scale: 1.02, sheen: '#554444' },
 };
@@ -410,6 +411,26 @@ export const Pose = {
   limp(r, p, s) { // hurt: uneven stride, hunched
     Pose.run(r, p, s * 0.7);
     r.set('knRX', 0.2); r.set('thRX', r.t.thRX * 0.4); r.set('spineX', 0.3); r.set('hipsRZ', Math.sin(p) * 0.08); r.set('shRX', -0.3); r.set('elRX', -1.3);
+  },
+  // Taking a hit, for anyone: the body is thrown away from the blow and recovers with a stumble.
+  // side: 0 from the front, 2 from behind, +1 / -1 from either side; pow 0..1. Snaps in, eases out.
+  hitReact(r, k, side = 0, pow = 0.6) {
+    const e = (k < 0.1 ? k / 0.1 : Math.pow(1 - (k - 0.1) / 0.9, 2)) * (0.55 + 0.45 * pow);
+    const wob = Math.sin(k * 15) * 0.08 * (1 - k);
+    if (side === 2) { // from behind: folds forward, arms thrown back
+      r.set('spineX', 0.55 * e); r.set('chestX', 0.25 * e); r.set('headX', 0.35 * e + wob); r.set('shLX', 0.6 * e); r.set('shRX', 0.6 * e); r.set('shLZ', 0.5 * e); r.set('shRZ', -0.5 * e);
+    } else if (side === 0) { // in the face: head snaps back, arms come up late
+      r.set('spineX', -0.5 * e); r.set('chestX', -0.25 * e); r.set('headX', -0.65 * e + wob); r.set('shLX', -1.1 * e); r.set('shRX', -0.9 * e); r.set('elLX', -1.5 * e); r.set('elRX', -1.3 * e); r.set('shLZ', 0.3 * e); r.set('shRZ', -0.3 * e);
+    } else { // from the side: twists away, the near arm flies up
+      const s = side; r.set('chestZ', 0.4 * s * e); r.set('chestY', -0.45 * s * e); r.set('headY', -0.6 * s * e); r.set('headX', -0.2 * e + wob); r.set('spineX', -0.15 * e);
+      r.set(s > 0 ? 'shLZ' : 'shRZ', s * 0.9 * e); r.set(s > 0 ? 'shRX' : 'shLX', -0.9 * e); r.set(s > 0 ? 'elRX' : 'elLX', -1.4 * e);
+    }
+    r.set('hipsY', r.t.hipsY - 0.09 * e); r.set('knLX', (r.t.knLX || 0) + 0.35 * e); r.set('knRX', (r.t.knRX || 0) + 0.25 * e); // the knees give a little
+  },
+  /** Which way a blow lands on someone facing `yaw`, from a point (fx, fz): 0 front, 2 back, +1 / -1 sides. */
+  hitSide(x, z, yaw, fx, fz) {
+    const rel = Math.atan2(Math.sin(Math.atan2(fx - x, fz - z) - yaw), Math.cos(Math.atan2(fx - x, fz - z) - yaw));
+    return Math.abs(rel) < 0.8 ? 0 : Math.abs(rel) > 2.3 ? 2 : Math.sign(rel);
   },
   stagger(r, k) {
     r.set('spineX', -0.45 * (1 - k)); r.set('chestX', -0.2 * (1 - k)); r.set('headX', -0.4 * (1 - k)); r.set('shLZ', 0.8); r.set('shRZ', -0.8);

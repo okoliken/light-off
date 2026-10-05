@@ -39,7 +39,7 @@ const TOP: Btn[] = [
 export const isTouchDevice = () => matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
 export function createTouchPad(root: HTMLElement) {
-  const st = { active: false, move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 }, held: {} as Record<string, boolean>, pressed: {} as Record<string, boolean> };
+  const st: any = { active: false, move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 }, held: {} as Record<string, boolean>, pressed: {} as Record<string, boolean>, tap: null };
   const el = document.createElement('div'); el.className = 'tpad';
   const btn = (b: Btn) => `<button class="tb ${b.cls || ''}" data-k="${b.key}">${b.label}</button>`;
   el.innerHTML = `<div class="tp-stick"><div class="tp-knob"></div></div>
@@ -50,7 +50,7 @@ export function createTouchPad(root: HTMLElement) {
   root.appendChild(el);
   const stick = el.querySelector<HTMLElement>('.tp-stick')!, knob = el.querySelector<HTMLElement>('.tp-knob')!;
   const R = 56; // stick radius in px
-  let stickId: number | null = null, sx = 0, sy = 0, lookId: number | null = null, lx = 0, ly = 0;
+  let stickId: number | null = null, sx = 0, sy = 0, lookId: number | null = null, lx = 0, ly = 0, tapStart: any = null;
 
   // buttons: each touch on a button holds that key until the finger lifts
   el.querySelectorAll<HTMLElement>('[data-k]').forEach(b => {
@@ -74,7 +74,7 @@ export function createTouchPad(root: HTMLElement) {
       if (t.clientX < innerWidth * 0.42 && stickId === null) {
         stickId = t.identifier; sx = t.clientX; sy = t.clientY;
         stick.style.left = sx + 'px'; stick.style.top = sy + 'px'; stick.classList.add('on');
-      } else if (lookId === null) { lookId = t.identifier; lx = t.clientX; ly = t.clientY; }
+      } else if (lookId === null) { lookId = t.identifier; lx = t.clientX; ly = t.clientY; tapStart = { x: t.clientX, y: t.clientY, t: performance.now(), moved: 0 }; }
     }
     if ((e.target as HTMLElement).tagName === 'CANVAS') e.preventDefault();
   };
@@ -87,6 +87,7 @@ export function createTouchPad(root: HTMLElement) {
         st.move.x = dx / R; st.move.y = -dy / R;
         st.held.sprint = d > R * 1.15; // push past the rim to sprint
       } else if (t.identifier === lookId) {
+        if (tapStart) tapStart.moved += Math.hypot(t.clientX - lx, t.clientY - ly);
         st.look.dx += (t.clientX - lx) * 1.6; st.look.dy += (t.clientY - ly) * 1.2; lx = t.clientX; ly = t.clientY;
       }
     }
@@ -94,7 +95,7 @@ export function createTouchPad(root: HTMLElement) {
   const onEnd = (e: TouchEvent) => {
     for (const t of Array.from(e.changedTouches)) {
       if (t.identifier === stickId) { stickId = null; st.move.x = st.move.y = 0; st.held.sprint = false; knob.style.transform = ''; stick.classList.remove('on'); }
-      if (t.identifier === lookId) lookId = null;
+      if (t.identifier === lookId) { lookId = null; if (tapStart && tapStart.moved < 12 && performance.now() - tapStart.t < 260) st.tap = { x: t.clientX, y: t.clientY }; tapStart = null; }
     }
   };
   addEventListener('touchstart', onStart, { passive: false });
@@ -113,6 +114,6 @@ export function createTouchPad(root: HTMLElement) {
       el.querySelector(`[data-k="${key}"]`)?.classList.add('hint');
     },
     // read and clear the one-frame parts
-    take() { const out = { move: { ...st.move }, look: { ...st.look }, held: { ...st.held }, pressed: st.pressed }; st.pressed = {}; st.look.dx = st.look.dy = 0; return out; },
+    take() { const out = { move: { ...st.move }, look: { ...st.look }, held: { ...st.held }, pressed: st.pressed, tap: st.tap }; st.pressed = {}; st.tap = null; st.look.dx = st.look.dy = 0; return out; },
   };
 }
