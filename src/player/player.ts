@@ -235,15 +235,15 @@ export function createPlayer(scene, world, traffic) {
     const w = wishDir(inp, camYaw), mag = Math.min(1, w.length());
     const sprint = inp.held.sprint && mag > 0.5 && !p.aiming;
     const cond = world.roadCond?.(p.pos.x, p.pos.z);
-    const max = (p.adrenT > 0 ? 1.15 : 1) * (p.cuffed ? 0.88 : 1) * (cond === 'flood' && p.onGround ? 0.55 : 1) * (p.aiming ? 3.2 * mag : sprint ? 9.2 : 6.4 * Math.max(0.35, mag)) * (0.7 + 0.3 * p.eff) * (p.hp < 35 ? 0.8 : p.hp < 15 ? 0.7 : 1);
-    const acc = p.onGround ? (p.guard > 0 ? 28 : 42) : 7;
+    const max = (p.adrenT > 0 ? 1.15 : 1) * (p.cuffed ? 0.88 : 1) * (cond === 'flood' && p.onGround ? 0.55 : 1) * (p.aiming ? 3.2 * mag : sprint ? 11.2 : 7.4 * Math.max(0.35, mag)) * (0.7 + 0.3 * p.eff) * (p.hp < 35 ? 0.8 : p.hp < 15 ? 0.7 : 1);
+    const acc = p.onGround ? (p.guard > 0 ? 32 : 60) : 8; // quick off the mark and quick to stop: light on his feet
     const tx = mag > 0.05 ? (w.x / (w.length() || 1)) * max * mag : 0, tz = mag > 0.05 ? (w.z / (w.length() || 1)) * max * mag : 0;
     if (p.onGround || mag > 0.05) { // in the air with no input he keeps his momentum (leaps carry)
       p.vel.x += clamp(tx - p.vel.x, -acc * dt, acc * dt);
       p.vel.z += clamp(tz - p.vel.z, -acc * dt, acc * dt);
     }
     if (p.aiming) p.yaw += clamp(wrap(camYaw - p.yaw), -16 * dt, 16 * dt);
-    else if (mag > 0.1) { const want = Math.atan2(w.x, w.z); p.yaw += clamp(wrap(want - p.yaw), -(p.onGround ? 13 : 5) * dt, (p.onGround ? 13 : 5) * dt); }
+    else if (mag > 0.1) { const want = Math.atan2(w.x, w.z); p.yaw += clamp(wrap(want - p.yaw), -(p.onGround ? 17 : 6) * dt, (p.onGround ? 17 : 6) * dt); }
     if (p.onGround) { p.airFlips = 0; p.flip = null; }
     if (p.flip) p.flip.t += dt;
 
@@ -753,7 +753,7 @@ export function createPlayer(scene, world, traffic) {
           if (p.flip) { Pose.flip(rig, p.flip.kind, p.flip.t / p.flip.dur); rate = 30; }
           else if (p.vaultT < 0.35) Pose.vault(rig); else Pose.air(rig, p.vel.y);
         }
-        else if (hs > 0.4) { p.anim += dt * (1.3 * hs + 1.5); if (p.hp < 35) Pose.limp(rig, p.anim, Math.min(1, hs / 9)); else Pose.run(rig, p.anim, Math.min(1, hs / 9)); rate = 18; }
+        else if (hs > 0.4) { p.anim += dt * (1.3 * hs + 1.5); if (p.hp < 35) Pose.limp(rig, p.anim, Math.min(1, hs / 10.5)); else Pose.run(rig, p.anim, Math.min(1, hs / 10.5)); rate = 18; }
         else Pose.idle(rig, time, p.guard > 0);
         if (p.charge != null) { const k = Math.min(1, p.charge / 0.58); rig.set('hipsY', HIP_H - 0.08 - 0.32 * k); rig.set('thLX', -0.6 - 0.9 * k); rig.set('knLX', 0.9 + 1.2 * k); rig.set('thRX', -0.5 - 0.9 * k); rig.set('knRX', 0.9 + 1.2 * k); rig.set('ftLX', -0.3 * k); rig.set('ftRX', -0.3 * k); rig.set('spineX', 0.3 + 0.3 * k); rig.set('shLX', 0.5 * k); rig.set('shRX', 0.5 * k); rate = 20; }
         break;

@@ -67,7 +67,7 @@ export class Gunman {
         if (this.post && dist > 60) { this.state = 'return'; break; }
         if (canShoot && this.shootCd <= 0 && dist > 5 && dist < 32 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; if (this.bark <= 0) { this.bark = 5; game.say(this, pick(this.role === 'police' ? ['Stop or I shoot!', 'Freeze there!', 'Hands up!'] : ['Back off!', 'You wan die?!', 'Commot for road!']), this.role === 'police' ? 'Police' : 'Robber'); } break; }
         if (dist < 1.3 && reachable && this.role === 'police') { out = { grab: true }; Pose.idle(r, game.time, false); r.set('shLX', -1.3); r.set('shRX', -1.3); r.set('elLX', -0.3); r.set('elRX', -0.3); break; }
-        speed = reachable ? 6.7 : 0;
+        speed = reachable ? 7.6 : 0; // faster than his jog, slower than his sprint: he gets away on his feet, not by strolling
         if (!reachable && dist < 6) { face = toP + Math.PI; speed = 2; } // back off the wall so they can see up
         if (!reachable) { Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('headX', -0.5); } // shouting up at the roof
         break;

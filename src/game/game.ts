@@ -671,7 +671,7 @@ export function createGame(ctx) {
   };
   let torch = null; game.torchOn = false;
   function toggleTorch() {
-    if (!L.items.torch) { hud.popup('NO TORCHLIGHT · BUY ONE AT A MALL'); return; }
+    if (!L.items.torch) { hud.popup('NO TORCHLIGHT YET'); hud.toast('Buy a <b>torchlight</b> (₦1,500) at <b>Bright Future Electricals</b> inside <b>E-Centre Mall</b>, Yaba. Search the map for it.', 'blue'); return; }
     if (!torch) { torch = new THREE.SpotLight(0xfff2d6, 0, 34, 0.42, 0.45, 1.4); const tgt = new THREE.Object3D(); tgt.position.set(0, 0.2, 8); torch.position.set(0.15, 1.35, 0.25); torch.target = tgt; player.rig.root.add(torch, tgt); }
     game.torchOn = !game.torchOn; torch.intensity = game.torchOn ? 38 : 0; audio.tick?.();
   }
