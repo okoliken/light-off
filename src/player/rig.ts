@@ -22,6 +22,9 @@ export const OUTFITS = {
   bolajiJersey: { scale: 1.04, skin: '#5b3a26', top: '#0b8a3e', bottom: '#f2f2f2', sock: '#f2f2f2', sole: '#1f1f22', glove: null, hood: false, shorts: true, cap: null, boardOnBack: false, sheen: '#557766' }, // Super Eagles jersey and white shorts
   bolajiKaftan: { scale: 1.04, skin: '#5b3a26', top: '#e9e2d0', bottom: '#e9e2d0', sock: '#5b3a26', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#4e342e', boardOnBack: false, sheen: '#aaa59a' }, // white kaftan and a cap, for church or a party
   bolajiSinglet: { scale: 1.04, skin: '#5b3a26', top: '#f5f5f5', bottom: '#2c4a73', sock: '#2c4a73', sole: '#1f1f22', glove: null, hood: false, shorts: false, singlet: true, cap: null, boardOnBack: false, sheen: '#888888' }, // singlet and jeans, a hot afternoon
+  // the suit as it wears out: torn (faded, the padding showing), then rags (the mask gone)
+  bolajiTorn: { scale: 1.04, skin: '#5b3a26', top: '#2c2d33', bottom: '#222328', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#7a6a5a', cat: true },
+  bolajiRags: { scale: 1.04, skin: '#5b3a26', top: '#3a3b41', bottom: '#2e2f35', sock: '#5b3a26', sole: '#2b2b2e', glove: null, hood: false, shorts: true, boardOnBack: true, sheen: '#8a7a6a', cat: false },
   bolaji: { scale: 1.04, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#6a7898', cat: true },
   agbero: { skin: '#4a2e1f', top: '#2e7d32', bottom: '#263238', sock: '#4e342e', sole: '#3e2723', glove: null, hood: false, shorts: false, singlet: true, cap: '#b71c1c', scale: 1.08, sheen: '#445544' },
   agbero2: { skin: '#3f2618', top: '#f9a825', bottom: '#1a1a1a', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, singlet: true, cap: null, scale: 1.1, sheen: '#665533' },
@@ -40,6 +43,7 @@ export const OUTFITS = {
   chairman: { skin: '#3a2317', top: '#ddd6c8', bottom: '#d6cfc0', sock: '#222', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#b71c1c', scale: 1.14, sheen: '#aaaaaa' },
   elder: { skin: '#4a2e1f', top: '#d7ccc8', bottom: '#5d4037', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, cap: '#5d4037', sheen: '#888877' },
   soldier: { skin: '#3e2418', top: '#4b5320', bottom: '#3d4a26', sock: '#1b1b14', sole: '#14140f', glove: '#22261a', hood: false, shorts: false, beret: '#2b3a1c', gun: true, scale: 1.1, sheen: '#556644', badge: true }, // Nigerian Army fatigues and beret
+  hunter: { skin: '#e0b48c', top: '#0b0c0f', bottom: '#0d0e11', sock: '#09090b', sole: '#050506', glove: '#08080a', hood: false, shorts: false, hunter: true, weapon: 'katana', scale: 1.06, sheen: '#4a5466' }, // the government's specialist, from Japan
   police: { skin: '#4a2e1f', top: '#13161c', bottom: '#13161c', sock: '#0a0a0a', sole: '#050505', glove: null, hood: false, shorts: false, beret: '#0b0b0b', gun: true, scale: 1.05, sheen: '#3a4458', badge: true },
   thief: { skin: '#3f2618', top: '#4e342e', bottom: '#1f2a36', sock: '#2b2b2b', sole: '#1a1a1a', glove: null, hood: false, shorts: false, mask: 'bandana', gun: true, scale: 1.02, sheen: '#554444' },
 };
@@ -119,6 +123,16 @@ export class Rig {
       M(new THREE.BoxGeometry(0.07, 0.62, 0.3), new THREE.MeshStandardMaterial({ color: '#b71c1c', roughness: 0.8 }), b.chest, 0, 0.08, 0.0, 1, 1, 1.2, 0, 0, 0.75);
       M(new THREE.BoxGeometry(0.06, 0.16, 0.05), new THREE.MeshStandardMaterial({ color: '#2b2b2b' }), b.thR, 0.07, -0.12, 0.02);
     }
+    if (o.hunter) { // the Hunter: matte armour plates over black, a full mask with a thin red visor, a sheath on his back
+      const plate = new THREE.MeshStandardMaterial({ color: '#2a2e35', roughness: 0.45, metalness: 0.55 });
+      M(new THREE.BoxGeometry(0.34, 0.3, 0.06), plate, b.chest, 0, 0.1, 0.12); // chest plate
+      M(new THREE.BoxGeometry(0.3, 0.22, 0.05), plate, b.chest, 0, 0.08, -0.13); // back plate
+      for (const sh of [b.shL, b.shR]) M(new THREE.SphereGeometry(0.085, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), plate, sh, 0, 0.02, 0, 1.15, 0.7, 1.15); // shoulder guards
+      for (const th of [b.thL, b.thR]) M(new THREE.BoxGeometry(0.15, 0.2, 0.06), plate, th, 0, -0.14, 0.07);
+      M(new THREE.SphereGeometry(0.128, 16, 12), new THREE.MeshStandardMaterial({ color: '#0c0d10', roughness: 0.35, metalness: 0.4 }), b.head, 0, 0.11, 0, 1.05, 1.12, 1.1); // the mask, all the way round
+      M(new THREE.BoxGeometry(0.15, 0.016, 0.02), new THREE.MeshStandardMaterial({ color: '#300000', emissive: '#ff1a1a', emissiveIntensity: 2.2 }), b.head, 0, 0.125, 0.128); // the visor slit
+      M(new THREE.BoxGeometry(0.05, 0.72, 0.05), new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.6 }), b.chest, 0.06, 0.05, -0.17, 1, 1, 1, 0, 0, 0.7); // the sheath across his back
+    }
     if (o.tray) { // a hawker's tray on the head: pure water sachets and plantain chips (and a knife under it)
       M(new THREE.CylinderGeometry(0.28, 0.24, 0.05, 14), new THREE.MeshStandardMaterial({ color: '#b0bec5', roughness: 0.4, metalness: 0.5 }), b.head, 0, 0.25, 0);
       for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2; M(new THREE.BoxGeometry(0.09, 0.05, 0.12), new THREE.MeshStandardMaterial({ color: k % 2 ? '#e3f2fd' : '#fdd835', roughness: 0.6 }), b.head, Math.sin(a) * 0.15, 0.3, Math.cos(a) * 0.15, 1, 1, 1, 0, a, 0); }
@@ -173,6 +187,12 @@ export class Rig {
     if (o.badge) M(new THREE.BoxGeometry(0.05, 0.06, 0.01), new THREE.MeshStandardMaterial({ color: '#c9a227', metalness: 0.8, roughness: 0.3 }), b.chest, 0.09, 0.2, 0.13);
     if (o.gun) { const gm = new THREE.MeshStandardMaterial({ color: '#15161a', roughness: 0.4, metalness: 0.7 }); M(new THREE.BoxGeometry(0.035, 0.2, 0.07), gm, b.haR, 0, -0.12, 0.02); M(new THREE.BoxGeometry(0.03, 0.04, 0.09), gm, b.haR, 0, -0.04, -0.03); this.muzzle = new THREE.Object3D(); this.muzzle.position.set(0, -0.23, 0.02); b.haR.add(this.muzzle); }
     if (o.weapon === 'stick') M(new THREE.CylinderGeometry(0.025, 0.035, 0.75, 6), new THREE.MeshStandardMaterial({ color: '#5d4037', roughness: 0.9 }), b.haR, 0, -0.3, 0.05);
+    if (o.weapon === 'katana') { // a long, slightly curved blade: black wrapped grip, a small round guard
+      const steel = new THREE.MeshStandardMaterial({ color: '#d5dbe1', roughness: 0.15, metalness: 0.95 });
+      M(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 8), new THREE.MeshStandardMaterial({ color: '#141414', roughness: 0.9 }), b.haR, 0, -0.08, 0.04, 1, 1, 1, Math.PI / 2, 0, 0);
+      M(new THREE.CylinderGeometry(0.045, 0.045, 0.012, 14), new THREE.MeshStandardMaterial({ color: '#7a6234', metalness: 0.7, roughness: 0.4 }), b.haR, 0, -0.08, 0.17, 1, 1, 1, Math.PI / 2, 0, 0);
+      M(new THREE.BoxGeometry(0.012, 0.035, 0.82), steel, b.haR, 0, -0.06, 0.59, 1, 1, 1, -0.06, 0, 0);
+    }
     if (o.weapon === 'machete') { const bl = new THREE.MeshStandardMaterial({ color: '#b0b6bc', roughness: 0.25, metalness: 0.9 }); M(new THREE.BoxGeometry(0.02, 0.6, 0.07), bl, b.haR, 0, -0.38, 0.04); M(new THREE.CylinderGeometry(0.018, 0.018, 0.13, 6), new THREE.MeshStandardMaterial({ color: '#3e2723' }), b.haR, 0, -0.05, 0.02); }
     if (o.weapon === 'knife') { M(new THREE.BoxGeometry(0.012, 0.2, 0.04), new THREE.MeshStandardMaterial({ color: '#c9cfd4', roughness: 0.2, metalness: 0.95 }), b.haR, 0, -0.2, 0.05); M(new THREE.CylinderGeometry(0.016, 0.016, 0.1, 6), new THREE.MeshStandardMaterial({ color: '#212121' }), b.haR, 0, -0.06, 0.02); }
     if (o.weapon === 'axe') {

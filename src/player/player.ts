@@ -50,6 +50,7 @@ export function createPlayer(scene, world, traffic) {
   p.hurt = (dmg, fx, fz, knock = 3) => {
     if (p.invuln > 0 || ['roll', 'down', 'crawl', 'getup'].includes(p.mode)) return false;
     if (p.mode === 'act') { if (p.act.invuln) return false; p.mode = 'foot'; p.act = null; p.onGround = p.pos.y <= p.lastGround + 0.05; }
+    dmg *= p.armor ?? 1; // the suit's padding (set by the game from its condition)
     p.hp -= dmg; p.hurtT = 0; p.invuln = 0.45; p.staggerT = 0;
     p.hitSide = Pose.hitSide(p.pos.x, p.pos.z, p.yaw, fx, fz); p.hitPow = Math.min(1, dmg / 25);
     p.injury = Math.min(55, p.injury + dmg * 0.22); // injury never caps him below 45

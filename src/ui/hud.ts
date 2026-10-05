@@ -34,6 +34,7 @@ export function createHUD(root, world) {
       <div class="naira">₦0<span>RETURNED</span></div>
       <div class="wanted"><span class="lbl">RED CAPS</span><i></i><i></i><i></i></div>
       <div class="respect"><span class="lbl">REP</span> <b class="rv">0</b></div>
+      <div class="suitline hidden"><span class="lbl">SUIT</span><div class="meter suitm"><b></b></div></div>
       <div class="needs">
         <div><span class="lbl">HUNGER</span><div class="meter hunger"><b></b></div></div>
         <div><span class="lbl">ENERGY</span><div class="meter energy"><b></b></div></div>
@@ -434,6 +435,7 @@ export function createHUD(root, world) {
     el.hbar.style.width = Math.max(0, p.hp) + '%'; el.hcap.style.width = (100 - p.cap()) + '%';
     el.hbar.className = p.hp < 15 ? 'crit' : p.hp < 35 ? 'hurt' : '';
     el.hv.textContent = Math.ceil(Math.max(0, p.hp));
+    { const sl: any = root.querySelector('.suitline'), on = !!game.life?.suit; sl.classList.toggle('hidden', !on); if (on) { const v = game.life.suitHP ?? 100, b = sl.querySelector('b'); b.style.width = v + '%'; b.style.background = v > 60 ? '#9e9e9e' : v > 25 ? '#ffab40' : '#ff5252'; } }
     el.stars.forEach((s, i) => s.classList.toggle('on', game.heat > i));
     el.naira.innerHTML = game.mode === 'patrol' ? `₦${game.life.wallet.toLocaleString()}<span>CASH</span>` : `₦${game.stats.returned.toLocaleString()}<span>RETURNED</span>`;
     const spd = Math.round(Math.hypot(p.vel.x, p.vel.z) * 3.6);

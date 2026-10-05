@@ -10,7 +10,7 @@ const DAY_RATE = (EVENING - DAY_START) / (14 * 60);       // a day is ~14 real m
 export function createLife(game) {
   const L: any = {
     night: 1, phase: 'day', clock: DAY_START, eveningWarned: false, lateHome: false, hunger: 75, energy: 100, wallet: 3000, meals: 2, wanted: 0,
-    dawnWarned: false, lateWarned: false, caught: false, tails: [], inside: true, suspicion: 0, suit: false, bag: false, items: { torch: false, pins: 0, meds: 0, drinks: 0, pepper: 3, smoke: 2, nails: 2, skills: [] }, noise: 0,
+    dawnWarned: false, lateWarned: false, caught: false, tails: [], inside: true, suspicion: 0, suit: false, bag: false, suitHP: 100, items: { torch: false, pins: 0, meds: 0, drinks: 0, pepper: 3, smoke: 2, nails: 2, skills: [] }, noise: 0,
   };
   L.timeStr = () => {
     const m = Math.floor(L.clock) % (24 * 60), h = Math.floor(m / 60), mm = m % 60;

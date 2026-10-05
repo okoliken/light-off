@@ -22,7 +22,7 @@ export function createLockOn(game) {
   // everything worth locking onto around him
   function candidates() {
     const out: any[] = [], p = P();
-    for (const t of game.thugs) if (t.alive && !t.hidden) out.push({ kind: 'foe', ref: t, name: t.variant === 'general' ? 'THE GENERAL' : t.gboy ? 'BOY IN BLACK' : 'RED CAP', engaged: t.engaged });
+    for (const t of game.thugs) if (t.alive && !t.hidden) out.push({ kind: 'foe', ref: t, name: t.hunter ? 'THE HUNTER' : t.variant === 'general' ? 'THE GENERAL' : t.gboy ? 'BOY IN BLACK' : 'RED CAP', engaged: t.engaged });
     // only people he'd fight: the General's boys, Red Caps, gunmen, and the police or army when they're after him
     for (const g of game.gunmen) if (g.alive) { const law = g.role === 'police'; if (law && (game.heat <= 0 || g.foe)) continue; out.push({ kind: 'foe', ref: g, name: g.soldier ? 'SOLDIER' : law ? 'POLICE' : g.gboy ? 'BOY IN BLACK' : 'GUNMAN' }); }
     for (const v of game.traffic?.vehicles || []) if (v.spec?.platform && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 18) out.push({ kind: 'place', ref: v, name: `${v.spec.label.toUpperCase()} ROOF` });

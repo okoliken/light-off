@@ -7,6 +7,7 @@ import { Thug } from './thugs.ts';
 import { Gunman } from './enemies.ts';
 import { createCombat } from './combat.ts';
 import { createLockOn } from './lockon.ts';
+import { createHunter } from './hunter.ts';
 import { createLife } from './life.ts';
 import { createStory } from './story.ts';
 import { createThrowables } from './throwables.ts';
@@ -79,6 +80,7 @@ export function createGame(ctx) {
   game.life = createLife(game);
   game.combat = createCombat(game);
   game.lockOn = createLockOn(game);
+  game.hunter = createHunter(game);
   const L = game.life, combat = game.combat;
 
   // ---------- helpers ----------
@@ -389,6 +391,7 @@ export function createGame(ctx) {
     if (game.mode === 'patrol') { // his own rented room: nobody else lives here
       const near = (q, r = 1.3) => dist2(q, player.pos) < r * r;
       if (near(R0.door, 1.2)) return { kind: 'out', story: false, text: '<span class="key">F</span>Go out' };
+      if (near(R0.drum, 1.2) && !L.suit && (L.suitHP ?? 100) < 70 && (L.suitHP ?? 100) > 0) return { kind: 'stitch', text: `<span class="key">F</span>Stitch the suit up (₦300 of thread · ${Math.round(L.suitHP)}% → 70%)` };
       if (near(R0.drum, 1.2)) return L.suit ? { kind: 'suit', text: '<span class="key">F</span>Take off the suit and hide it in the drum' } : { kind: 'bag', text: L.bag ? '<span class="key">F</span>Leave the suit in the drum' : '<span class="key">F</span>Pack the suit in your backpack' };
       if (near(R0.pot, 1.1)) return { kind: 'cook', text: '<span class="key">F</span>Cook noodles and egg (₦500)' };
       if (near(R0.chair, 1.0)) return { kind: 'rest', text: '<span class="key">F</span>Sit and rest a while (30 min)' };
@@ -498,6 +501,7 @@ export function createGame(ctx) {
     if (L.inside) return roomOption();
     if (!['foot', 'board'].includes(player.mode) || (player.mode === 'board' && !player.onGround)) return null;
     const busy = game.thugs.some(t => t.alive && (t.state === 'windup' || t.state === 'strike') && dist2(t.pos, player.pos) < 9);
+    { const tl = DAY.pois.tailor; if (tl && !L.suit && (L.suitHP ?? 100) < 100 && dist2(tl, player.pos) < 4 * 4) return { kind: 'tailor', text: `<span class="key">F</span>Sunny Tailoring: a new black suit, no questions asked (₦8,000 · yours is ${Math.round(L.suitHP)}%)` }; }
     if (game.dropped && dist2(game.dropped.mesh.position, player.pos) < 2.4 * 2.4) return { kind: 'pickup', text: `<span class="key">F</span>Pick up ${game.dropped.item.label}` };
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 3.6 * 3.6) return { kind: 'deliver', text: `<span class="key">F</span>Give it back to ${game.delivery.name}` };
     if (busy) return null;
@@ -582,9 +586,11 @@ export function createGame(ctx) {
       case 'fuse': opt.tf.cool = 120; startBlackout(38, true); return true;
       // at home
       case 'out': game.leaveHome(opt.story); return true;
+      case 'stitch': if (L.wallet < 300) { hud.toast('You need ₦300 for thread.', 'red'); return true; } L.wallet -= 300; L.suitHP = 70; L.clock += 60; audio.grab(); hud.notice('STITCHED', 'An hour with a needle by the lantern. It\'ll hold, mostly (70%).', 'green', 3); game.save(); return true;
+      case 'tailor': if (L.wallet < 8000) { hud.toast('Sunny wants ₦8,000 for a new one. You don\'t have it.', 'red'); return true; } L.wallet -= 8000; L.suitHP = 100; audio.pickup(); hud.say('Sunny (tailor)', 'Black, no label, double stitched. I never saw you.', 3.5); hud.notice('NEW SUIT', 'Good as new (100%). It\'s in your bag.', 'green', 3); game.save(); return true;
       case 'clothes': L.wear = nextFit(); game.refreshFit(); audio.grab(); hud.popup(L.wear === 'uniform' ? 'UNIFORM ON' : fitName(L.wear).toUpperCase()); return true;
       case 'bag': L.bag = !L.bag; updateBackpack(); audio.grab(); hud.popup(L.bag ? 'SUIT PACKED' : 'SUIT IN THE DRUM'); return true;
-      case 'suit': L.suit = !L.suit; player.setOutfit(L.suit ? OUTFITS.bolaji : dayFit()); reattachBag(); audio.grab(); hud.popup(L.suit ? 'SUITED UP' : 'SUIT HIDDEN'); return true;
+      case 'suit': L.suit = !L.suit; player.setOutfit(L.suit ? suitFit() : dayFit()); reattachBag(); audio.grab(); hud.popup(L.suit ? 'SUITED UP' : 'SUIT HIDDEN'); return true;
       case 'eat': L.meals--; L.eat(45, "MAMA'S JOLLOF"); return true;
       case 'rest': L.clock += 30; L.energy = Math.min(100, L.energy + 22); player.hp = Math.min(player.cap(), player.hp + 12); hud.notice(L.timeStr(), 'You sit in the dark and let your body settle.', 'white', 1.8); return true;
       case 'radio': game.radio.listen(); return true;
@@ -615,6 +621,9 @@ export function createGame(ctx) {
   })();
   game.refreshBag = () => updateBackpack();
   // what he wears by day: the SwiftDrop uniform while he has the job, plain clothes when he doesn't
+  // the suit as it is: whole, torn, or in rags
+  const suitFit = () => (L.suitHP ?? 100) > 60 ? OUTFITS.bolaji : (L.suitHP ?? 100) > 25 ? OUTFITS.bolajiTorn : OUTFITS.bolajiRags;
+  game.suitFit = suitFit;
   // On shift it's always the uniform; off duty, whatever he last picked from the nail at home (L.wear)
   const dayFit = () => {
     if (game.job?.clockedIn) return OUTFITS.bolajiDay;
@@ -645,7 +654,7 @@ export function createGame(ctx) {
   function changeClothes() {
     if (L.inside || !(L.bag || L.suit) || !['foot'].includes(player.mode) || player.cuffed) { if (!L.inside && !L.bag && !L.suit) hud.popup('NO SUIT WITH YOU'); return; }
     const n = witnesses();
-    if (L.suit) { L.suit = false; L.bag = true; player.setOutfit(dayFit()); } else { L.suit = true; player.setOutfit(OUTFITS.bolaji); }
+    if (L.suit) { L.suit = false; L.bag = true; player.setOutfit(dayFit()); } else { L.suit = true; player.setOutfit(suitFit()); }
     reattachBag(); updateBackpack(); audio.grab(); fx.dust(player.pos.x, player.pos.y + 0.1, player.pos.z, 6);
     if (n > 0) {
       // somebody saw Bolaji from Aguda turn into the boy in black (or back)
@@ -655,6 +664,17 @@ export function createGame(ctx) {
     } else hud.popup(L.suit ? 'SUITED UP · NOBODY SAW' : 'CHANGED BACK · NOBODY SAW');
   }
   game.changeClothes = changeClothes;
+  // ---------- the suit wears out: torn, then rags; stitch it at home or buy a new one from Sunny Tailoring ----------
+  function wearSuit(n) {
+    const before = suitFit(); L.suitHP = Math.max(0, (L.suitHP ?? 100) - n);
+    if (suitFit() !== before) { player.setOutfit(suitFit()); reattachBag();
+      if (suitFit() === OUTFITS.bolajiTorn) hud.notice('SUIT TORN', 'The padding is gone in places: hits land harder now. Stitch it at home, or get a new one.', 'red', 3.5);
+      else hud.notice('SUIT IN RAGS', 'The mask is ripped off: people can see your face. You need a new suit (Sunny Tailoring).', 'red', 4); }
+  }
+  game.wearSuit = wearSuit;
+  // every hit that lands, whoever it's from: a beat of stillness, dust off him, and wear on the suit
+  { const hurt = player.hurt; player.hurt = (dmg, fx0, fz0, knock) => { const hit = hurt(dmg, fx0, fz0, knock); if (hit) { game.hitStop = Math.max(game.hitStop || 0, dmg >= 15 ? 0.09 : 0.04); fx.dust(player.pos.x, player.pos.y + 1.1, player.pos.z, 3); if (L.suit) wearSuit(dmg * (game.lastHitKatana ? 0.7 : 0.3)); } return hit; }; }
+
   // ---------- shopping, the torch, picking cuffs ----------
   game.shopItems = () => [
     { id: 'torch', name: 'Torchlight', desc: 'L to switch on and off. Lights the dark streets, but makes you easier to spot.', price: 1500, owned: L.items.torch },
@@ -712,7 +732,7 @@ export function createGame(ctx) {
   game.jumpToMission = (i) => {
     if (L.phase === 'day') { L.toNight(); nightStart(game); setOccupants(true); }
     loseItem(); player.dropHeld(); for (const t of game.thugs) if (t.state === 'tail') t.remove();
-    L.inside = false; L.suit = true; player.setOutfit(OUTFITS.bolaji); reattachBag();
+    L.inside = false; L.suit = true; player.setOutfit(suitFit()); reattachBag();
     player.hp = player.cap(); player.mode = 'foot';
     player.respawn(world.home.x, world.home.z, world.home.yaw); camera.snapBehind(world.home.yaw);
     env.setDaylight(L.daylight()); applyLights(true);
@@ -1017,6 +1037,7 @@ export function createGame(ctx) {
     L.suspicion = Math.min(100, L.suspicion + 30);
     setTimeout(() => { game.respawnT = 0; player.mode = 'foot'; L.inside = true; player.respawn(R0.mat.x, R0.mat.z, 0); player.pos.y = 0; game.onJailed?.(); }, 300);
   }
+  game.capturedByHunter = () => { hud.banner('CAPTURED', 'The Hunter pinned you and carried you to Surulere Division himself.', 'red', 4); audio.busted?.(); game.heat = 0; game.stats.busted++; jailed(); };
   // Kolade (or any mechanic with bolt cutters) takes the cuffs off
   game.cuffOption = () => {
     if (!player.cuffed) return null;
@@ -1026,7 +1047,7 @@ export function createGame(ctx) {
   };
   // beaten: down for a while then back up; critical: crawl away or wake up robbed at dawn
   let crawlSafeT = 0, beatT = 0;
-  function hostilesNear() { return [...game.thugs.filter(t => t.alive && t.engaged), ...game.gunmen.filter(g => g.alive)]; }
+  function hostilesNear() { return [...game.thugs.filter(t => t.alive && t.engaged && !t.hunter), ...game.gunmen.filter(g => g.alive)]; }
   function updateDowned(dt) {
     if (game.respawnT > 0) return;
     if (player.mode !== 'crawl') { crawlSafeT = 0; beatT = 0; game.beingKicked = false; game.beatMeter = 0; return; }
@@ -1202,6 +1223,7 @@ export function createGame(ctx) {
     updateRoom(dt);
     // evening rolls into night: once it's dark and he's home, Mama and Tobi eat and go to sleep (no need to 'wait')
     if (L.phase === 'day' && L.inside && L.clock >= 20 * 60 && !game.story.active) game.toNight();
+    game.hunter.tick(dt); player.armor = L.suit ? ((L.suitHP ?? 100) > 60 ? 0.85 : (L.suitHP ?? 100) > 25 ? 1 : 1.2) : 1;
     if (!L.inside && !game.arrest && !game.inMall) game.lockOn.update(dt, input); else if (game.lockOn.target) { game.lockOn.release(); camera.lockOn = null; player.lockLeap = null; }
     combat.update(sdt);
 
@@ -1262,7 +1284,8 @@ export function createGame(ctx) {
     updateDowned(dt);
     if (['down', 'crawl'].includes(player.mode) && !game.arrest) {
       const crawl = player.mode === 'crawl', cops = game.catchMeter > 0.01;
-      game.struggle = { title: game.beingKicked ? 'THEY\'RE KICKING YOU!' : crawl ? 'YOU\'RE BADLY HURT' : 'YOU\'RE DOWN', key: 'SPACE', verb: 'TAP FAST',
+      if (game.hunterPin) game.struggle = { title: 'THE HUNTER HAS YOU PINNED', key: 'SPACE', verb: 'TAP FAST', sub: 'Throw him off, or he carries you in.', good: player.adren, goodLabel: 'THROW HIM OFF', bad: game.hunterPin.k, badLabel: 'CAPTURED' };
+      else game.struggle = { title: game.beingKicked ? 'THEY\'RE KICKING YOU!' : crawl ? 'YOU\'RE BADLY HURT' : 'YOU\'RE DOWN', key: 'SPACE', verb: 'TAP FAST',
         sub: game.beingKicked ? 'Get up now, or they leave you in the gutter.' : crawl ? 'Tap to get back up, or crawl away with the stick.' : 'Tap to get up faster.',
         good: player.adren, goodLabel: 'GET UP', bad: cops ? game.catchMeter : crawl ? game.beatMeter || 0 : null, badLabel: cops ? 'CUFFED' : 'BEATEN' };
       game.hudMeter = Math.max(0.02, player.adren); game.catchLabel = game.beingKicked ? 'THEY\'RE KICKING YOU · MASH JUMP (SPACE) TO GET UP!' : player.adren > 0.03 ? 'ADRENALINE · KEEP MASHING JUMP (SPACE)' : 'DOWN · MASH JUMP (SPACE) FOR AN ADRENALINE BURST'; }
@@ -1441,7 +1464,7 @@ export function createGame(ctx) {
       case 'grindEnd': if (game.grindLen > 3) game.addRespect(game.grindLen * 6, `GRIND ${game.grindLen.toFixed(0)}M`); break;
       case 'bail': audio.bail(); camera.shake = 0.5; break;
       case 'hurt': game.hitsTaken = (game.hitsTaken || 0) + 1; audio.hurt(); env.grade.uniforms.hurt.value = 1; combat.hit();
-        game.hitStop = Math.max(game.hitStop || 0, (ev.dmg || 0) >= 15 ? 0.09 : 0.04); fx.dust(player.pos.x, player.pos.y + 1.1, player.pos.z, 3); break; // a beat of stillness as it lands
+        break;
       case 'carhit': hud.toast(`Hit by a ${ev.v.spec.label.toLowerCase()}!`, 'red'); break;
       case 'skitch': audio.grab(); if (ev.v.type === 'danfo') hud.say('Conductor', ['Ehn? Who dey hold my motor?', 'Oya! Oshodi, Oshodi!', 'Wetin you dey do for back there?'][Math.floor(R() * 3)], 2); break;
       case 'conductor': hud.say('Conductor', 'Comot for my motor! You wan die?!', 1.8); audio.horn(player.pos); break;
@@ -1492,7 +1515,7 @@ export function createGame(ctx) {
   game.startPatrol = (fresh = true) => {
     L.phase = 'day'; L.clock = 7.5 * 60; setOccupants(false);
     L.suit = false; L.bag = true; player.setOutfit(dayFit()); reattachBag(); updateBackpack();
-    if (game.sub === 'free') { L.phase = 'night'; L.clock = 22.5 * 60; L.suit = true; L.bag = false; player.setOutfit(OUTFITS.bolaji); reattachBag(); updateBackpack(); }
+    if (game.sub === 'free') { L.phase = 'night'; L.clock = 22.5 * 60; L.suit = true; L.bag = false; player.setOutfit(suitFit()); reattachBag(); updateBackpack(); }
     game.leaveHome(false);
     if (fresh && game.sub === 'free') hud.notice('PATROL', 'Endless free roam in the suit. No job, no story: just Lagos at night.', 'blue', 4);
     else if (fresh) { hud.notice('DAY 1', 'Your first week as a SwiftDrop rider. Clock in at the office in Ojuelegba before noon.', 'white', 5); setTimeout(() => game.job.routeNext?.(), 600); }
@@ -1544,7 +1567,7 @@ export function createGame(ctx) {
         v: 1, night: L.night, phase: L.phase,
         story: { homePending: game.story.homePending || null, midMission: game.story.active && !game.story.active.m.day ? game.story.active.m.title : null, index: game.story.progress(), unlocked: Math.max(game.story.unlocked, game.story.saved?.unlocked ?? 0), dayDone: game.story.dayDone, dayUnlocked: game.story.dayUnlocked, recon: game.story.recon, flags: game.story.flags, places: game.story.places },
         respect: game.respect, stats: game.stats, job: game.job?.serialize(), general: game.general?.serialize(),
-        life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy, wear: L.wear || 'uniform' },
+        life: { items: L.items, wallet: L.wallet, suspicion: L.suspicion, wanted: L.wanted, hunger: L.hunger, energy: L.energy, wear: L.wear || 'uniform', suitHP: L.suitHP ?? 100 },
         player: { injury: player.injury, hp: player.hp },
         pois: Object.values(DAY.pois as Record<string, any>).filter(q => q.found).map(q => q.id),
         // where he is right now, so a reload puts him back on the street (not at home)
@@ -1555,7 +1578,7 @@ export function createGame(ctx) {
   };
   game.restoreSnap = (sn) => {
     if (!sn || sn.inside || game.story.active) return;
-    L.clock = sn.clock; L.suit = sn.suit; L.bag = !!sn.bag; player.setOutfit(sn.suit ? OUTFITS.bolaji : dayFit()); reattachBag(); updateBackpack();
+    L.clock = sn.clock; L.suit = sn.suit; L.bag = !!sn.bag; player.setOutfit(sn.suit ? suitFit() : dayFit()); reattachBag(); updateBackpack();
     L.inside = false; player.respawn(sn.x, sn.z, sn.yaw || 0); camera.snapBehind(sn.yaw || 0);
     player.cuffed = !!sn.cuffed; game.heat = sn.cuffed ? Math.max(1, sn.heat || 0) : 0;
     env.setDaylight(L.daylight()); applyLights(true);

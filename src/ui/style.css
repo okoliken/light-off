@@ -678,3 +678,5 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 /* menus over the game (pause, map, job sheet, cards): the struggle card and lock reticle wait underneath */
 #hud:has(.overlay) .strug, #hud:has(.mm) .strug, #hud:has(.bigmap) .strug, #hud:has(.ccard) .strug { display: none !important; }
 #hud:has(.overlay) .marker.lock, #hud:has(.mm) .marker.lock { display: none !important; }
+
+.suitline { display: flex; align-items: center; gap: 8px; } .suitline .meter { width: 120px; } .suitline .lbl { font-size: 10px; letter-spacing: 0.14em; color: var(--dim); font-weight: 800; }
