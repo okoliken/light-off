@@ -282,6 +282,7 @@ export function createGame(ctx) {
   const _chest = new THREE.Vector3(), _miss = new THREE.Vector3(), _t = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
   // one NPC shooting at another (police or soldiers against the General's boys): soldiers rarely miss
   function npcShot(g, foe) {
+    if (foe.hunter) { const from = g.muzzle().clone(); fx.tracer(from, _miss.set(foe.pos.x, foe.pos.y + 1.3, foe.pos.z)); fx.flash(from.x, from.y, from.z); audio.gun(from); foe.deflect?.(from); return; } // he turns bullets with the blade
     const from = g.muzzle().clone(), to = _miss.set(foe.pos.x, foe.pos.y + 1.2, foe.pos.z), d = from.distanceTo(to);
     const los = !col.blocked(from.x, from.y, from.z, to.x, to.y, to.z, 1.2);
     const hit = los && R() < (g.soldier ? 0.8 : 0.5) * Math.max(0.4, Math.min(1, 1 - d / 60));
@@ -369,6 +370,7 @@ export function createGame(ctx) {
     if (kind === 'bottle') audio.glass(); else if (kind === 'sachet') audio.splash?.(); else audio.clank?.(pos);
     if (owner === 'enemy') { if (target === player && player.hurt(kind === 'knife' ? 15 : 10, pos.x, pos.z, 2)) { combat.hit(); env.grade.uniforms.hurt.value = 1; camera.shake = 0.35; } return; }
     if (!target) return;
+    if (target.hunter && target.cutThrow?.()) return; // the Hunter cut it out of the air
     if (target.car) { // a stone through the windscreen
       const v = target.car; v.ai.health -= kind === 'brick' || kind === 'tyre' || kind === 'board' ? 2 : 1; audio.glass(); camera.shake = 0.2;
       hud.popup(v.ai.health > 0 ? `WINDSCREEN · <b>${v.ai.health} MORE</b>` : '<b>THE DRIVER LOST IT</b>');

@@ -187,11 +187,16 @@ export class Rig {
     if (o.badge) M(new THREE.BoxGeometry(0.05, 0.06, 0.01), new THREE.MeshStandardMaterial({ color: '#c9a227', metalness: 0.8, roughness: 0.3 }), b.chest, 0.09, 0.2, 0.13);
     if (o.gun) { const gm = new THREE.MeshStandardMaterial({ color: '#15161a', roughness: 0.4, metalness: 0.7 }); M(new THREE.BoxGeometry(0.035, 0.2, 0.07), gm, b.haR, 0, -0.12, 0.02); M(new THREE.BoxGeometry(0.03, 0.04, 0.09), gm, b.haR, 0, -0.04, -0.03); this.muzzle = new THREE.Object3D(); this.muzzle.position.set(0, -0.23, 0.02); b.haR.add(this.muzzle); }
     if (o.weapon === 'stick') M(new THREE.CylinderGeometry(0.025, 0.035, 0.75, 6), new THREE.MeshStandardMaterial({ color: '#5d4037', roughness: 0.9 }), b.haR, 0, -0.3, 0.05);
-    if (o.weapon === 'katana') { // a long, slightly curved blade: black wrapped grip, a small round guard
-      const steel = new THREE.MeshStandardMaterial({ color: '#d5dbe1', roughness: 0.15, metalness: 0.95 });
-      M(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 8), new THREE.MeshStandardMaterial({ color: '#141414', roughness: 0.9 }), b.haR, 0, -0.08, 0.04, 1, 1, 1, Math.PI / 2, 0, 0);
-      M(new THREE.CylinderGeometry(0.045, 0.045, 0.012, 14), new THREE.MeshStandardMaterial({ color: '#7a6234', metalness: 0.7, roughness: 0.4 }), b.haR, 0, -0.08, 0.17, 1, 1, 1, Math.PI / 2, 0, 0);
-      M(new THREE.BoxGeometry(0.012, 0.035, 0.82), steel, b.haR, 0, -0.06, 0.59, 1, 1, 1, -0.06, 0, 0);
+    if (o.weapon === 'katana') { // a long, slightly curved blade: sheathed on his back until he draws it
+      const steel = new THREE.MeshStandardMaterial({ color: '#d5dbe1', roughness: 0.15, metalness: 0.95 }), grip = new THREE.MeshStandardMaterial({ color: '#141414', roughness: 0.9 }), tsuba = new THREE.MeshStandardMaterial({ color: '#7a6234', metalness: 0.7, roughness: 0.4 });
+      const hand = new THREE.Group(); b.haR.add(hand); meshes.push(hand); this.katanaHand = hand;
+      M(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 8), grip, hand, 0, -0.08, 0.04, 1, 1, 1, Math.PI / 2, 0, 0);
+      M(new THREE.CylinderGeometry(0.045, 0.045, 0.012, 14), tsuba, hand, 0, -0.08, 0.17, 1, 1, 1, Math.PI / 2, 0, 0);
+      M(new THREE.BoxGeometry(0.012, 0.035, 0.82), steel, hand, 0, -0.06, 0.59, 1, 1, 1, -0.06, 0, 0);
+      const back = new THREE.Group(); b.chest.add(back); meshes.push(back); this.katanaBack = back; // the grip over his right shoulder
+      M(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 8), grip, back, 0.17, 0.42, -0.17, 1, 1, 1, 0, 0, 0.7);
+      M(new THREE.CylinderGeometry(0.04, 0.04, 0.012, 14), tsuba, back, 0.11, 0.33, -0.17, 1, 1, 1, 0, 0, 0.7);
+      hand.visible = false;
     }
     if (o.weapon === 'machete') { const bl = new THREE.MeshStandardMaterial({ color: '#b0b6bc', roughness: 0.25, metalness: 0.9 }); M(new THREE.BoxGeometry(0.02, 0.6, 0.07), bl, b.haR, 0, -0.38, 0.04); M(new THREE.CylinderGeometry(0.018, 0.018, 0.13, 6), new THREE.MeshStandardMaterial({ color: '#3e2723' }), b.haR, 0, -0.05, 0.02); }
     if (o.weapon === 'knife') { M(new THREE.BoxGeometry(0.012, 0.2, 0.04), new THREE.MeshStandardMaterial({ color: '#c9cfd4', roughness: 0.2, metalness: 0.95 }), b.haR, 0, -0.2, 0.05); M(new THREE.CylinderGeometry(0.016, 0.016, 0.1, 6), new THREE.MeshStandardMaterial({ color: '#212121' }), b.haR, 0, -0.06, 0.02); }
@@ -220,6 +225,8 @@ export class Rig {
   }
 
   set(k, v) { this.t[k] = v; }
+  /** The Hunter's katana: in his hand (drawn) or on his back. */
+  drawKatana(on) { if (this.katanaHand) { this.katanaHand.visible = on; this.katanaBack.visible = !on; } }
   reset() { for (const k of KEYS) this.t[k] = 0; this.t.hipsY = HIP_H; }
 
   update(dt, rate = 14) {
