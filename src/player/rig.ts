@@ -25,8 +25,8 @@ export const OUTFITS = {
   // the suit as it wears out: torn (faded, the padding showing), then rags (the mask gone)
   bolajiTorn: { scale: 1.04, skin: '#5b3a26', top: '#2c2d33', bottom: '#222328', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#7a6a5a', cat: true },
   bolajiRags: { scale: 1.04, skin: '#5b3a26', top: '#3a3b41', bottom: '#2e2f35', sock: '#5b3a26', sole: '#2b2b2e', glove: null, hood: false, shorts: true, boardOnBack: true, sheen: '#8a7a6a', cat: false },
-  // the new suit (Act 3 on): sleek charcoal with tiger stripes, a full cowl with tall ears, amber cat eyes, claws and a tail
-  bolajiCat: { scale: 1.04, skin: '#5b3a26', top: '#15161b', bottom: '#131418', sock: '#121316', sole: '#0c0c0e', glove: '#0b0b0d', hood: false, shorts: false, boardOnBack: true, sheen: '#5d6a82', panther: true },
+  // the new suit (Act 3 on): a panther. Matte black, a full helmet, silver fangs and trim, violet energy lines, long claws. No board
+  bolajiCat: { scale: 1.05, skin: '#5b3a26', top: '#101116', bottom: '#0e0f13', sock: '#0b0b0e', sole: '#08080a', glove: '#0b0b0d', hood: false, shorts: false, boardOnBack: false, sheen: '#4a4f66', panther: true },
   bolaji: { scale: 1.04, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#6a7898', cat: true },
   agbero: { skin: '#4a2e1f', top: '#2e7d32', bottom: '#263238', sock: '#4e342e', sole: '#3e2723', glove: null, hood: false, shorts: false, singlet: true, cap: '#b71c1c', scale: 1.08, sheen: '#445544' },
   agbero2: { skin: '#3f2618', top: '#f9a825', bottom: '#1a1a1a', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, singlet: true, cap: null, scale: 1.1, sheen: '#665533' },
@@ -150,37 +150,49 @@ export class Rig {
       const claw = new THREE.MeshStandardMaterial({ color: '#5f6570', roughness: 0.35, metalness: 0.6 });
       for (const ha of [b.haL, b.haR]) for (const cx of [-0.022, 0, 0.022]) M(new THREE.ConeGeometry(0.006, 0.03, 4), claw, ha, cx, -0.095, 0.028, 1, 1, 1, Math.PI, 0, 0);
     }
-    if (o.panther) { // the new suit, "the Cat": a full cowl with tall ears, slanted amber eyes with slit pupils, tiger stripes, claws, a tail
-      const cowl = new THREE.MeshStandardMaterial({ color: o.top, roughness: 0.42, metalness: 0.25 });
-      const stripe = new THREE.MeshStandardMaterial({ color: '#2a2418', emissive: '#ff9a00', emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.5 }); // stripes with a low amber glow: they read at night
-      M(new THREE.SphereGeometry(0.106, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.6), cowl, b.head, 0, 0.115, 0.006, 0.94, 1.08, 1.05); // over the head and down past the eyes: the jaw stays bare
-      M(new THREE.CylinderGeometry(0.06, 0.07, 0.08, 14), cowl, b.neck, 0, 0.02, 0);
-      for (const sx of [1, -1]) { // tall, sharp ears with a lighter lining
-        M(new THREE.ConeGeometry(0.042, 0.13, 4), cowl, b.head, sx * 0.058, 0.25, -0.01, 1, 1, 0.6, 0.08, sx * 0.4, sx * -0.3);
-        M(new THREE.ConeGeometry(0.024, 0.08, 4), new THREE.MeshStandardMaterial({ color: '#3a2a10', emissive: '#ff9a00', emissiveIntensity: 0.35, roughness: 0.8 }), b.head, sx * 0.056, 0.24, 0.006, 1, 1, 0.4, 0.08, sx * 0.4, sx * -0.3);
+    if (o.panther) { // the new suit: a panther. Full angular helmet, short ears, glowing eye slits, a collar of silver fangs, silver trim and violet energy lines over matte black, long claws
+      const shell = new THREE.MeshStandardMaterial({ color: '#0c0d11', roughness: 0.32, metalness: 0.55 });
+      const silver = new THREE.MeshStandardMaterial({ color: '#c9ced8', roughness: 0.22, metalness: 0.9 });
+      const vein = new THREE.MeshStandardMaterial({ color: '#2a1050', emissive: '#a35cff', emissiveIntensity: 1.4, roughness: 0.4 });
+      const eyeGlow = new THREE.MeshStandardMaterial({ color: '#e9dcff', emissive: '#c79bff', emissiveIntensity: 1.5 });
+      // the helmet: over the whole head, then plates that make the face angular: a flat faceplate, a V brow, cheek plates meeting in a V at the chin, a muzzle
+      M(new THREE.SphereGeometry(0.106, 22, 16), shell, b.head, 0, 0.108, 0.0, 0.88, 1.1, 1.04);
+      M(new THREE.BoxGeometry(0.13, 0.075, 0.03), shell, b.head, 0, 0.118, 0.095, 1, 1, 1, -0.12, 0, 0); // faceplate
+      for (const sx of [1, -1]) {
+        M(new THREE.BoxGeometry(0.075, 0.022, 0.035), shell, b.head, sx * 0.036, 0.148, 0.102, 1, 1, 1, -0.15, sx * 0.2, sx * 0.28); // the brow, angled down to the middle
+        M(new THREE.BoxGeometry(0.022, 0.085, 0.04), shell, b.head, sx * 0.043, 0.06, 0.088, 1, 1, 1, 0.1, sx * 0.35, sx * -0.55); // cheek plates: a V to the chin
+        M(new THREE.ConeGeometry(0.042, 0.095, 4), shell, b.head, sx * 0.064, 0.215, -0.008, 1, 1, 0.55, 0.05, 0, sx * -0.3); // ears
+        M(new THREE.ConeGeometry(0.02, 0.05, 4), new THREE.MeshStandardMaterial({ color: '#2a1050', emissive: '#a35cff', emissiveIntensity: 0.6 }), b.head, sx * 0.063, 0.212, 0.004, 1, 1, 0.3, 0.05, 0, sx * -0.3); // inside the ear
+        M(new THREE.BoxGeometry(0.04, 0.0075, 0.006), eyeGlow, b.head, sx * 0.035, 0.132, 0.113, 1, 1, 1, 0, sx * 0.2, sx * 0.34); // the eye slits
+        M(new THREE.BoxGeometry(0.008, 0.07, 0.008), silver, b.head, sx * 0.052, 0.075, 0.1, 1, 1, 1, 0.15, sx * 0.3, sx * -0.5); // the cheek line
+        M(new THREE.BoxGeometry(0.008, 0.12, 0.01), silver, b.head, sx * 0.028, 0.19, 0.055, 1, 1, 1, -0.95, 0, sx * -0.1); // up over the crown
       }
-      const lens = new THREE.MeshStandardMaterial({ color: '#4a3205', emissive: '#ffb000', emissiveIntensity: 2.2, roughness: 0.15, metalness: 0.4 }), slit = new THREE.MeshBasicMaterial({ color: '#050302' });
-      for (const sx of [1, -1]) { M(new THREE.BoxGeometry(0.044, 0.017, 0.006), lens, b.head, sx * 0.034, 0.121, 0.113, 1, 1, 1, 0, 0, sx * 0.3); M(new THREE.BoxGeometry(0.005, 0.016, 0.004), slit, b.head, sx * 0.034, 0.121, 0.117); }
-      // stripes: chest, back, upper arms, thighs
-      for (const [x, y, rz] of [[0.07, 0.2, 0.5], [-0.07, 0.2, -0.5], [0.09, 0.09, 0.35], [-0.09, 0.09, -0.35], [0.06, -0.01, 0.25], [-0.06, -0.01, -0.25]]) { M(new THREE.BoxGeometry(0.11, 0.018, 0.012), stripe, b.chest, x, y, 0.121, 1, 1, 1, 0, 0, rz); M(new THREE.BoxGeometry(0.12, 0.02, 0.012), stripe, b.chest, x, y + 0.02, -0.121, 1, 1, 1, 0, 0, -rz); }
-      // bands that wrap round the limbs (open rings, just proud of the suit), tilted like stripes
-      const band = (r) => new THREE.CylinderGeometry(r, r, 0.016, 16, 1, true, -Math.PI * 0.7, Math.PI * 1.4);
-      for (const sh of [b.shL, b.shR]) for (const y of [-0.09, -0.17]) M(band(0.066), stripe, sh, 0, y, 0, 1, 1, 1, 0.22, 0, 0.12);
-      for (const el of [b.elL, b.elR]) M(band(0.059), stripe, el, 0, -0.1, 0, 1, 1, 1, 0.22, 0, -0.1);
-      for (const th of [b.thL, b.thR]) for (const y of [-0.12, -0.22, -0.32]) M(band(0.085), stripe, th, 0, y, 0, 1, 1, 1, 0.2, 0, 0.12);
-      for (const kn of [b.knL, b.knR]) for (const y of [-0.15, -0.27]) M(band(0.07), stripe, kn, 0, y, 0, 1, 1, 1, 0.2, 0, -0.1);
-      // on the chest: a small cat's eye in amber, his mark
-      M(new THREE.SphereGeometry(0.03, 14, 8), lens, b.chest, 0, 0.17, 0.122, 1.4, 0.45, 0.25); M(new THREE.BoxGeometry(0.006, 0.026, 0.004), slit, b.chest, 0, 0.17, 0.131);
-      const claw = new THREE.MeshStandardMaterial({ color: '#c9ccd2', roughness: 0.2, metalness: 0.8 });
-      for (const ha of [b.haL, b.haR]) for (const cx of [-0.024, -0.008, 0.008, 0.024]) M(new THREE.ConeGeometry(0.006, 0.04, 4), claw, ha, cx, -0.1, 0.03, 1, 1, 1, Math.PI, 0, 0);
-      // the tail: a short sash in segments that sways and streams behind him
-      this.tail = []; let parent = b.hips;
-      for (let k = 0; k < 7; k++) {
-        const seg = new THREE.Group(); seg.position.set(0, k === 0 ? 0.0 : -0.1, k === 0 ? -0.13 : 0); parent.add(seg); meshes.push(seg);
-        M(new THREE.BoxGeometry(0.05 - k * 0.004, 0.11, 0.022), cowl, seg, 0, -0.05, 0);
-        if (k === 6) M(new THREE.ConeGeometry(0.03, 0.06, 4), stripe, seg, 0, -0.13, 0, 1, 1, 1, Math.PI, 0, 0);
-        this.tail.push(seg); parent = seg;
+      M(new THREE.ConeGeometry(0.04, 0.085, 4), shell, b.head, 0, 0.05, 0.11, 1, 1, 0.6, Math.PI, Math.PI / 4, 0); // the muzzle, down to a point at the chin
+      M(new THREE.BoxGeometry(0.01, 0.075, 0.012), silver, b.head, 0, 0.1, 0.124, 1, 1, 1, 0.12, 0, 0); // the line down the nose
+      M(new THREE.CylinderGeometry(0.058, 0.07, 0.09, 14), shell, b.neck, 0, 0.02, 0);
+      // the collar of silver fangs, round the base of the neck
+      for (let k = 0; k < 15; k++) {
+        const a2 = -Math.PI * 0.85 + (k / 14) * Math.PI * 1.7, x = Math.sin(a2) * 0.13, z = Math.cos(a2) * 0.105, len = 0.05 + Math.cos(a2) * 0.035;
+        M(new THREE.ConeGeometry(0.011, len, 4), silver, b.chest, x, 0.31 - len / 2, z + 0.01, 1, 1, 1, Math.PI + Math.cos(a2) * 0.35, 0, -Math.sin(a2) * 0.35);
       }
+      // silver trim: the chest's V panels and the line down the middle
+      for (const sx of [1, -1]) {
+        M(new THREE.BoxGeometry(0.14, 0.008, 0.008), silver, b.chest, sx * 0.07, 0.19, 0.124, 1, 1, 1, 0, 0, sx * -0.55);
+        M(new THREE.BoxGeometry(0.12, 0.008, 0.008), silver, b.chest, sx * 0.065, 0.07, 0.124, 1, 1, 1, 0, 0, sx * -0.4);
+        M(new THREE.SphereGeometry(0.075, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), shell, sx > 0 ? b.shL : b.shR, 0, 0.0, 0, 1.15, 0.6, 1.1); // armoured shoulder caps
+      }
+      M(new THREE.BoxGeometry(0.008, 0.2, 0.008), silver, b.chest, 0, 0.12, 0.124);
+      M(new THREE.ConeGeometry(0.04, 0.05, 3), silver, b.hips, 0, -0.05, 0.12, 1, 1, 0.3, Math.PI, 0, 0); // the belt's point
+      // violet energy: lines branching over chest, arms and legs
+      for (const [x, y, len, rz] of [[0.05, 0.15, 0.09, 0.9], [-0.05, 0.15, 0.09, -0.9], [0.09, 0.03, 0.08, 1.2], [-0.09, 0.03, 0.08, -1.2], [0.03, -0.02, 0.06, 0.3], [-0.03, -0.02, 0.06, -0.3]]) M(new THREE.BoxGeometry(0.005, len, 0.005), vein, b.chest, x, y, 0.126, 1, 1, 1, 0, 0, rz);
+      for (const [lim, r, ys] of [[b.shL, 0.064, [-0.08, -0.18]], [b.shR, 0.064, [-0.08, -0.18]], [b.elL, 0.057, [-0.08]], [b.elR, 0.057, [-0.08]], [b.thL, 0.083, [-0.12, -0.26]], [b.thR, 0.083, [-0.12, -0.26]], [b.knL, 0.068, [-0.16]], [b.knR, 0.068, [-0.16]]] as any[]) {
+        for (const y of ys) { M(new THREE.BoxGeometry(0.005, 0.1, 0.005), vein, lim, 0, y, r, 1, 1, 1, 0, 0, 0.25); M(new THREE.BoxGeometry(0.005, 0.08, 0.005), vein, lim, r * 0.7, y - 0.03, r * 0.7, 1, 1, 1, 0, 0.8, -0.3); }
+        M(new THREE.BoxGeometry(0.006, 0.14, 0.006), silver, lim, -r * 0.95, -0.15, 0.0); // a silver seam down the outside
+      }
+      // gauntlets and long claws
+      for (const el of [b.elL, b.elR]) M(new THREE.CylinderGeometry(0.062, 0.058, 0.09, 12), shell, el, 0, -0.2, 0);
+      for (const ha of [b.haL, b.haR]) for (const cx of [-0.026, -0.009, 0.009, 0.026]) M(new THREE.ConeGeometry(0.006, 0.07, 4), silver, ha, cx, -0.12, 0.03, 1, 1, 1, Math.PI + 0.15, 0, 0);
+      for (const kn of [b.knL, b.knR]) M(new THREE.ConeGeometry(0.035, 0.07, 3), silver, kn, 0, 0.0, 0.07, 1, 1, 0.4, 0, 0, 0); // knee guards
     }
     if (o.cap) { M(new THREE.SphereGeometry(0.118, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: o.cap, roughness: 0.8 }), b.head, 0, 0.14, 0.01, 1.05, 0.9, 1.05); M(new THREE.TorusGeometry(0.1, 0.03, 6, 16), new THREE.MeshStandardMaterial({ color: o.cap, roughness: 0.8 }), b.head, 0, 0.2, 0, 1, 1, 0.6, Math.PI / 2, 0, 0.3); } // gele / headtie
     // arms
@@ -264,10 +276,6 @@ export class Rig {
   reset() { for (const k of KEYS) this.t[k] = 0; this.t.hipsY = HIP_H; }
 
   update(dt, rate = 14) {
-    if (this.tail) { // the tail: hangs back and down, sways, and streams out behind when he runs (the stride swings it)
-      this.tailT = (this.tailT || 0) + dt; const stride = Math.min(1, Math.abs((this.t.thLX || 0) - (this.t.thRX || 0)) * 1.5), lean = this.c?.spineX || 0;
-      this.tail.forEach((seg, k) => { seg.rotation.x = (k === 0 ? 0.9 + stride * 0.6 : 0.12 - stride * 0.05) + Math.sin(this.tailT * (3 + stride * 4) - k * 0.7) * (0.06 + stride * 0.08) + (k === 0 ? lean * 0.5 : 0); seg.rotation.z = Math.sin(this.tailT * 1.7 - k * 0.6) * (0.1 + stride * 0.05); });
-    }
     const a = 1 - Math.exp(-rate * dt), t = this.t, c = this.c;
     // full-turn rotations (flips, rolls) must not unwind backwards afterwards
     for (const k of ['hipsRX', 'hipsRZ', 'hipsRY']) { const d = c[k] - t[k]; if (Math.abs(d) > Math.PI) c[k] -= Math.PI * 2 * Math.round(d / (Math.PI * 2)); }

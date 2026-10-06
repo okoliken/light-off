@@ -186,7 +186,7 @@ function frame() {
     tutorial.update(dt, inp);
     if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
     if (DEMO === 'hunter') { player.pos.copy(game.hunter.body.pos); player.vel.set(0, 0, 0); player.rig.root.visible = false; } // Bolaji tags along unseen, so the city fills in around the Hunter
-    if (DEMO === 'suit') { const still = !inp.move.x && !inp.move.y && !inp.look.dx; if (still) camera.yaw += dt * 0.35; camera.closeUp = still ? 2.3 : 0; } // still: the camera comes in close and circles him
+    if (DEMO === 'suit') { const still = !inp.move.x && !inp.move.y && !inp.look.dx; if (still) camera.yaw += dt * 0.35; if (!camera.lockClose) camera.closeUp = still ? 2.3 : 0; } // still: the camera comes in close and circles him
     camera.update(dt, inp, DEMO === 'hunter' ? game.hunter.body : player);
     nav.update(dt, game, game.time);
   } else if (state === 'scene') {
