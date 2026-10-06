@@ -54,7 +54,7 @@ export function createCamera(aspect, world) {
       let d = player.yaw - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       c.yaw += d * Math.min(1, dt * 2);
     }
-    const wantDist = player.inRoom?.() ? 2.1 : player.aiming ? 2.6 : (onBoard ? 6.2 : 5.6) + Math.min(2.4, hs * 0.12) + (player.mode === 'down' ? 2 : 0);
+    const wantDist = c.closeUp ? c.closeUp : player.inRoom?.() ? 2.1 : player.aiming ? 2.6 : (onBoard ? 6.2 : 5.6) + Math.min(2.4, hs * 0.12) + (player.mode === 'down' ? 2 : 0);
     c.dist += (wantDist - c.dist) * Math.min(1, dt * 3);
     const wantFov = player.aiming ? 52 : 66 + Math.min(20, Math.max(0, hs - 5) * 1.3);
     c.fov += (wantFov - c.fov) * Math.min(1, dt * (player.aiming ? 10 : 3));

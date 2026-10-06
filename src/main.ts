@@ -174,7 +174,7 @@ function frame() {
   else if (state === 'play' && pendingReports.length) game.onMissionComplete(pendingReports.shift());
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
-  touch?.show(state === 'play' && !DEMO);
+  touch?.show(state === 'play' && DEMO !== 'hunter');
   tutorial.show(state === 'play' && !hudRoot.querySelector('.overlay'));
   const inp = input.poll();
   if (state === 'play') {
@@ -182,11 +182,12 @@ function frame() {
     if (inp.pressed.map) { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.help) showControls();
     if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub !== 'free') tutorial.event('job'), openMenu(done => hud.jobSheet({ ...game.job.sheet(), case: game.general.caseFile() }, done));
-    game.update(dt, DEMO ? { ...inp, move: { x: 0, y: 0 }, held: {}, pressed: {} } : inp);
+    game.update(dt, DEMO === 'hunter' ? { ...inp, move: { x: 0, y: 0 }, held: {}, pressed: {} } : inp);
     tutorial.update(dt, inp);
     if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
-    if (DEMO) { player.pos.copy(game.hunter.body.pos); player.vel.set(0, 0, 0); player.rig.root.visible = false; } // Bolaji tags along unseen, so the city fills in around the Hunter
-    camera.update(dt, inp, DEMO ? game.hunter.body : player);
+    if (DEMO === 'hunter') { player.pos.copy(game.hunter.body.pos); player.vel.set(0, 0, 0); player.rig.root.visible = false; } // Bolaji tags along unseen, so the city fills in around the Hunter
+    if (DEMO === 'suit') { const still = !inp.move.x && !inp.move.y && !inp.look.dx; if (still) camera.yaw += dt * 0.35; camera.closeUp = still ? 2.3 : 0; } // still: the camera comes in close and circles him
+    camera.update(dt, inp, DEMO === 'hunter' ? game.hunter.body : player);
     nav.update(dt, game, game.time);
   } else if (state === 'scene') {
     cinema.update(dt, inp);
@@ -229,6 +230,19 @@ if (DEMO === 'hunter') {
     game.hunter.demo();
     const cap = document.createElement('div'); cap.className = 'demo-cap';
     cap.innerHTML = '<b>THE HUNTER</b><span>Demo: he runs his own route. Drag or move the mouse to look around him.</span>';
+    document.body.appendChild(cap);
+  }, 600);
+}
+
+// ---- the new suit, previewed: ?demo=suit (nothing is saved) ----
+if (DEMO === 'suit') {
+  setTimeout(() => {
+    hudRoot.querySelectorAll('.overlay').forEach((o) => o.remove());
+    audio.start(); game.save = () => {};
+    game.catSuit = true; game.hunter.demoing = true; game.mode = 'patrol'; game.sub = 'free'; game.startPatrol(true); game.heat = 0;
+    hud.setHudVisible(false); state = 'play'; input.lock();
+    const cap = document.createElement('div'); cap.className = 'demo-cap';
+    cap.innerHTML = '<b style="color:#ffb000">THE CAT</b><span>The new suit. Move with WASD (or the stick) to see it run, climb and leap; leave it still and the camera circles him.</span>';
     document.body.appendChild(cap);
   }, 600);
 }
