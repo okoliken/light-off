@@ -5,11 +5,15 @@
 // market and the motor park. Busier by day, thinner at night. They scatter from fights and sirens.
 import * as THREE from 'three';
 import { WALK, blockRect, N, rng } from '../world/layout.ts';
+import { Rig } from '../player/rig.ts';
+import { hasBody, tintBody } from '../player/body.ts';
 
 const SKIN = ['#3b2418', '#4a2e20', '#5a3825', '#2f1c12', '#6b4430', '#7a5236', '#44291b'];
 const VIVID = ['#c62828', '#1565c0', '#f9a825', '#2e7d32', '#6a1b9a', '#ef6c00', '#00897b', '#ad1457', '#5d4037', '#fdd835', '#8e24aa', '#0277bd', '#d84315', '#558b2f'];
 const PLAIN = ['#eeeeee', '#263238', '#37474f', '#795548', '#1a237e', '#4e342e', '#9e9e9e', '#f5f5f5', '#212121', '#90a4ae'];
 const PANTS = ['#263238', '#1a237e', '#3e2723', '#212121', '#4e342e', '#37474f', '#5d4037', '#1c2833'];
+const SKINLIKE = new Set(['#795548', '#4e342e', '#5d4037', '#3e2723']);
+const BODY = new Set(['torso', 'pelvis', 'legL', 'legR', 'armL', 'armR', 'head', 'hair']);
 const PARTS = ['torso', 'pelvis', 'skirt', 'legL', 'legR', 'armL', 'armR', 'head', 'hair', 'gele', 'fila', 'basin'];
 
 function geos() {
@@ -95,12 +99,42 @@ export function createCrowd(scene, world, count = 230) {
   const body = new THREE.Matrix4(), part = new THREE.Matrix4(), tmp = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
   const hide = i => { for (const k of PARTS) mesh[k].setMatrixAt(i, zero); };
 
+  // the people nearest the camera get a realistic body (the same models as Bolaji); the rest stay simple
+  const phone = matchMedia('(pointer: coarse)').matches;
+  const pool: any[] = [];
+  for (const [female, n] of [[false, phone ? 8 : 16], [true, phone ? 6 : 12]] as [boolean, number][]) {
+    if (!hasBody(female ? 'woman' : 'human')) continue;
+    for (let k = 0; k < n; k++) {
+      const r = new Rig({ female, skin: '#4a2e20', top: '#eeeeee', bottom: '#263238', sock: '#263238', sole: '#2b2b2b', scale: 1 });
+      r.root.visible = false; scene.add(r.root); pool.push({ rig: r, female, ped: null });
+    }
+  }
+  const REAL_R = 30; let assignT = 0;
+  const assign = (cam, night) => {
+    const want = new Set<any>();
+    for (const female of [false, true]) {
+      const n = pool.filter(s => s.female === female).length;
+      peds.filter(p => p.female === female && !(night && p.dayOnly) && (cam.x - p.pos.x) ** 2 + (cam.z - p.pos.z) ** 2 < REAL_R * REAL_R)
+        .sort((a, b) => ((cam.x - a.pos.x) ** 2 + (cam.z - a.pos.z) ** 2) - ((cam.x - b.pos.x) ** 2 + (cam.z - b.pos.z) ** 2))
+        .slice(0, n).forEach(p => want.add(p));
+    }
+    for (const s of pool) if (s.ped && !want.has(s.ped)) { s.ped.real = null; s.ped = null; s.rig.root.visible = false; }
+    for (const p of want) {
+      if (p.real) continue;
+      const s = pool.find(s => !s.ped && s.female === p.female); if (!s) continue;
+      s.ped = p; p.real = s.rig; s.rig.root.visible = true;
+      const top = SKINLIKE.has(p.col.torso) ? '#eeeeee' : p.col.torso; // a brown top on a real body reads as bare skin
+      tintBody(s.rig.model, s.rig.kind, { skin: p.col.head, top, bottom: p.col.pelvis, sole: '#2b2b2b' });
+    }
+  };
+
   return {
     peds,
     update(dt, game) {
       const pl = game.player.pos, danger = game.dangers, night = game.life?.phase === 'night' || game.life?.inside;
       const pSpeed = Math.hypot(game.player.vel.x, game.player.vel.z);
       const cam = game.camera?.cam.position || pl;
+      if ((assignT -= dt) <= 0 && pool.length) { assignT = 0.3; assign(cam, night); }
       for (let i = 0; i < peds.length; i++) {
         const p = peds[i];
         if ((night && p.dayOnly) || ((cam.x - p.pos.x) ** 2 + (cam.z - p.pos.z) ** 2 > 170 * 170 && p.pos.lengthSq() > 0)) { // off-screen: keep walking, skip the drawing
@@ -133,7 +167,8 @@ export function createCrowd(scene, world, count = 230) {
         const hunch = p.elder ? 0.18 : 0;
         e.set(hunch + (p.scare > 0 ? 0.12 : 0), p.yaw, 0); q.setFromEuler(e);
         body.compose(v.set(p.pos.x, p.pos.y + bob, p.pos.z), q, sc.set(p.w, p.h, p.w));
-        const put = (k, m) => mesh[k].setMatrixAt(i, m);
+        const real = p.real;
+        const put = (k, m) => mesh[k].setMatrixAt(i, real && BODY.has(k) ? zero : m);
         const limb = (k, px, py, rx) => { part.makeRotationX(rx); part.setPosition(px, py, 0); tmp.multiplyMatrices(body, part); put(k, tmp); };
         put('torso', body); put('head', body); put('pelvis', body);
         const legA = 0.5 * walk * (p.elder ? 0.6 : 1), armA = (p.basin ? 0.1 : 0.45) * walk;
@@ -145,6 +180,16 @@ export function createCrowd(scene, world, count = 230) {
         if (p.skirt) { part.makeScale(1, p.skirt === 'knee' ? 0.75 : 1.3, 1); part.setPosition(0, p.skirt === 'knee' ? 0.18 : -0.2, 0); tmp.multiplyMatrices(body, part); put('skirt', tmp); } else put('skirt', zero);
         put('hair', p.hairless || p.gele || p.fila ? zero : body);
         put('gele', p.gele ? body : zero); put('fila', p.fila ? body : zero); put('basin', p.basin ? body : zero);
+        if (real) { // the same walk on the real body
+          real.root.position.set(p.pos.x, p.pos.y + bob, p.pos.z); real.root.rotation.y = p.yaw; const hs = p.h * (p.female ? 1.04 : 0.97); real.root.scale.set(p.w * hs / p.h, hs, p.w * hs / p.h); // match the simple body's height, so headties and caps sit on the head
+          const t = real.t, f = longSkirt ? 0.5 : 1;
+          t.thLX = -sn * legA * f; t.thRX = sn * legA * f;
+          t.knLX = walk * 0.5 * Math.max(0, Math.sin(p.phase + 1.2)); t.knRX = walk * 0.5 * Math.max(0, -Math.sin(p.phase + 1.2));
+          t.shLX = p.basin ? 0 : sn * armA; t.shLZ = p.basin ? 2.7 : 0.06; t.elLX = p.basin ? -0.4 : -0.15 - walk * 0.2;
+          t.shRX = -sn * armA; t.shRZ = -0.06; t.elRX = -0.15 - walk * 0.2;
+          t.spineX = hunch * 0.5; t.chestX = hunch * 0.5 + (p.scare > 0 ? 0.12 : 0);
+          real.snap(); real.update(0);
+        }
       }
       for (const k of PARTS) mesh[k].instanceMatrix.needsUpdate = true;
     },

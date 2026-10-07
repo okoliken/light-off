@@ -20,6 +20,7 @@ import { createCinema } from './game/cinema.ts';
 import { loadSettings, saveSettings, preset, PRESETS } from './game/settings.ts';
 import { createTouchPad, isTouchDevice } from './player/touch.ts';
 import { createTutorial } from './game/tutorial.ts';
+import { loadBodies } from './player/body.ts';
 
 const touchDevice = isTouchDevice();
 const settings = loadSettings();
@@ -37,6 +38,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
+await loadBodies(); // the realistic character models, before anyone is built
 const t0 = performance.now();
 const world = buildCity(scene, { lights: Q.lights });
 buildRoom(scene, world);
@@ -218,7 +220,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && (st
 
 // debug hooks (used by the automated smoke test)
 import('./game/thugs.js').then(m => { window.__ThugClass = m.Thug; });
-window.__game = { game, player, traffic, world, camera, input, fx, nav, hud, tutorial, state: () => state, start: () => hudRoot.querySelector<HTMLElement>('[data-start]')?.click() };
+window.__game = { game, player, crowd, traffic, world, camera, input, fx, nav, hud, tutorial, state: () => state, start: () => hudRoot.querySelector<HTMLElement>('[data-start]')?.click() };
 
 // ---- the Hunter demo ----
 if (DEMO === 'hunter') {
