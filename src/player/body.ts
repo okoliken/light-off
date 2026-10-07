@@ -57,9 +57,14 @@ export function tintBody(model: THREE.Object3D, kind: Kind, o: any) {
     m.castShadow = true; m.frustumCulled = false;
     const name = m.material.name, col = tint[name];
     if (col) {
-      const key = `${name}:${col}`;
+      const camo = o.camo && (name === 'top' || name === 'bottom') ? o.camo : null;
+      const key = `${name}:${col}:${camo || ''}`;
       let mat = matCache.get(key);
-      if (!mat) { mat = m.material.clone(); (mat as any).color.set(col); matCache.set(key, mat!); }
+      if (!mat) {
+        mat = m.material.clone();
+        if (camo) { (mat as any).color.set('#ffffff'); (mat as any).map = camoTexture(camo); } else (mat as any).color.set(col);
+        matCache.set(key, mat!);
+      }
       m.material = mat;
     }
     if (name === 'suit' && !(m.material as any).userData.done) { // the suit body
@@ -70,4 +75,24 @@ export function tintBody(model: THREE.Object3D, kind: Kind, o: any) {
     if (name === 'silver') { const mat = m.material as THREE.MeshStandardMaterial; mat.roughness = 0.45; mat.metalness = 0.75; } // brushed, so a streetlight doesn't flare off the chest
     if (name === 'glow') { const mat = m.material as THREE.MeshStandardMaterial; mat.emissive.set('#c79bff'); mat.emissiveIntensity = 3; }
   });
+}
+
+const camoCache = new Map<string, THREE.Texture>();
+/** A blotchy camouflage pattern from a few colours (the MOPOL uniform). */
+function camoTexture(cols: string[]) {
+  const key = cols.join();
+  let t = camoCache.get(key);
+  if (t) return t;
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  g.fillStyle = cols[0]; g.fillRect(0, 0, 256, 256);
+  let seed = 7; const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let k = 1; k < cols.length; k++) for (let n = 0; n < 26; n++) {
+    g.fillStyle = cols[k]; const x = R() * 256, y = R() * 256;
+    for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) { // wraps, so the pattern tiles
+      g.beginPath(); g.ellipse(x + dx, y + dy, 8 + R() * 18, 5 + R() * 10, R() * Math.PI, 0, Math.PI * 2); g.fill();
+    }
+  }
+  t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 4);
+  camoCache.set(key, t); return t;
 }

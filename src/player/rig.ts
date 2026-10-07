@@ -47,9 +47,15 @@ export const OUTFITS = {
   elder: { skin: '#4a2e1f', top: '#d7ccc8', bottom: '#5d4037', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, cap: '#5d4037', sheen: '#888877' },
   soldier: { skin: '#3e2418', top: '#4b5320', bottom: '#3d4a26', sock: '#1b1b14', sole: '#14140f', glove: '#22261a', hood: false, shorts: false, beret: '#2b3a1c', gun: true, scale: 1.1, sheen: '#556644', badge: true }, // Nigerian Army fatigues and beret
   hunter: { skin: '#e0b48c', top: '#0b0c0f', bottom: '#0d0e11', sock: '#09090b', sole: '#050506', glove: '#08080a', hood: false, shorts: false, hunter: true, weapon: 'katana', scale: 1.06, sheen: '#4a5466' }, // the government's specialist, from Japan
-  police: { skin: '#4a2e1f', top: '#13161c', bottom: '#13161c', sock: '#0a0a0a', sole: '#050505', glove: null, hood: false, shorts: false, beret: '#0b0b0b', gun: true, scale: 1.05, sheen: '#3a4458', badge: true },
+  police: { skin: '#4a2e1f', top: '#13161c', bottom: '#13161c', sock: '#0a0a0a', sole: '#050505', glove: null, hood: false, shorts: false, beret: '#0b0b0b', gun: true, scale: 1.05, sheen: '#3a4458', badge: true }, // the Nigeria Police Force: black and black, the standard daily uniform since 1988
+  policeBlue: { skin: '#3f2618', top: '#8ec5e8', bottom: '#13161c', sock: '#0a0a0a', sole: '#050505', glove: null, hood: false, shorts: false, beret: '#0b0b0b', gun: true, scale: 1.04, sheen: '#6a88a0', badge: true }, // routine duty: sky-blue shirt, black trousers
+  mopol: { skin: '#3a2317', top: '#4a5560', bottom: '#4a5560', camo: ['#3c4650', '#56636e', '#2a3038', '#6b7884'], sock: '#0a0a0a', sole: '#0a0a0a', glove: '#1b1b1b', hood: false, shorts: false, beret: '#1d2a3a', gun: true, scale: 1.1, sheen: '#445566', badge: true }, // Mobile Police (MOPOL): blue-toned camouflage for high-risk work
+  policeTee: { skin: '#4a2e1f', top: '#0b0b0d', bottom: '#1e2228', sock: '#0a0a0a', sole: '#050505', glove: '#111', hood: false, shorts: false, beret: null, gun: true, scale: 1.07, sheen: '#333', badge: false }, // tactical squads: a black tactical tee and dark cargo trousers
   thief: { skin: '#3f2618', top: '#4e342e', bottom: '#1f2a36', sock: '#2b2b2b', sole: '#1a1a1a', glove: null, hood: false, shorts: false, mask: 'bandana', gun: true, scale: 1.02, sheen: '#554444' },
 };
+
+/** The police uniforms an officer can turn up in (mostly the standard black). */
+export const POLICE_FITS = ['police', 'police', 'police', 'policeBlue', 'policeBlue', 'mopol', 'policeTee'];
 
 /** What he can wear off duty, in the order the nail at home offers them. */
 export const CASUAL_FITS: [string, string][] = [['bolajiCivil', 'Plain shirt'], ['bolajiJersey', 'Super Eagles jersey'], ['bolajiKaftan', 'White kaftan'], ['bolajiSinglet', 'Singlet and jeans']];

@@ -2,7 +2,7 @@
 // from the getaway car. Every shot is telegraphed: they stop, raise the gun, a red laser tracks him for
 // about a second, then they fire. Roll, break line of sight or get far away to make them miss.
 import * as THREE from 'three';
-import { Rig, Pose, OUTFITS } from '../player/rig.ts';
+import { Rig, Pose, OUTFITS, POLICE_FITS } from '../player/rig.ts';
 
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -12,7 +12,7 @@ export class Gunman {
   [key: string]: any; // TODO(ts): declare fields
   constructor(scene, world, { x, z, y = 0.15, yaw = 0, role = 'police', car = null, post = null, outfit = null }: any) {
     this.scene = scene; this.world = world; this.role = role; this.car = car; this.post = post;
-    this.rig = new Rig(outfit || (role === 'police' ? OUTFITS.police : OUTFITS.thief));
+    this.rig = new Rig(outfit || (role === 'police' ? OUTFITS[POLICE_FITS[Math.floor(Math.random() * POLICE_FITS.length)]] : OUTFITS.thief));
     scene.add(this.rig.root);
     this.pos = new THREE.Vector3(x, y, z); this.vel = new THREE.Vector3(); this.yaw = yaw;
     this.maxHp = role === 'police' ? 3 : 2; this.hp = this.maxHp;
