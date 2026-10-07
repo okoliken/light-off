@@ -199,7 +199,10 @@ export function createGeneral(game) {
     if (!out && P.time > 1) G.pp = null;
   }
 
-  // ======================= THE CASE (Story only) =======================
+  // ======================= THE MISSIONS (Missions mode only) =======================
+  // Ten missions, in order (docs/story-bible.md). The player starts each one at its yellow marker (F), in
+  // the right clothes at the right time: night missions in the suit, day missions in SwiftDrop work clothes.
+  // The last step ends it with MISSION COMPLETE, and then nothing more happens until they start the next.
   G.case = { ch: 0, st: 0, leads: [], on: false, entered: false, data: {} };
   const C = G.case;
   const ladipo = () => { const t = { x: -400, z: 60 }; return world.spots.slice().sort((a, b) => dist(a, t) - dist(b, t))[0]; };
@@ -208,116 +211,220 @@ export function createGeneral(game) {
   const jetty = () => game.ferry.jetties[1];
   const compound = { x: 140, z: -1400 };
   const hall = { x: 27, z: -1388 };
-  const night = () => L.phase === 'night' && !L.inside;
-  const job = () => game.job;
-  // each chapter: when it can start, then its steps. A step: label, where (marker), enter (spawns), done
-  const CH: any[] = [
-    { title: 'Men in Black', when: () => night() && L.night >= 1,
-      intro: () => { hud.banner('CHAPTER 1 · MEN IN BLACK', 'Your phone buzzes: a voice note from Iya Basira at Adelabu Market. "They are burning the stalls!"', 'red', 4.5); },
+  // day missions start a little way down the street from SwiftDrop (F at the door itself clocks you in)
+  const office = () => { const o = game.job.office; return (C.officeSpot ||= world.spots.filter(q => { const d = dist(q, o); return d > 12 && d < 30; }).sort((a, b) => dist(a, o) - dist(b, o))[0] || { x: o.x + 14, z: o.z }); };
+  const stadium = () => world.stadiumGate || world.stadium;
+  const tailor = () => game.day?.pois?.tailor;
+  const none = { boys: [], guns: [] };
+  const gone = (list) => (list || []).every(g => !g.alive || g.removed);
+  const MISSIONS: any[] = [
+    { title: 'Men in Black', time: 'night', start: () => world.marketSpot,
+      brief: 'The General\'s boys are burning Adelabu Market. Iya Basira is screaming down the phone.',
       steps: [
-        { label: 'Get to Adelabu Market', where: () => world.marketSpot, done: () => near(player.pos, world.marketSpot, 22) },
-        { label: 'Fight the General\'s boys', where: () => world.marketSpot, enter: () => { C.data.g = gang(world.marketSpot.x, world.marketSpot.z, 4, 1); wake(C.data.g); game.api.scatter?.(world.marketSpot.x, world.marketSpot.z, 4); hud.say('Boy in black', 'Who be you? Una see am? Na one of us?!', 3); }, done: () => C.data.g && alive(C.data.g) === 0 },
+        { label: 'Fight off the General\'s boys', where: () => world.marketSpot, enter: () => { C.data.g = gang(world.marketSpot.x, world.marketSpot.z, 4, 1); wake(C.data.g); game.api.scatter?.(world.marketSpot.x, world.marketSpot.z, 4); hud.say('Boy in black', 'Who be you? Una see am? Na one of us?!', 3); }, done: () => C.data.g && alive(C.data.g) === 0 },
         { label: 'The police think you\'re one of them: lose them', where: () => null, enter: () => { api.addHeat(2, 'Police: "One of the men in black! Na him dey lead them!"'); lead('phone'); }, done: () => game.heat === 0 },
       ] },
-    { title: 'The Address', when: () => L.phase === 'day' && L.clock < 16 * 60 && (job().clockedIn || !job().employed),
-      intro: () => { const s = ladipo(); if (!job().employed) { hud.banner('CHAPTER 2 · THE ADDRESS', 'The burner phone has an address saved: G.S. Holdings, Ladipo. A gold eagle on a beret, the same badge.', 'blue', 5); return; } const o = { id: 99, item: 'Sealed crate (heavy, "machine parts")', who: 'G.S. Holdings', place: { name: 'G.S. Holdings warehouse, Ladipo', x: s.x, z: s.z, area: 'Ladipo' }, due: L.clock + 120, status: 'pending', special: true }; job().orders.push(o); C.data.oid = 99; hud.banner('CHAPTER 2 · THE ADDRESS', 'A new parcel on today\'s sheet: G.S. Holdings, Ladipo. The receipt has a gold eagle on a beret: the same badge as the burner phone.', 'blue', 5); job().routeNext?.(); },
+    { title: 'The Address', time: 'day', start: office,
+      brief: 'The burner phone had an address saved: G.S. Holdings, Ladipo. Today a parcel for that address is on the SwiftDrop sheet.',
       steps: [
-        { label: 'Deliver the crate to G.S. Holdings in Ladipo', where: () => ladipo(), done: () => job().employed ? !job().orders.some(o => o.id === 99 && o.status === 'pending') : near(player.pos, ladipo(), 10) },
-        { label: 'Look around the warehouse (don\'t get caught)', where: () => ladipo(), enter: () => { hud.say('Man in black', 'Rider, drop am there. Don\'t look inside. Go.', 3.5); setTimeout(() => hud.toast('Through the door: crates of rifles, men in black counting money. One of them has an AK under his shirt.', 'blue'), 3600); lead('receipt'); C.data.t = 0; }, tick: (dt) => { C.data.t += dt; }, done: () => C.data.t > 6 },
+        { label: 'Take the crate to G.S. Holdings in Ladipo', where: () => ladipo(), enter: () => hud.say('SwiftDrop dispatcher', 'Special one today: sealed crate, G.S. Holdings, Ladipo. Don\'t drop am.', 3.5), done: () => near(player.pos, ladipo(), 10) },
+        { label: 'Hand it over and look around (don\'t start anything)', where: () => ladipo(), enter: () => { hud.say('Man in black', 'Rider, drop am there. Don\'t look inside. Go.', 3.5); setTimeout(() => hud.toast('Through the door: crates of rifles, men in black counting money. One of them has an AK under his shirt.', 'blue'), 3600); lead('receipt'); C.data.t = 0; }, tick: (dt) => { C.data.t += dt; }, done: () => C.data.t > 6 },
       ] },
-    { title: 'The Warehouse', when: () => night(),
-      intro: () => hud.banner('CHAPTER 3 · THE WAREHOUSE', 'Back to Ladipo, in black this time. If the General pays people, somebody writes it down.', 'red', 4.5),
+    { title: 'The Warehouse', time: 'night', start: () => ladipo(),
+      brief: 'Back to Ladipo, in black this time. If the General pays people, somebody writes it down.',
       steps: [
-        { label: 'Go to the G.S. Holdings warehouse in Ladipo', where: () => ladipo(), done: () => near(player.pos, ladipo(), 25) },
-        { label: 'Take out the guards', where: () => ladipo(), enter: () => { const s = ladipo(); C.data.g = gang(s.x - s.nx * 2, s.z - s.nz * 2, 4, 2); wake(C.data.g); }, done: () => alive(C.data.g || { boys: [], guns: [] }) === 0 },
+        { label: 'Take out the guards', where: () => ladipo(), enter: () => { const q = ladipo(); C.data.g = gang(q.x - q.nx * 2, q.z - q.nz * 2, 4, 2); wake(C.data.g); }, done: () => alive(C.data.g || none) === 0 },
         { label: 'Find the ledger (F at the desk)', where: () => ladipo(), use: 'ledger', done: () => C.data.used === 'ledger' },
         { label: 'Get away from the police', where: () => null, enter: () => { lead('ledger'); api.addHeat(2, 'Sirens everywhere. The warehouse was paying them to watch it.'); }, done: () => game.heat === 0 },
       ] },
-    { title: 'Okafor', when: () => night(),
-      intro: () => hud.banner('CHAPTER 4 · OKAFOR', 'Inspector Okafor runs the Ojuelegba checkpoint, and he\'s first on the General\'s payroll. Follow him tonight. Don\'t let him see you.', 'blue', 5),
+    // the marker is round the corner from the checkpoint: walking up to the police in the suit starts a chase
+    { title: 'Okafor', time: 'night', start: () => (C.cpSpot ||= world.spots.filter(q => { const d = dist(q, cp0()); return d > 40 && d < 70; }).sort((a, b) => dist(a, cp0()) - dist(b, cp0()))[0] || cp0()),
+      brief: 'Inspector Okafor runs the Ojuelegba checkpoint, and he\'s first on the General\'s payroll. He\'s leaving his post: follow him. Don\'t let him see you.',
       steps: [
-        { label: 'Go to the Ojuelegba checkpoint', where: () => cp0(), done: () => near(player.pos, cp0(), 30) },
         { label: 'Tail Okafor: stay close, but not within 8 m', where: () => C.data.ok?.pos, enter: () => {
           const c = cp0(); const ok = new Civilian(scene, world, { x: c.x + 6, z: c.z, yaw: 0, outfit: OUTFITS.police }); ok.name = 'Insp. Okafor'; game.civilians.push(ok);
           C.data.ok = ok; C.data.path = [{ x: c.x, z: meet().z }, meet()]; C.data.pi = 0; C.data.far = 0; hud.say('Insp. Okafor', 'Hold the post. I dey come.', 3); },
           tick: (dt) => { const ok = C.data.ok; if (!ok || ok.gone) return; const tgt = C.data.path[C.data.pi]; if (!tgt) { ok.mood = 'idle'; return; } ok.runTo = tgt; ok.mood = 'run'; ok.runT = 0; if (near(ok.pos, tgt, 1.5)) C.data.pi++;
-            const d = dist(ok.pos, player.pos); if (d < 8) { hud.say('Insp. Okafor', 'Who dey follow me?!', 3); C.data.ok.remove(scene); C.data.ok = null; C.st = 0; C.entered = false; hud.toast('He saw you. Go back to the checkpoint and try again.', 'red'); }
-            C.data.far = d > 60 ? C.data.far + dt : 0; if (C.data.far > 8) { C.data.ok?.remove(scene); C.data.ok = null; C.st = 0; C.entered = false; hud.toast('You lost him. Go back to the checkpoint.', 'red'); } },
+            const d = dist(ok.pos, player.pos); if (d < 8) { hud.say('Insp. Okafor', 'Who dey follow me?!', 3); fail('Okafor saw you.'); return; }
+            C.data.far = d > 60 ? C.data.far + dt : 0; if (C.data.far > 8) fail('You lost Okafor.'); },
           done: () => C.data.ok && C.data.pi >= C.data.path.length },
-        { label: 'Listen in (stay unseen, within 18 m)', where: () => meet(), enter: () => { const m = meet(); C.data.g = gang(m.x + 3, m.z, 2, 0); C.data.t = 0; }, tick: (dt) => { if (near(player.pos, meet(), 18)) { C.data.t += dt; if (C.data.t > 1 && C.data.t < 1 + dt * 1.5) hud.say('Insp. Okafor', 'Tell General: the Marina jetty is clear. My boys no go dey there.', 4); if (C.data.t > 5.5 && C.data.t < 5.5 + dt * 1.5) hud.say('Boy in black', 'General go come see the load himself. Make nobody near that jetty.', 4); } }, done: () => C.data.t > 10 },
+        { label: 'Listen in (stay unseen, within 18 m)', where: () => meet(), enter: () => { const m = meet(); C.data.g = gang(m.x + 3, m.z, 2, 0); C.data.t = 0; }, tick: (dt) => { if (near(player.pos, meet(), 18)) { C.data.t += dt; if (C.data.t > 1 && C.data.t < 1 + dt * 1.5) hud.say('Insp. Okafor', 'Tell General: the Marina jetty is clear. My boys no go dey there.', 4); if (C.data.t > 5.5 && C.data.t < 5.5 + dt * 1.5) hud.say('Boy in black', 'And that rider wey see the crates for Ladipo? We go carry am tomorrow.', 4); } }, done: () => C.data.t > 10 },
         { label: 'Slip away', where: () => null, enter: () => { lead('meeting'); C.data.t = 0; }, tick: (dt) => { C.data.t += dt; }, done: () => C.data.t > 6 && dist(player.pos, meet()) > 40 },
-      ], cleanup: () => { C.data.ok?.remove?.(scene); if (C.data.g) clear(C.data.g); } },
-    { title: 'The Shipment', when: () => night(),
-      intro: () => hud.banner('CHAPTER 5 · THE SHIPMENT', 'Marina jetty, Lagos Island. Take the ferry, the bridge, whatever. Get pictures of what comes off that boat.', 'red', 5),
+      ] },
+    { title: 'One Chance', time: 'day', start: office,
+      brief: 'Tunde, a SwiftDrop rider who saw the crates at Ladipo, just got into the wrong danfo. One chance. They\'re taking him.',
       steps: [
-        { label: 'Get to Marina Jetty on Lagos Island', where: () => jetty(), done: () => near(player.pos, jetty(), 30) },
-        { label: 'Fight the shipment guards', where: () => jetty(), enter: () => { const j = jetty(); C.data.g = gang(j.x + 6, j.z - 6, 4, 2); wake(C.data.g); hud.say('Boy in black', 'Na the one wey dey follow us! Kill am!', 3); }, done: () => alive(C.data.g || { boys: [], guns: [] }) === 0 },
+        { label: 'Catch the one chance danfo: grab on (E), then smash it (F)', where: () => C.data.car?.pos, enter: () => {
+          const sp = api.spot(30, 70) || { x: player.pos.x + 40, z: player.pos.z, nx: 1, nz: 0 };
+          const car = game.traffic.spawnGetaway(sp.x + sp.nx * 5, sp.z + sp.nz * 5, Math.atan2(-sp.nz, sp.nx), 'danfo'); car.ai.topSpeed = 11; car.ai.health = 4; car.ai.maxHealth = 4;
+          C.data.car = car; C.data.lost = 0; hud.say('Tunde (in the danfo)', 'Bolaji! Na me! Dem don hold me!', 3); },
+          tick: (dt) => { const car = C.data.car; if (!car) return; C.data.lost = dist(car.pos, player.pos) < 150 ? 0 : C.data.lost + dt; if (C.data.lost > 14) fail('The danfo got away with Tunde.'); },
+          done: () => C.data.car?.ai.stopped },
+        { label: 'Beat the crew', where: () => C.data.car?.pos, enter: () => {
+          const car = C.data.car; C.data.crew = [-1, 1].map(k => api.gunman({ x: car.pos.x + car.rt.x * k * 1.8, z: car.pos.z + car.rt.z * k * 1.8, yaw: car.yaw, role: 'thief' }));
+          C.data.g = { boys: [boy(car.pos.x - car.fwd.x * 3, car.pos.z - car.fwd.z * 3, car.yaw)], guns: [] }; wake(C.data.g); hud.popup('THE CREW JUMPS OUT'); },
+          done: () => gone(C.data.crew) && alive(C.data.g || none) === 0 },
+        { label: 'Untie Tunde (F)', where: () => C.data.tunde?.pos, use: 'tunde', enter: () => { const car = C.data.car; const v = api.victim({ x: car.pos.x - car.rt.x * 2.4, z: car.pos.z - car.rt.z * 2.4, yaw: 0, mood: 'cower' }); v.name = 'Tunde'; C.data.tunde = v; }, done: () => C.data.used === 'tunde' },
+      ],
+      finish: () => { lead('tunde'); hud.say('Tunde', 'They talk am for inside: the shipment land this week. And one "specialist" dey come for the boy in black.', 5); if (C.data.tunde && !C.data.tunde.gone) setTimeout(() => C.data.tunde?.runHome?.(C.data.tunde.pos.x + 30, C.data.tunde.pos.z), 5000); } },
+    { title: 'The Shipment', time: 'night', start: () => jetty(),
+      brief: 'Marina jetty, Lagos Island. Get pictures of what comes off that boat.',
+      steps: [
+        { label: 'Fight the shipment guards', where: () => jetty(), enter: () => { const j = jetty(); C.data.g = gang(j.x + 6, j.z - 6, 4, 2); wake(C.data.g); hud.say('Boy in black', 'Na the one wey dey follow us! Kill am!', 3); }, done: () => alive(C.data.g || none) === 0 },
         { label: 'Photograph the crates (F)', where: () => jetty(), use: 'photos', done: () => C.data.used === 'photos' },
         { label: 'Lose the police', where: () => null, enter: () => { lead('photos'); api.addHeat(3, 'Police everywhere. The General\'s friends want those photos back.'); }, done: () => game.heat === 0 },
       ] },
-    { title: 'The General', when: () => night(),
-      intro: () => hud.banner('CHAPTER 6 · THE GENERAL', 'His compound on Broad Street. Colonel Gbenga Sowande, retired. Trained to kill. He knows you\'re coming.', 'red', 5),
+    { title: 'The Hunter', time: 'night', start: stadium,
+      brief: 'The General\'s friends in government brought someone in from Japan for the boy in black. He moves like you. He has a sword. He\'s waiting at the stadium.',
       steps: [
-        { label: 'Go to the General\'s compound (Broad Street)', where: () => compound, done: () => near(player.pos, compound, 30) },
-        { label: 'Get through his guards', where: () => compound, enter: () => { C.data.g = gang(compound.x, compound.z, 4, 1); wake(C.data.g); }, done: () => alive(C.data.g || { boys: [], guns: [] }) === 0 },
+        { label: 'The Hunter: beat him, or lose him (he doesn\'t know Lagos)', where: () => game.hunter?.active ? game.hunter.pos : null, enter: () => { const q = stadium(); game.hunter.start(q.x + 8, q.z); C.data.hs = true; }, done: () => C.data.hs && !game.hunter.active },
+      ],
+      finish: () => { L.suitHP = 12; game.refreshFit?.(); if (L.suit) player.setOutfit?.(OUTFITS.bolajiRags); setTimeout(() => hud.toast('You got away, but his blade cut the old suit to rags.', 'red'), 4500); } },
+    { title: 'A New Skin', time: 'day', start: tailor,
+      brief: 'Sunny the tailor sent a text: "Come see me. I made something for you. No questions."',
+      steps: [
+        { label: 'Collect it from Sunny (F)', where: tailor, use: 'panther', enter: () => hud.say('Sunny (tailor)', 'I see wetin happen to the last one. This one... na different thing.', 4), done: () => C.data.used === 'panther' },
+      ],
+      finish: () => { game.catSuit = true; L.suitHP = 100; game.refreshFit?.(); hud.notice('THE PANTHER SUIT', 'Matte black, a helmet with eye slits, silver trim, claws. It\'s in your bag: put it on at night.', 'green', 5); } },
+    { title: 'Okafor\'s Last Stand', time: 'night', start: () => meet(),
+      brief: 'The General gave the order: finish the boy in black. Okafor and his crooked officers are waiting under Ojuelegba bridge.',
+      steps: [
+        { label: 'Beat Okafor\'s officers', where: () => meet(), enter: () => { const m = meet(); C.data.crew = [0, 1, 2].map(k => { const g = api.gunman({ x: m.x + (k - 1) * 3, z: m.z + 6, yaw: Math.PI, role: 'hitman', outfit: OUTFITS.police }); g.name = 'Okafor\'s man'; return g; }); hud.say('Police', 'Na him! No arrest. Finish am!', 3); }, done: () => gone(C.data.crew) },
+        { label: 'Beat Inspector Okafor', where: () => C.data.ok?.pos, enter: () => { const m = meet(); const t = api.thug({ x: m.x, z: m.z + 3, yaw: Math.PI, variant: 'police', weapon: 'stick', role: 'guard' }); t.name = 'Insp. Okafor'; t.hp = t.maxHp = 10; t.engage(0.5); C.data.ok = t; hud.say('Insp. Okafor', 'Twenty years in uniform. You think say I go fear small boy?', 4); }, done: () => C.data.ok && !C.data.ok.alive },
+        { label: 'Take Okafor\'s phone (F)', where: () => C.data.ok?.pos, use: 'okphone', enter: () => { C.data.okPos = { x: C.data.ok.pos.x, z: C.data.ok.pos.z }; }, done: () => C.data.used === 'okphone' },
+        { label: 'Lose the police', where: () => null, enter: () => { lead('okphone'); api.addHeat(2, 'Every radio in Surulere: "Officer down under Ojuelegba!"'); }, done: () => game.heat === 0 },
+      ] },
+    { title: 'The General', time: 'night', start: () => compound,
+      brief: 'His compound on Broad Street. Colonel Gbenga Sowande, retired. Trained to kill. He knows you\'re coming.',
+      steps: [
+        { label: 'Get through his guards', where: () => compound, enter: () => { C.data.g = gang(compound.x, compound.z, 4, 1); wake(C.data.g); }, done: () => alive(C.data.g || none) === 0 },
         { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const g = api.thug({ x: compound.x + 4, z: compound.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say na small boy go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
         { label: 'Take the evidence to Commissioner Adaeze at City Hall', where: () => hall, use: 'handover', done: () => C.data.used === 'handover' },
-      ] },
+      ],
+      finish: () => ending() },
   ];
-  const USE: any = { ledger: 'Take the ledger from the desk', photos: 'Photograph the rifle crates', handover: 'Give Commissioner Adaeze the ledger, the photos and the phone' };
+  const CH = MISSIONS;
+  LEADS.tunde = 'Tunde, a SwiftDrop rider, overheard the kidnappers: the shipment lands this week, and a "specialist" is coming for the boy in black.';
+  LEADS.okphone = 'Okafor\'s phone: calls with the General, and the gate code for his compound on Broad Street.';
+  const USE: any = { ledger: 'Take the ledger from the desk', photos: 'Photograph the rifle crates', handover: 'Give Commissioner Adaeze the ledger, the photos and the phones', tunde: 'Untie Tunde', panther: 'Take what Sunny made', okphone: 'Take Okafor\'s phone' };
   const step = () => CH[C.ch]?.steps[C.st];
-  G.caseFile = () => ({ chapter: CH[C.ch] ? `Chapter ${C.ch + 1} of ${CH.length}: ${CH[C.ch].title}` : 'Case closed', leads: C.leads.map(id => LEADS[id]) });
+  G.caseFile = () => ({ chapter: CH[C.ch] ? `Mission ${C.ch + 1} of ${CH.length}: ${CH[C.ch].title}` : 'All ten missions complete', leads: C.leads.map(id => LEADS[id]).filter(Boolean) });
 
+  // what stands between the player and starting the next mission (null: nothing, go)
+  const dayHours = () => L.phase === 'day' && L.clock >= 7 * 60 && L.clock < 16 * 60;
+  function blocker(m) {
+    if (m.time === 'night' && L.phase !== 'night') return { short: 'NIGHT MISSION · IT OPENS AFTER 8 PM', long: `<b>${m.title}</b> is a night mission. Come back after 8 PM.` };
+    if (m.time === 'day' && !dayHours()) return { short: 'DAY MISSION · 7 AM TO 4 PM', long: `<b>${m.title}</b> is a day mission: 7 AM to 4 PM.` };
+    if (m.time === 'night' && !L.suit) return { short: 'PUT ON YOUR SUIT FIRST · U (FROM YOUR BACKPACK) OR THE WATER DRUM AT HOME', long: '<b>Put on your suit first.</b> U if it\'s in your backpack (where nobody can see you), or the water drum at home.' };
+    if (m.time === 'day' && L.suit) return { short: 'TAKE OFF THE SUIT · YOU NEED YOUR SWIFTDROP WORK CLOTHES', long: '<b>Take off the suit first</b> (U, where nobody can see you). This is daytime: SwiftDrop work clothes.' };
+    if (m.time === 'day' && !game.inWorkClothes()) return { short: 'PUT ON YOUR SWIFTDROP WORK CLOTHES · THE NAIL BY THE DOOR AT HOME', long: '<b>Put on your SwiftDrop work clothes</b>: the nail by the door at home.' };
+    if (player.cuffed || game.arrest) return { short: 'GET OUT OF THE HANDCUFFS FIRST', long: 'Get out of the handcuffs first.' };
+    if (game.heat > 0) return { short: 'LOSE THE POLICE FIRST', long: '<b>Lose the police first.</b>' };
+    return null;
+  }
+  const wearText = (m) => m.time === 'night' ? 'a night mission, in the suit' : 'a day mission (7 AM to 4 PM), in your SwiftDrop work clothes';
+  function cleanupMission() {
+    const D = C.data || {};
+    CH[C.ch]?.cleanup?.();
+    if (D.g) clear(D.g);
+    for (const g of D.crew || []) if (!g.removed) g.remove?.();
+    for (const t of [D.gen, D.ok]) if (t && !t.removed && !t.gone) (t.remove ? t.remove(scene) : null);
+    if (D.car) { const car = D.car; setTimeout(() => game.traffic.remove(car), 15000); }
+    if (D.hs && game.hunter?.active) game.hunter.remove();
+  }
+  function begin() {
+    const m = CH[C.ch]; if (!m || C.on) return;
+    C.on = true; C.st = 0; C.entered = false; C.data = {};
+    hud.banner(`MISSION ${C.ch + 1} · ${m.title.toUpperCase()}`, m.brief, m.time === 'night' ? 'red' : 'blue', 5);
+    audio.alert?.(); game.save();
+  }
+  function complete() {
+    const m = CH[C.ch];
+    m.finish?.(); cleanupMission();
+    hud.banner(`MISSION ${C.ch + 1} COMPLETE`, `${m.title}. The mission is over.`, 'green', 4.5); game.addRespect(1500, m.title.toUpperCase());
+    C.ch++; C.on = false; C.st = 0; C.data = {};
+    if (CH[C.ch]) { const n = CH[C.ch], k = C.ch + 1; setTimeout(() => { if (!C.on && CH[C.ch] === n) hud.notice(`NEXT · MISSION ${k}`, `<b>${n.title}</b>: ${wearText(n)}. Start it when you're ready, at its yellow marker. Until then, Lagos is yours.`, 'white', 7); }, 6000); }
+    game.save();
+  }
+  function fail(why) {
+    if (!C.on) return;
+    cleanupMission(); C.on = false; C.st = 0; C.entered = false; C.data = {};
+    hud.banner('MISSION FAILED', `${why} Go back to the yellow marker to start it again.`, 'red', 4.5); game.save();
+  }
   function updateCase(dt) {
-    if (!story()) return;
-    const ch = CH[C.ch]; if (!ch) return;
-    if (!C.on) { if (ch.when() && L.night > (C.lastDay ?? -1) && !player.cuffed && !game.arrest && (C.cool || 0) <= game.time) { C.on = true; C.st = 0; C.entered = false; C.data = {}; ch.intro?.(); game.save(); } return; }
+    if (!story() || !C.on) return;
+    const m = CH[C.ch]; if (!m) return;
+    if (game.arrest) return fail('You were arrested.');
+    if (m.time === 'night' && L.phase !== 'night') return fail('Dawn came.');
     const s = step(); if (!s) return;
     if (!C.entered) { C.entered = true; s.enter?.(); }
     s.tick?.(dt);
+    if (!C.on) return; // the tick failed it
     if (s.done()) {
       C.st++; C.entered = false; audio.pickup?.();
-      if (C.st >= ch.steps.length) {
-        ch.cleanup?.(); hud.banner(`CHAPTER ${C.ch + 1} COMPLETE`, ch.title, 'green', 3.5); game.addRespect(1500, ch.title.toUpperCase());
-        C.ch++; C.on = false; C.cool = game.time + 90; C.data = {}; C.lastDay = L.night;
-        if (C.ch >= CH.length) ending();
-      }
-      game.save();
+      if (C.st >= m.steps.length) complete(); else game.save();
     }
   }
-  // with the General gone, his street arm goes too: no more Red Caps levy points
-  G.endRedCaps = () => {
-    game.redCapsGone = true;
-    for (const s of game.sites || []) { s.state = 'done'; s.respawn = 1e9; for (const t of s.group || []) if (!t.removed) t.remove(); if (s.collector && !s.collector.removed) s.collector.remove(); }
-    for (const t of game.thugs) if (/^redcap|agbero/.test(t.variant) && t.role !== 'guard') t.remove?.();
-  };
   function ending() {
-    G.endRedCaps();
-    setTimeout(() => hud.toast('With the General gone, the <b>Red Caps</b> have no one to pay them. Their levy points are empty. Surulere breathes.', 'green'), 9000);
-    hud.banner('THE GENERAL FALLS', 'Colonel Sowande is arrested at dawn. Seven officers suspended. Nobody knows who the boy in black is.', 'green', 7);
-    setTimeout(() => game.onNewspaper?.(['PUNCH: "G.S. Holdings" boss arrested with arms cache at Marina', 'THE NATION: Seven police officers on General\'s payroll suspended', 'VANGUARD: Who is the boy in black? Lagos asks', 'BUSINESSDAY: Ladipo warehouse sealed by EFCC']), 7500);
+    setTimeout(() => hud.banner('THE GENERAL FALLS', 'Colonel Sowande is arrested at dawn. Okafor and six officers are suspended. Nobody knows who the boy in black is.', 'green', 7), 5000);
+    setTimeout(() => game.onNewspaper?.(['PUNCH: "G.S. Holdings" boss arrested with arms cache at Marina', 'THE NATION: Inspector Okafor and six officers on General\'s payroll suspended', 'VANGUARD: Who is the boy in black? Lagos asks', 'BUSINESSDAY: Ladipo warehouse sealed by EFCC']), 12500);
   }
   G.option = () => {
-    const s = C.on && step(); if (!s?.use) return null;
+    if (!story()) return null;
+    if (!C.on) {
+      const m = CH[C.ch]; const p = m?.start(); if (!p || !near(player.pos, p, 6)) return null;
+      const b = blocker(m);
+      return b ? { kind: 'none', text: b.long } : { kind: 'case', use: 'start', text: `<span class="key">F</span>Start <b>Mission ${C.ch + 1} · ${m.title}</b>` };
+    }
+    const s = step(); if (!s?.use) return null;
     const w = s.where?.(); if (!w || !near(player.pos, w, 6)) return null;
     return { kind: 'case', use: s.use, text: `<span class="key">F</span>${USE[s.use]}` };
   };
-  G.act = (opt) => { C.data.used = opt.use; return true; };
-  G.target = () => { if (!story() || !C.on) return null; const w = step()?.where?.(); return w ? { x: w.x, z: w.z } : null; };
-  G.objective = () => { if (!story() || !C.on) return null; const ch = CH[C.ch], s = step(); return s ? `<b>${ch.title}</b> · ${s.label}<small>CHAPTER ${C.ch + 1} OF ${CH.length} · THE CASE AGAINST THE GENERAL</small>` : null; };
-  G.tracker = () => { if (!story() || !C.on) return null; const ch = CH[C.ch]; return { title: `Chapter ${C.ch + 1} · ${ch.title}`, sub: 'THE CASE AGAINST THE GENERAL', steps: ch.steps.map((q, k) => ({ label: q.label, state: k < C.st ? 'done' : k === C.st ? 'cur' : '' })) }; };
+  G.act = (opt) => { if (opt.use === 'start') { begin(); return true; } C.data.used = opt.use; return true; };
+  G.target = () => {
+    if (!story()) return null;
+    if (!C.on) { const p = CH[C.ch]?.start(); return p ? { x: p.x, z: p.z } : null; }
+    const w = step()?.where?.(); return w ? { x: w.x, z: w.z } : null;
+  };
+  // during a mission: the step. Between missions (shown only when the day job has nothing to say): what's next
+  G.objective = () => { if (!story() || !C.on) return null; const m = CH[C.ch], s = step(); return s ? `<b>Mission ${C.ch + 1} · ${m.title}</b> · ${s.label}<small>MISSION ${C.ch + 1} OF ${CH.length}</small>` : null; };
+  G.idleObjective = () => {
+    if (!story() || C.on) return null;
+    const m = CH[C.ch];
+    if (!m) return 'All ten missions complete<small>THE GENERAL IS FINISHED · LAGOS IS YOURS</small>';
+    const b = blocker(m);
+    return `Next: <b>Mission ${C.ch + 1} · ${m.title}</b> (${m.time === 'night' ? 'night' : 'day'})<small>${b ? b.short : 'GO TO THE YELLOW MARKER AND PRESS F TO START'}</small>`;
+  };
+  G.tracker = () => {
+    if (!story()) return null;
+    const m = CH[C.ch]; if (!m) return null;
+    if (C.on) return { title: `Mission ${C.ch + 1} · ${m.title}`, sub: `MISSION ${C.ch + 1} OF ${CH.length}`, steps: m.steps.map((q, k) => ({ label: q.label, state: k < C.st ? 'done' : k === C.st ? 'cur' : '' })) };
+    const timeOk = m.time === 'night' ? L.phase === 'night' : dayHours(), wearOk = m.time === 'night' ? L.suit : game.inWorkClothes();
+    return { title: `Next: Mission ${C.ch + 1} · ${m.title}`, sub: `NOT STARTED · MISSION ${C.ch + 1} OF ${CH.length}`, steps: [
+      { label: m.time === 'night' ? 'Wait for night (after 8 PM)' : 'Daytime (7 AM to 4 PM)', state: timeOk ? 'done' : 'cur' },
+      { label: m.time === 'night' ? 'Put on your suit' : 'Wear your SwiftDrop work clothes', state: wearOk ? 'done' : timeOk ? 'cur' : '' },
+      { label: 'Go to the yellow marker, press F', state: timeOk && wearOk ? 'cur' : '' },
+    ] };
+  };
   G.markers = (M, MM, dstr) => {
-    const t = G.target(); if (t) { MM.push({ x: t.x, z: t.z, color: '#ffd54f' }); M.push({ x: t.x, y: 3.4, z: t.z, kind: 'story', label: `${CH[C.ch].title.toUpperCase()} · ${dstr(t.x, t.z)}` }); }
-    if (G.squad) { MM.push({ x: G.squad.x, z: G.squad.z, color: '#ff3d3d' }); if (dist(G.squad, player.pos) < 120) M.push({ x: G.squad.x, y: 3, z: G.squad.z, kind: 'cop', label: `MEN IN BLACK · ${dstr(G.squad.x, G.squad.z)}` }); }
+    const t = G.target(); if (t) { const lbl = C.on ? CH[C.ch].title.toUpperCase() : `START MISSION ${C.ch + 1} · ${CH[C.ch].title.toUpperCase()}`; MM.push({ x: t.x, z: t.z, color: '#ffd54f' }); M.push({ x: t.x, y: 3.4, z: t.z, kind: 'story', label: `${lbl} · ${dstr(t.x, t.z)}` }); }
     if (G.oc && G.oc.stage === 'chase') MM.push({ x: G.oc.car.pos.x, z: G.oc.car.pos.z, color: '#ff3d3d' });
   };
   G.update = (dt) => {
     if (L.inside) return;
     updateCase(dt);
-    if (C.on) return; // during a chapter, the city waits
-    updateSquad(dt); updateLeaving(); updateOneChance(dt); updatePick(dt);
+    updateLeaving();
+    if (C.on) return; // during a mission, the city waits
+    // ordinary street crime only: the General's boys turn up in missions, never at random
+    updateOneChance(dt); updatePick(dt);
   };
-  G.serialize = () => ({ ch: C.ch, leads: C.leads, lastDay: C.lastDay ?? -1 });
-  G.load = (d) => { if (!d) return; C.ch = d.ch || 0; C.leads = d.leads || []; C.lastDay = d.lastDay ?? -1; if (C.ch >= 6) setTimeout(() => G.endRedCaps(), 0); C.on = false; C.st = 0; }; // a chapter in progress restarts from its first step
+  G.serialize = () => ({ v: 2, ch: C.ch, leads: C.leads });
+  G.load = (d) => {
+    if (!d) return;
+    // saves from the old six-chapter case: carry progress over to the matching mission
+    C.ch = d.v === 2 ? (d.ch || 0) : ([0, 1, 2, 3, 5, 9, 10][d.ch || 0] ?? 0);
+    C.leads = d.leads || []; C.on = false; C.st = 0; // a mission in progress restarts from its marker
+    if (C.ch >= 8) game.catSuit = true; // the panther suit, from Mission 8 on
+  };
   return G;
 }

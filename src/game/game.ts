@@ -134,8 +134,8 @@ export function createGame(ctx) {
     const spots = world.spots.filter(s => !(s.bi === 1 && s.bj === 1) && s.bi !== 4 && Math.hypot(s.x - home.x, s.z - home.z) > 75);
     const chosen: any[] = [];
     for (let tries = 0; tries < 400 && chosen.length < 2; tries++) { const s = spots[Math.floor(R() * spots.length)]; if (chosen.every(c => dist2(c, s) > 110 * 110) && dist2(s, world.marketSpot) > 80 * 80 && dist2(s, world.motorparkSpot) > 90 * 90) chosen.push(s); }
-    game.sites.push(makeSite(world.marketSpot, 'Adelabu Market gate', { guards: 1, amount: 45000 }));
-    for (const s of chosen) game.sites.push(makeSite(s, 'Street corner', { guards: R() < 0.5 ? 1 : 2, amount: 30000 + Math.floor(R() * 4) * 5000 }));
+    // the Red Caps' levy points belonged to the old story: no longer built (docs/story-bible.md)
+    void chosen; void makeSite;
   }
 
   // ---------- carrying / delivering (levy bags and stolen items) ----------
@@ -503,7 +503,7 @@ export function createGame(ctx) {
     if (L.inside) return roomOption();
     if (!['foot', 'board'].includes(player.mode) || (player.mode === 'board' && !player.onGround)) return null;
     const busy = game.thugs.some(t => t.alive && (t.state === 'windup' || t.state === 'strike') && dist2(t.pos, player.pos) < 9);
-    { const tl = DAY.pois.tailor; if (tl && !L.suit && (L.suitHP ?? 100) < 100 && dist2(tl, player.pos) < 4 * 4) return { kind: 'tailor', text: `<span class="key">F</span>Sunny Tailoring: a new black suit, no questions asked (₦8,000 · yours is ${Math.round(L.suitHP)}%)` }; }
+    { const tl = DAY.pois.tailor; if (tl && !(game.sub !== 'free' && game.general.case.ch === 7) && !L.suit && (L.suitHP ?? 100) < 100 && dist2(tl, player.pos) < 4 * 4) return { kind: 'tailor', text: `<span class="key">F</span>Sunny Tailoring: a new black suit, no questions asked (₦8,000 · yours is ${Math.round(L.suitHP)}%)` }; }
     if (game.dropped && dist2(game.dropped.mesh.position, player.pos) < 2.4 * 2.4) return { kind: 'pickup', text: `<span class="key">F</span>Pick up ${game.dropped.item.label}` };
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 3.6 * 3.6) return { kind: 'deliver', text: `<span class="key">F</span>Give it back to ${game.delivery.name}` };
     if (busy) return null;
@@ -639,6 +639,8 @@ export function createGame(ctx) {
     const now = !L.wear || (L.wear === 'uniform' && !game.job?.employed) ? order[0] : L.wear;
     return order[(order.indexOf(now) + 1) % order.length];
   };
+  // in SwiftDrop work clothes (or, if he's lost the job, just his own clothes): what day missions need
+  game.inWorkClothes = () => !L.suit && (!game.job?.employed || dayFit() === OUTFITS.bolajiDay);
   game.refreshFit = () => { if (!L.suit) player.setOutfit(dayFit()); reattachBag(); updateBackpack(); };
   function updateBackpack() {
     if (!backpack) { backpack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.18), new THREE.MeshStandardMaterial({ color: '#2b2f36', roughness: 0.9 })); backpack.position.set(0, 0.0, -0.17); }
@@ -922,8 +924,6 @@ export function createGame(ctx) {
     if (game.heat >= 2) game.wasHot = true;
     if (game.heat === 0 && game.wasHot) { // he shook off a serious chase: the man paying the police is losing patience
       game.wasHot = false; const F = game.story.flags; F.policeFails = (F.policeFails || 0) + 1;
-      if (F.policeFails === 3) hud.banner('THE PATRON', 'His police keep failing. He is done using police.', 'red', 3.5);
-      else hud.notice('SOMEWHERE, A PHONE RINGS', `Somebody important just heard the police lost you again (${F.policeFails}).`, 'blue');
     }
     if (game.heat > 0) {
       if (seen) { game.heatTimer = 0; if (!game.arrest) game.seenTime += dt; if (game.seenTime > 16 && game.heat < 3) { game.seenTime = 0; addHeat(1, 'More units joining the chase!'); } }
@@ -1326,6 +1326,7 @@ export function createGame(ctx) {
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>LEGS STILL WORK: KICK (F) · COUNTER (C) · LAUNCH / SWEEP (G) · NO CLIMBING · DARKNESS HELPS</small>` : game.mode === 'patrol' ? '<b>Handcuffed.</b> Get out of sight, then <b>hold F to slip the cuffs</b><small>NOBODY CAN BE WATCHING · OR BABA KOLADE CAN CUT THEM</small>' : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.mode === 'patrol' && game.general.objective()) hud.objective(game.general.objective());
     else if (game.mode === 'patrol' && game.sub !== 'free' && game.job.objective()) hud.objective(game.job.objective());
+    else if (!L.inside && game.general.idleObjective()) hud.objective(game.general.idleObjective());
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
     else if (game.inMall) hud.objective(`<b>${game.mallFrom?.name || 'The mall'}</b> · ${L.timeStr()}<small>WALK UP TO A COUNTER AND PRESS F TO BUY · THE GLASS DOORS TO LEAVE</small>`);

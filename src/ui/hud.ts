@@ -32,7 +32,7 @@ export function createHUD(root, world) {
       <div class="health"><div class="hbar"><i class="cap"></i><b></b></div><span class="hv">100</span></div>
       <div class="heat"><span class="lbl">HEAT</span><i class="star"></i><i class="star"></i><i class="star"></i></div>
       <div class="naira">₦0<span>RETURNED</span></div>
-      <div class="wanted"><span class="lbl">RED CAPS</span><i></i><i></i><i></i></div>
+      <div class="wanted" hidden><span class="lbl">RED CAPS</span><i></i><i></i><i></i></div>
       <div class="respect"><span class="lbl">REP</span> <b class="rv">0</b></div>
       <div class="suitline hidden"><span class="lbl">SUIT</span><div class="meter suitm"><b></b></div></div>
       <div class="needs">
@@ -623,12 +623,12 @@ export function createHUD(root, world) {
     // two ways to play: Story (Bolaji's life and the hunt for the General, always continues where you left
     // off; no level select) and Patrol (endless free roam in the suit). Each keeps its own save.
     const go = (mode, fresh) => { M.destroy(); onStart({ quality: q, fresh, mode }); };
-    const confirm = (m, mode) => m.open('START OVER?', '<p class="mm-note big">Your saved ' + (mode === 'free' ? 'patrol' : 'story') + ' will be erased: money, job, progress, everything.</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
+    const confirm = (m, mode) => m.open('START OVER?', '<p class="mm-note big">Your saved ' + (mode === 'free' ? 'patrol' : 'story') + ' will be erased: money, job, mission progress, everything.</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
       (p) => { p.querySelector('[data-yes]').onclick = () => go(mode, true); p.querySelector('[data-no]').onclick = m.close; });
-    if (o.life) items.push({ label: 'Continue', sub: `Story · ${o.life.phase === 'night' ? 'Night' : 'Day'} ${o.life.night}${o.life.wallet != null ? ' · ₦' + o.life.wallet.toLocaleString() : ''}`, attr: 'data-start', action: () => go('story', false) });
-    items.push({ label: o.life ? 'New story' : 'Story', sub: 'A delivery rider by day, the boy in black by night. Find the General.', attr: o.life ? 'data-new' : 'data-start', action: (m) => o.life ? confirm(m, 'story') : go('story', true) });
-    items.push({ label: 'Patrol', sub: o.free ? `Endless free roam · Night ${o.free.night}` : 'Endless free roam in the suit · no job, no story', attr: 'data-patrol', action: (m) => {
-      m.open('PATROL', `<p class="mm-story">No job, no rent, no story. Just Lagos and the boy in black: rooftops, the board, police on your tail.</p><div class="mm-row">${o.free ? '<button class="mm-btn hot" data-nav data-pgo data-default>Continue patrol</button><button class="mm-btn" data-nav data-pnew>New patrol</button>' : '<button class="mm-btn hot" data-nav data-pnew data-default>Start patrol</button>'}</div>`,
+    if (o.life) items.push({ label: 'Continue', sub: `Missions · ${o.life.phase === 'night' ? 'Night' : 'Day'} ${o.life.night}${o.life.wallet != null ? ' · ₦' + o.life.wallet.toLocaleString() : ''}`, attr: 'data-start', action: () => go('story', false) });
+    items.push({ label: o.life ? 'New missions' : 'Missions', sub: 'Ten missions, in order. A rider by day, the boy in black by night. Bring down the General.', attr: o.life ? 'data-new' : 'data-start', action: (m) => o.life ? confirm(m, 'story') : go('story', true) });
+    items.push({ label: 'Patrol', sub: o.free ? `Endless free roam · Night ${o.free.night}` : 'Free roam · no story, no missions · just Lagos and the police', attr: 'data-patrol', action: (m) => {
+      m.open('PATROL', `<p class="mm-story">No story, no missions. Just Lagos and the boy in black: rooftops, the board, people who need help, and the police on your tail.</p><div class="mm-row">${o.free ? '<button class="mm-btn hot" data-nav data-pgo data-default>Continue patrol</button><button class="mm-btn" data-nav data-pnew>New patrol</button>' : '<button class="mm-btn hot" data-nav data-pnew data-default>Start patrol</button>'}</div>`,
         (p) => { p.querySelector('[data-pgo]')?.addEventListener('click', () => go('free', false)); p.querySelector('[data-pnew]').onclick = () => go('free', true); });
     } });
     items.push({ label: 'The story', action: (m) => m.open('THE STORY SO FAR', storyPanel()) });

@@ -278,6 +278,7 @@ export function createHunter(game) {
   // ---- when he comes: at night, for the boy in black, more likely once the police are after him ----
   H.cd = 200 + Math.random() * 120;
   H.tick = (dt) => {
+    return; // he only comes in Mission 7 (docs/story-bible.md): never at random
     if (H.demoing || H.active || game.mode !== 'patrol' || !L.suit || L.inside || L.phase !== 'night' || game.story?.active || game.arrest) return;
     H.cd -= dt * (game.heat > 0 ? 2.5 : 1);
     if (H.cd <= 0) H.start();

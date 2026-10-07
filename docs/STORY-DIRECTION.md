@@ -1,4 +1,4 @@
-# Story direction (October 2026, v2)
+# Story direction (October 2026, v3: see story-bible.md for the missions)
 
 This replaces every earlier framing: no kid, no Mama, no Tobi, no student. It's the creator's direction, tidied up.
 
@@ -37,21 +37,10 @@ This replaces every earlier framing: no kid, no Mama, no Tobi, no student. It's 
 
 (The world details already built, such as police raids, the ferry, Lagos Island and chatter, are listed in WHATS-NEW and the git history.)
 
-## Modes
-- **Story**: Bolaji's life (the job, rent) and the case against the General. It always continues from your save; there's no level select.
-- **Patrol**: endless free roam in the suit at night, on its own save. No job, no story, but the General's boys, one chance and the rest of the street crime still happen.
-- **No board by day:** the skateboard belongs to the boy in black. By day he walks, runs, or pays for rides.
-
-## The case (Story mode), as built
-Chapters unlock one per day or night, in order:
-1. **Men in Black** (night): a voice note says the boys in black are burning Adelabu Market. Fight five of them and an AK gunman, then lose the police, who think you're one of them. Lead: a burner phone.
-2. **The Address** (day, during your shift): a special parcel for "G.S. Holdings, Ladipo" appears on your job sheet. Deliver it and look around. Lead: the receipt with the gold eagle on a beret.
-3. **The Warehouse** (night): back at Ladipo in the suit. Take out the guards, take the ledger, escape the police. Lead: the payroll ledger (Inspector Okafor and six officers).
-4. **Okafor** (night): tail the inspector from the Ojuelegba checkpoint without being seen (not within 8 m, don't lose him), then listen in under the bridge. Lead: the Marina jetty shipment.
-5. **The Shipment** (night): get to Marina Jetty (ferry or bridge), fight six boys and three AK gunmen, photograph the rifle crates, survive a 3-star chase.
-6. **The General** (night): his Broad Street compound. Get through the guards, then fight Colonel (rtd) Gbenga Sowande himself, a big, trained boss who dodges plain strikes. Take the evidence to Commissioner Adaeze at City Hall. Then the ending and the newspapers.
-
-Leads appear in the **case file** on the job sheet (J).
+## Modes and missions
+The story, the two modes and the ten missions now live in **docs/story-bible.md** (fresh start, 2026-10-07).
+- **Patrol:** free roam, no story, no special characters or gangs. Ordinary street crime and the police.
+- **Missions:** ten missions in order. Each starts at its yellow marker (F) at the right time in the right clothes (night: the suit; day: SwiftDrop work clothes), ends with MISSION COMPLETE, and nothing else happens until you start the next.
 
 ## Character pass (live)
 - **Grown man, not a kid.** By day: SwiftDrop shirt, cap and trousers. **No board by day.** The board is only for the boy in black.
