@@ -62,9 +62,9 @@ export function tintBody(model: THREE.Object3D, kind: Kind, o: any) {
       if (!mat) { mat = m.material.clone(); (mat as any).color.set(col); matCache.set(key, mat!); }
       m.material = mat;
     }
-    if (name === 'suit' && !(m.material as any).userData.done) { // the baked violet lines glow
+    if (name === 'suit' && !(m.material as any).userData.done) { // the suit body
       const mat = m.material as THREE.MeshStandardMaterial;
-      mat.emissive.set('#a35cff'); mat.emissiveIntensity = 2.2; mat.userData.done = true;
+      mat.emissiveMap = null; mat.emissive.set('#000000'); mat.emissiveIntensity = 0; mat.needsUpdate = true; mat.userData.done = true; // plain matte black: no violet lines
     }
     if (name === 'shell') { const mat = m.material as THREE.MeshStandardMaterial; mat.metalness = 0.15; mat.roughness = 0.45; } // armour: a satin sheen, not a mirror
     if (name === 'silver') { const mat = m.material as THREE.MeshStandardMaterial; mat.roughness = 0.45; mat.metalness = 0.75; } // brushed, so a streetlight doesn't flare off the chest
