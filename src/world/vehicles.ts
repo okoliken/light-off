@@ -3,6 +3,34 @@
 // Each template = { body geometry (vertex colours), light geometry, spec }.
 import * as THREE from 'three';
 import { PrimBatch } from '../core/geo.ts';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+// ---- vehicles modelled in Blender (public/models/<type>.glb). Each part's material names its role; the game
+// colours it (paint takes the vehicle's own colour) and lamps go into the lights mesh. Types without a model
+// keep the simple primitive build below.
+const models: Record<string, THREE.Object3D> = {};
+export async function loadVehicles(types = ['danfo', 'keke', 'okada', 'car', 'police', 'tanker', 'brt', 'getaway']) {
+  const loader = new GLTFLoader();
+  await Promise.all(types.map(async (t) => { try { models[t] = (await loader.loadAsync(`${import.meta.env.BASE_URL}models/${t}.glb`)).scene; } catch { /* no model yet: primitives */ } }));
+}
+const ROLE: Record<string, string> = {
+  glass: '#1b2330', black: '#161616', tyre: '#131313', chrome: '#9a9ea4', metal: '#3a3a3a', interior: '#0c0c0c', white: '#e8e8e8', blue: '#1a3a8a',
+  red: '#a01818', seat: '#2a2018', paint2: '#141518', canvas: '#121212',
+  light_head: '#fff4d6', light_amber: '#ffa000', light_tail: '#ff2a1a', light_blue: '#2a6bff', light_red: '#ff1a1a',
+};
+/** Add the Blender model for a type to the body and lights batches; false when there's no model. */
+function fromModel(type, b, l, paint, paint2?) {
+  const m = models[type]; if (!m) return false;
+  m.updateMatrixWorld(true);
+  m.traverse((o: any) => {
+    if (!o.isMesh) return;
+    const role = (o.material.name || '').replace(/^V_/, '');
+    const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    const col = role === 'paint' ? paint : role === 'paint2' && paint2 ? paint2 : ROLE[role] ?? '#777';
+    (role.startsWith('light') ? l : b).add(g, {}, col);
+  });
+  return true;
+}
 
 export const SPECS = {
   danfo:  { len: 4.9, w: 2.0, h: 2.15, speed: [10, 13], grip: 7, skitch: true, platform: true, label: 'Danfo' },
@@ -34,6 +62,11 @@ function danfo(R) {
   // the classic Lagos danfo: a VW T3 bus, boxy, yellow with two black stripes, black grille band with round lamps
   const b = new PrimBatch(), l = new PrimBatch();
   const Y = ['#f2b705', '#f0b000', '#e9ad0c'][Math.floor(R() * 3)], K = '#161616', G = '#1b2330', RUST = '#7a4a22';
+  if (fromModel('danfo', b, l, Y)) {
+    for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) if (R() < 0.6) b.box(0.02, 0.12 + R() * 0.2, 0.15 + R() * 0.3, { p: [sx * 1.0, 0.6 + R() * 0.8, -2 + R() * 4] }, RUST); // rust and dents
+    if (R() < 0.6) b.box(0.9, 0.35, 0.8, { p: [(R() - 0.5) * 0.6, 2.62, -0.5] }, ['#6d4c41', '#1565c0', '#c62828'][Math.floor(R() * 3)]); // luggage on the rack
+    return { b, l };
+  }
   b.box(1.98, 1.02, 4.7, { p: [0, 0.98, -0.05] }, Y);                   // lower body
   b.box(1.94, 0.82, 4.55, { p: [0, 1.88, -0.1] }, Y);                   // upper body
   b.box(1.9, 0.08, 4.5, { p: [0, 2.32, -0.1] }, Y);                     // roof
@@ -68,6 +101,12 @@ function danfo(R) {
 function okada(R) {
   const b = new PrimBatch(), l = new PrimBatch();
   const c: any = ['#8e1b1b', '#1a237e', '#212121', '#bf360c'][Math.floor(R() * 4)];
+  const riders = () => {
+    person(b, 0, 0.9, -0.1, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+    if (R() < 0.5) person(b, 0, 0.95, -0.55, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+    b.box(0.5, 0.12, 0.3, { p: [0.28, 0.9, -0.1], r: [0, 0, 0.4] }, '#263238'); b.box(0.5, 0.12, 0.3, { p: [-0.28, 0.9, -0.1], r: [0, 0, -0.4] }, '#263238');
+  };
+  if (fromModel('okada', b, l, c)) { riders(); return { b, l }; }
   b.cyl(0.33, 0.33, 0.1, { p: [0, 0.33, 0.72], r: [0, 0, Math.PI / 2] }, '#111', 12);
   b.cyl(0.33, 0.33, 0.12, { p: [0, 0.33, -0.7], r: [0, 0, Math.PI / 2] }, '#111', 12);
   b.box(0.28, 0.35, 1.2, { p: [0, 0.62, 0] }, c);
@@ -86,6 +125,11 @@ function keke(R) {
   // yellow mudguard, open sides, a wider rear tub with fenders over the back wheels, and a black canvas hood
   const b = new PrimBatch(), l = new PrimBatch();
   const Y = '#f6b81c', K = '#151515', C = '#2a2a2a';
+  if (fromModel('keke', b, l, Y)) {
+    person(b, 0, 0.85, 0.45, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+    if (R() < 0.6) person(b, 0.35, 1.0, -0.75, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+    return { b, l };
+  }
   // nose and cockpit
   b.box(0.95, 1.0, 0.55, { p: [0, 1.0, 1.05] }, Y);
   b.sphere(0.5, { p: [0, 0.95, 1.2], s: [0.95, 0.8, 0.6] }, Y, 12, 8);
@@ -124,6 +168,7 @@ function keke(R) {
 function car(R) {
   const b = new PrimBatch(), l = new PrimBatch();
   const c: any = ['#b0b3b8', '#1c1c1f', '#26418f', '#8e1b1b', '#e8e8e8', '#2f4f3f', '#6b4f2a'][Math.floor(R() * 7)];
+  if (fromModel('car', b, l, c)) return { b, l };
   b.box(1.8, 0.55, 4.4, { p: [0, 0.62, 0] }, c);
   b.box(1.66, 0.5, 2.3, { p: [0, 1.15, -0.25] }, c);
   b.box(1.68, 0.36, 2.1, { p: [0, 1.16, -0.25] }, '#1b2330');
@@ -136,6 +181,7 @@ function car(R) {
 }
 function tanker() {
   const b = new PrimBatch(), l = new PrimBatch();
+  if (fromModel('tanker', b, l, '#e65100')) return { b, l };
   b.box(2.4, 1.6, 2.3, { p: [0, 1.45, 3.4] }, '#e0e0e0');         // cab
   b.box(2.42, 0.6, 1.8, { p: [0, 1.9, 3.45] }, '#1b2330');
   b.box(2.3, 0.25, 7.2, { p: [0, 0.75, -1.1] }, '#333');           // chassis
@@ -150,6 +196,7 @@ function tanker() {
 function police() {
   const b = new PrimBatch(), l = new PrimBatch();
   const Bk = '#15171c', Bl = '#1f3f8f';
+  if (fromModel('police', b, l, Bk)) return { b, l };
   b.box(1.95, 0.7, 4.8, { p: [0, 0.75, 0] }, Bk);
   b.box(1.97, 0.18, 4.82, { p: [0, 0.9, 0] }, Bl);
   b.box(1.85, 0.62, 2.0, { p: [0, 1.4, 0.7] }, Bk);
@@ -165,6 +212,7 @@ function police() {
 
 function brt() {
   const b = new PrimBatch(), l = new PrimBatch();
+  if (fromModel('brt', b, l, '#1f4fa8')) return { b, l };
   b.box(2.55, 1.1, 11.5, { p: [0, 1.0, 0] }, '#1f4fa8');            // lower body
   b.box(2.5, 1.2, 11.3, { p: [0, 2.15, 0] }, '#1f4fa8');
   b.box(2.57, 0.85, 10.6, { p: [0, 2.2, -0.2] }, '#1b2330');         // windows
@@ -180,6 +228,7 @@ function brt() {
 function getaway() {
   const b = new PrimBatch(), l = new PrimBatch();
   const c = '#0e0f12';
+  if (fromModel('getaway', b, l, c)) return { b, l };
   b.box(1.85, 0.55, 4.5, { p: [0, 0.62, 0] }, c);
   b.box(1.7, 0.5, 2.4, { p: [0, 1.15, -0.25] }, c);
   b.box(1.72, 0.38, 2.2, { p: [0, 1.16, -0.25] }, '#050608');

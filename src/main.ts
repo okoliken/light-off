@@ -21,6 +21,7 @@ import { loadSettings, saveSettings, preset, PRESETS } from './game/settings.ts'
 import { createTouchPad, isTouchDevice } from './player/touch.ts';
 import { createTutorial } from './game/tutorial.ts';
 import { loadBodies } from './player/body.ts';
+import { loadVehicles } from './world/vehicles.ts';
 
 const touchDevice = isTouchDevice();
 const settings = loadSettings();
@@ -38,7 +39,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-await loadBodies(); // the realistic character models, before anyone is built
+await Promise.all([loadBodies(), loadVehicles()]); // the realistic character models, before anyone is built
 const t0 = performance.now();
 const world = buildCity(scene, { lights: Q.lights });
 buildRoom(scene, world);
