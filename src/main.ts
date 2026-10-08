@@ -124,6 +124,11 @@ canvas.addEventListener('click', () => { if (state === 'scene') cinema.advance()
 
 // ---- the end of a night: sleep (or get found in a gutter) ----
 function endNight(ending) {
+  if (ending === 'sleep' || ending === 'dawn') { // a plain night's sleep: straight to morning, no report screen
+    L.newNight(); if (game.mode === 'patrol') game.wakeUp(); else { game.startDay(); game.save(); }
+    hud.notice('MORNING', `Day ${L.night}. ${L.timeStr()}.`, 'white', 2.2);
+    return;
+  }
   state = 'overlay'; document.exitPointerLock?.(); hud.setHudVisible(false);
   hud.nightOver(nightReport(game, ending), () => {
     L.newNight(); hud.setHudVisible(true);

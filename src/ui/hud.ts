@@ -465,7 +465,7 @@ export function createHUD(root, world) {
     el.gThrow.classList.toggle('on', !!hi.holding);
     { const k = hi.kit || {}, t = `<span>PEPPER ×${k.pepper || 0} <i>1</i></span><span>ASH ×${k.smoke || 0} <i>2</i></span><span>NAILS ×${k.nails || 0} <i>3</i></span>`; const gk = root.querySelector('.gkit'); if (gk && gk.innerHTML !== t) gk.innerHTML = t; }
     { const g = hi.flurry ? 'FLURRY' : hi.sweep ? 'SWEEP' : 'LAUNCH'; if (g !== el.gLaunch._sw) { el.gLaunch._sw = g; el.gLaunch.innerHTML = (g === 'FLURRY' ? 'ALLEY CAT FLURRY' : g === 'SWEEP' ? 'CAT SWEEP' : 'LAUNCH') + ' <i>G</i>'; el.gLaunch.classList.toggle('on', g !== 'LAUNCH'); } }
-    el.roomM.classList.toggle('hidden', !hi.inside);
+    el.roomM.classList.add('hidden'); // the noise / suspicion panel is gone: he lives alone
     if (hi.inside) { el.noise.style.width = Math.min(100, hi.noise * 100) + '%'; el.susp.style.width = hi.suspicion + '%'; }
     el.mapWrap.style.visibility = hi.inside ? 'hidden' : '';
     el.wanted.forEach((w, i) => w.classList.toggle('on', hi.wanted > i));
