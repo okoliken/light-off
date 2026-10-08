@@ -17,6 +17,11 @@ const LINES = {
   duel: ['Too slow.', 'Again.', 'Street fighting. Hm.', 'You have no training. Only luck.'],
   lost: ['...Where did he go?', 'These streets...', 'He knows this city. I do not. Yet.'],
   hurt: ['Good. Finally.', 'Hm. That one I felt.'],
+  // in the mission: what he says as the fight turns
+  p1: ['Show me what Lagos taught you.', 'You fight like you have something to lose.', 'Breathe. You are wasting yourself.'],
+  p2: ['You hit like a man who has been hungry.', 'Who are you protecting, Street Cat?', 'I was told you were a thief. Thieves run.'],
+  p3: ['They will send someone worse than me.', 'Not like this. Not in the street.', 'Again. AGAIN.'],
+  stalk: ['Keep walking.', 'I see you.', 'Lagos is small, Street Cat.'],
 };
 
 export function createHunter(game) {
@@ -45,18 +50,18 @@ export function createHunter(game) {
 
   // his armour: plain strikes from the front mostly glance off; counters, heavy hits, slams, throws get through
   H.takeHit = (dmg, fx0, fz0, kind = 'light') => {
-    if (!H.alive || H.state === 'gone') return false;
+    if (!H.alive || H.state === 'gone' || H.state === 'beaten') return false;
     H.lastBlocked = false; H.evaded = false;
     const side = Pose.hitSide(H.pos.x, H.pos.z, H.yaw, fx0, fz0), heavy = ['heavy', 'counter', 'launch', 'slam', 'takedown', 'air'].includes(kind);
     if (!heavy && H.state !== 'down' && H.state !== 'stagger') {
       if (side !== 2 && Math.random() < 0.75) { H.lastBlocked = true; fx?.burst(H.pos.x, H.pos.y + 1.3, H.pos.z, 0xbfd4ff, 7, 3); audio.clank?.(H.pos); return false; } // it glances off the plates
       if (Math.random() < 0.2) { H.lastBlocked = true; H.evaded = true; H.evade = true; return false; } // a backflip out of it
-      if (Math.random() < 0.15) { H.lastBlocked = true; H.parry = true; return false; } // a karate block, then straight back at him
+      if (Math.random() < [0.15, 0.15, 0.3, 0.38][H.phase || 1]) { H.lastBlocked = true; H.parry = true; return false; } // a karate block, then straight back at him (more often as he reads you)
     }
     const real = (heavy ? (kind === 'takedown' ? 8 : Math.max(2, dmg) * 1.5) : dmg * (side === 2 ? 0.8 : 0.5));
     H.hp -= real;
     body.hurt(0.0001, fx0, fz0, heavy ? 5 : 2); // the body shows it (and is knocked back)
-    if (H.hp <= 0) { H.state = 'down'; H.t = 0; say('hurt'); return false; }
+    if (H.hp <= 0) { H.hp = 0; H.state = H.mission ? 'beaten' : 'down'; H.t = 0; if (!H.mission) say('hurt'); return false; } // in the mission he never runs: he goes to one knee
     if (heavy) { H.state = 'stagger'; H.t = 0; H.stagDur = 0.8; if (Math.random() < 0.4) say('hurt'); }
     return false; // nobody knocks him out in one
   };
@@ -115,7 +120,7 @@ export function createHunter(game) {
   // an officer gets a hand on him: a flip out of it, or the officer goes down
   let resistCd = 0, fightT = 0;
   H.resist = (g) => {
-    if (resistCd > 0 || ['down', 'pin'].includes(H.state)) return;
+    if (resistCd > 0 || ['down', 'pin', 'beaten'].includes(H.state)) return;
     resistCd = 1.2;
     const toG = Math.atan2(g.pos.x - H.pos.x, g.pos.z - H.pos.z);
     if (Math.random() < 0.5) gymnast(toG); else { body.yaw = toG; g.takeHit(1, H.pos.x, H.pos.z, 'heavy'); fx?.dust(g.pos.x, g.pos.y + 0.2, g.pos.z, 6); audio.clank?.(g.pos); }
@@ -129,9 +134,9 @@ export function createHunter(game) {
     const s = fromX != null ? { x: fromX, z: fromZ, nx: 0, nz: 0 } : spots[Math.floor(Math.random() * spots.length)] || { x: player.pos.x + 50, z: player.pos.z, nx: 0, nz: 0 };
     body.respawn?.(s.x + s.nx * 2, s.z + s.nz * 2, 0); body.pos.set(s.x + s.nx * 2, col.groundHeight(s.x, s.z, 40).h, s.z + s.nz * 2);
     body.mode = 'foot'; body.vel.set(0, 0, 0); body.rig.root.visible = true;
-    Object.assign(H, { active: true, hp: H.maxHp, state: 'hunt', t: 0, removed: false, sword: false, swordT: 0, drewT: 0 }); fightT = 0; lastSeen = { x: player.pos.x, y: player.pos.y, z: player.pos.z }; unseenT = 0; searchT = 0; pinT = 0;
+    Object.assign(H, { active: true, hp: H.maxHp, state: H.mission ? 'stalk' : 'hunt', t: 0, removed: false, sword: false, swordT: 0, drewT: 0, phase: 1 }); fightT = 0; lastSeen = { x: player.pos.x, y: player.pos.y, z: player.pos.z }; unseenT = 0; searchT = 0; pinT = 0;
     if (!game.thugs.includes(H)) game.thugs.push(H);
-    hud.card('He\'s here', 'The Hunter');
+    if (!H.mission) hud.card('He\'s here', 'The Hunter');
     H.met = true; audio.alert();
   };
   const leave = (why) => {
@@ -140,7 +145,9 @@ export function createHunter(game) {
     if (why === 'lost') { hud.banner('YOU LOST HIM', 'He doesn\'t know Lagos the way you do. He\'ll be back.', 'green', 3.5); game.addRespect?.(800, 'LOST THE HUNTER'); }
     if (why === 'beaten') { hud.banner('HE PULLED BACK', 'Hurt, over the rooftops and gone. Next time, catch him.', 'green', 3.5); game.addRespect?.(1500, 'THE HUNTER RETREATS'); }
   };
-  H.remove = () => leave('quiet');
+  H.remove = () => { leave('quiet'); hud.boss?.(null); };
+  // the mission says when the fight starts (he's been following until then)
+  H.engageNow = () => { if (H.active) { H.state = 'duel'; H.t = 0; atkCd = 1.2; } };
 
   // ---- demo (?demo=hunter): he runs a route of his own, rooftops and all, so you can watch him move ----
   H.body = body;
@@ -186,13 +193,34 @@ export function createHunter(game) {
       let mine = cops.filter(g => g.arrestee === H).length;
       for (const g of cops) if (!g.arrestee && mine < Math.floor(cops.length / 2) && Math.hypot(g.pos.x - H.pos.x, g.pos.z - H.pos.z) < Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) + 3) { g.arrestee = H; mine++; }
     }
-    if (player.mode === 'zip' || player.mode === 'skitch' || player.mode === 'bike' || player.mode === 'ride') unseenT += dt * 2; // the shortcuts he doesn't know
+    if (player.mode === 'zip' || player.mode === 'skitch' || player.mode === 'bike' || player.mode === 'ride') unseenT += dt * (H.mission ? 0.5 : 2); // the shortcuts he doesn't know (in the mission he's studied them)
+    if (H.mission && H.state !== 'stalk' && H.state !== 'beaten') { // the fight turns at 60% and 30%
+      const ph = H.hp > H.maxHp * 0.6 ? 1 : H.hp > H.maxHp * 0.3 ? 2 : 3;
+      if (ph !== H.phase) { H.phase = ph; if (ph >= 2) H.sword = true; H.onPhase?.(ph); }
+    }
+    hud.boss?.(H.mission && H.bar && H.state !== 'beaten' ? { name: 'THE HUNTER', k: H.hp / H.maxHp } : null);
+    const toP0 = Math.atan2(P.x - H.pos.x, P.z - H.pos.z), idle = { move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 }, held: {}, pressed: {} };
+    const flyingKick = () => { H.combo = ['pounce']; H.attack = 'hands'; H.state = 'windup'; H.t = 0; H.windDur = 0.35; H.feint = false; audio.danger?.(false); };
 
     switch (H.state) {
+      case 'stalk': { // following him across the city: high up where he can, never closing in (yet)
+        if (d > 34 || !sees) chase(dt, sees ? P : lastSeen, true);
+        else if (d < 20) drive(dt, { x: H.pos.x + (H.pos.x - P.x) / (d || 1) * 8, z: H.pos.z + (H.pos.z - P.z) / (d || 1) * 8, y: H.pos.y }, true); // too close: he melts back
+        else { goalT += dt; if (!goal || goalT > 6 || (Math.hypot(goal.x - H.pos.x, goal.z - H.pos.z) < 1.6 && Math.abs(goal.y - H.pos.y) < 0.8)) { goal = nextGoal(); goalT = 0; } drive(dt, goal, false); } // roof to roof while he watches
+        if (Math.random() < dt * 0.06) say('stalk');
+        break;
+      }
+      case 'beaten': { // on one knee: it's over, and he knows it
+        body.update(dt, idle, toP0, game.time);
+        const r = body.rig; r.set('hipsY', r.t.hipsY - 0.42); r.set('thLX', -1.5); r.set('knLX', 2.1); r.set('thRX', 0.25); r.set('knRX', 1.7); r.set('spineX', 0.45); r.set('headX', 0.35); r.set('shLX', -0.3); r.set('shRX', -0.3); r.update(dt, 10);
+        H.sword = false;
+        break;
+      }
       case 'hunt': {
-        if (!L.suit && unseenT > 2) { H.state = 'search'; searchT = 0; say('lost'); break; } // out of the suit: just another face in Lagos
-        if (unseenT > 9) { H.state = 'search'; searchT = 0; say('lost'); break; }
+        if (!L.suit && unseenT > 2 && !H.mission) { H.state = 'search'; searchT = 0; say('lost'); break; } // out of the suit: just another face in Lagos
+        if (unseenT > (H.mission ? 20 : 9)) { H.state = 'search'; searchT = 0; say('lost'); break; }
         if (sees && d < 4.5 && Math.abs(dy) < 1.6) { H.state = 'duel'; H.t = 0; if (H.t < 1) say('arrive'); break; }
+        if (H.mission && sees && d > 5 && d < 10 && body.onGround && atkCd <= 0 && Math.abs(dy) < 2 && Math.random() < dt * 2) { flyingKick(); break; } // your pounce, used on you
         chase(dt, sees ? P : lastSeen, true);
         break;
       }
@@ -202,7 +230,7 @@ export function createHunter(game) {
         const dl = Math.hypot(lastSeen.x - H.pos.x, lastSeen.z - H.pos.z);
         if (dl > 3) chase(dt, lastSeen, true);
         else drive(dt, { x: lastSeen.x + Math.sin(searchT) * 6, z: lastSeen.z + Math.cos(searchT * 0.7) * 6 }, false);
-        if (searchT > 14) leave('lost');
+        if (searchT > (H.mission ? 12 : 14)) { if (H.mission) { lastSeen = { ...P }; H.state = 'hunt'; hud.say('The Hunter', 'There you are.', 2); } else leave('lost'); } // in the mission he always finds you again
         break;
       }
       case 'duel': {
@@ -212,14 +240,20 @@ export function createHunter(game) {
         const toP = Math.atan2(P.x - H.pos.x, P.z - H.pos.z);
         if (H.evade) { H.evade = false; gymnast(toP); break; } // a backflip or a cartwheel out of it
         if (H.parry) { H.parry = false; startCombo(['jab'], 0.12); break; } // blocked it: straight back with a punch
+        const ph = H.phase || 1;
+        // a swing that missed: he's straight into the gap
+        if (H.mission && player.mode === 'act' && player.act && player.act.t > player.act.hitAt && d < 2.8 && atkCd < 1.1) { startCombo(['hook'], 0.14); H.feint = false; atkCd = 0; break; }
         if (atkCd <= 0 && d < 3.4) { // he picks his moment
-          if (H.hp < H.maxHp * 0.4) { H.sword = true; H.attack = 'katana'; H.state = 'windup'; H.t = 0; H.windDur = 0.55; audio.danger?.(true); if (!H.drewT) { H.drewT = 1; hud.say('The Hunter', 'Enough.', 2); } break; } // last resort: the blade
-          startCombo(pick([['jab', 'hook', 'spin'], ['flipkick'], ['knee', 'hook'], ['sweep', 'jab'], ['jab', 'jab', 'flipkick'], ['spin']]), 0.38);
+          const blade = H.mission ? ph >= 2 && Math.random() < (ph === 3 ? 0.6 : 0.45) : H.hp < H.maxHp * 0.4;
+          if (blade) { H.sword = true; H.attack = 'katana'; H.state = 'windup'; H.t = 0; H.windDur = ph === 3 ? 0.42 : 0.55; H.feint = false; audio.danger?.(true); if (!H.drewT) { H.drewT = 1; hud.say('The Hunter', 'Enough.', 2); } break; } // the blade
+          startCombo(pick([['jab', 'hook', 'spin'], ['flipkick'], ['knee', 'hook'], ['sweep', 'jab'], ['jab', 'jab', 'flipkick'], ['spin']]), ph === 3 ? 0.3 : 0.38);
+          H.feint = H.mission && Math.random() < (ph === 1 ? 0.12 : 0.24); // sometimes it's a fake, to draw your dodge
           break;
         }
+        if (H.mission && d > 4 && atkCd <= 0 && Math.random() < dt * 1.2) { flyingKick(); break; }
         // light on his feet, circling at a kick's length, bouncing
         if (d > 2.6) drive(dt, P, false); else body.update(dt, { move: { x: Math.sin(H.t * 1.1) > 0 ? 1 : -1, y: d < 1.6 ? -1 : 0 }, look: { dx: 0, dy: 0 }, held: {}, pressed: {} }, toP, game.time);
-        if (Math.random() < dt * 0.08) say('duel');
+        if (Math.random() < dt * 0.08) say(H.mission ? (['p1', 'p1', 'p2', 'p3'][ph]) : 'duel');
         break;
       }
       case 'windup': { // the "!" over him: yellow for hands and feet (counter it), red for the sword (dodge)
@@ -229,10 +263,13 @@ export function createHunter(game) {
         else if (k === 'flipkick' || k === 'spin' || k === 'sweep') { r.set('hipsY', r.t.hipsY - 0.15); r.set('chestY', 0.5); r.set('shLX', -1.2); r.set('shRX', -0.6); } // coiling for a kick
         else { r.set('shLX', -1.4); r.set('elLX', -1.8); r.set('shRX', -1.0); r.set('elRX', -2.0); r.set('chestY', -0.3); } // fists up, karate guard
         r.update(dt, 25);
+        if (H.feint && H.t >= H.windDur * 0.6) { // the fake: he pulls it, steps out, and comes again sooner
+          H.feint = false; H.state = 'duel'; H.t = 0; atkCd = 0.28; const back = Math.atan2(H.pos.x - P.x, H.pos.z - P.z); body.vel.x += Math.sin(back) * 3; body.vel.z += Math.cos(back) * 3; break;
+        }
         if (H.t >= H.windDur) {
           H.state = 'strike'; H.t = 0;
           const kind = H.attack === 'katana' ? pick(['spin', 'hook']) : H.combo.shift();
-          const DMG = { jab: 7, hook: 9, knee: 10, spin: 12, flipkick: 14, sweep: 8 };
+          const DMG = { jab: 7, hook: 9, knee: 10, spin: 12, flipkick: 14, sweep: 8, pounce: 12 };
           body.startAct(kind, player, () => {
             if (dist() > 2.7 || Math.abs(player.pos.y - H.pos.y) > 1.6) return;
             game.lastHitKatana = H.attack === 'katana';
@@ -241,7 +278,7 @@ export function createHunter(game) {
             if (hit && H.attack === 'katana') { fx?.burst(player.pos.x, player.pos.y + 1.2, player.pos.z, 0xff4040, 10, 3); audio.clank?.(player.pos); }
             game.lastHitKatana = false;
           }, { reach: 1.3 });
-          atkCd = 1.0 + Math.random() * 1.1;
+          const ph = H.phase || 1; atkCd = ph === 3 ? 0.55 + Math.random() * 0.6 : ph === 2 ? 0.8 + Math.random() * 0.9 : 1.0 + Math.random() * 1.1;
         }
         break;
       }
@@ -266,7 +303,7 @@ export function createHunter(game) {
         if (pinT >= 3.5) { game.hunterPin = null; leave('quiet'); game.capturedByHunter?.(); }
         break;
       }
-      case 'down': { // hurt enough: he goes down, then pulls back over the rooftops
+      case 'down': { // hurt enough: he goes down, then pulls back over the rooftops (never in the mission)
         body.update(dt, { move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 }, held: {}, pressed: {} }, body.yaw, game.time);
         const r = body.rig; Pose.down(r); r.update(dt, 14);
         if (H.t > 2.5) { H.state = 'retreat'; H.t = 0; hud.say('The Hunter', 'This is not finished.', 3); }

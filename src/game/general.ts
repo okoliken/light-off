@@ -356,16 +356,35 @@ export function createGeneral(game) {
           count: () => `${C.data.shots || 0}/3`, done: () => C.data.shots >= 3 },
         { label: 'The General\'s friends in the police are coming: lose them', where: () => null, enter: () => { lead('photos'); moment('SIRENS', 'Lose the police'); api.addHeat(3, 'Police everywhere. The General\'s friends want those photos back.'); }, done: () => game.heat === 0 },
       ] },
-    { title: 'The Hunter', time: 'night', start: () => (C.s7 ||= startNear(stadium)),
-      brief: 'The General\'s friends in government brought someone in from Japan for Street Cat. He moves like you. He has a sword. Somebody turned off the stadium floodlights tonight.',
+    { title: 'The Hunter', time: 'night', start: () => (C.s7 ||= startNear(stadium, 220, 300)),
+      brief: 'The General\'s friends in government brought someone in from Japan for Street Cat. He moves like you. He has a sword. Tonight he wants you at the National Stadium.',
       steps: [
-        { label: 'Get to the National Stadium', where: stadium, done: () => near(player.pos, stadium(), 30) },
-        { label: 'The Hunter: beat him, or lose him (he doesn\'t know Lagos)', where: () => game.hunter?.active ? game.hunter.pos : null,
-          enter: () => { const q = stadium(); talk([{ who: 'Bolaji', text: '(at the gate) The floodlights are off. Somebody wanted it dark.' }, { who: 'The Hunter', text: 'Street Cat. I was told you run. So run.' }], q); game.hunter.start(q.x + 8, q.z); C.data.hs = true; },
-          done: () => C.data.hs && !game.hunter.active },
-        { label: 'Lose the police, if they came', where: () => null, done: () => game.heat === 0 },
-      ],
-      finish: () => { setTimeout(() => hud.toast('You got away. His blade didn\'t even mark the suit.', 'green'), 4500); } },
+        { label: 'Get to the National Stadium', where: stadium,
+          enter: () => { const h = game.hunter, sp = world.spots.filter(q => { const d = dist(q, player.pos); return d > 34 && d < 46; })[0] || { x: player.pos.x + 38, z: player.pos.z };
+            h.mission = true; h.bar = false; h.start(sp.x, sp.z); C.data.hs = true; C.data.t = 0; },
+          tick: (dt) => { C.data.t += dt; if (C.data.t > 5 && !C.data.seen) { C.data.seen = true; moment('SOMEONE IS FOLLOWING YOU', 'Keep moving'); hud.say('The Hunter', 'Keep walking, Street Cat.', 3); } },
+          done: () => near(player.pos, stadium(), 30) },
+        { label: 'The Hunter: fight him', where: () => game.hunter.active ? game.hunter.pos : null,
+          enter: () => { const h = game.hunter, y = player.yaw, x = player.pos.x + Math.sin(y) * 6, z = player.pos.z + Math.cos(y) * 6; // he drops down right in front of you
+            h.body.respawn(x, z, y + Math.PI); h.body.pos.y = world.collision.groundHeight(x, z, 40).h;
+            talk([{ who: 'The Hunter', text: 'Street Cat. They told me you were a thief.' }, { who: 'The Hunter', text: 'I followed you across this city. I see a rider who fights for market women.' }, { who: 'Bolaji', text: 'Then go home.' }, { who: 'The Hunter', text: 'I don\'t choose who I hunt. And you don\'t choose who you protect.' }], h.pos);
+            h.engageNow(); h.bar = true; },
+          done: () => game.hunter.phase >= 2 },
+        { label: 'He drew his sword: dodge the red attacks (C)', where: () => game.hunter.pos,
+          enter: () => { moment('THE SWORD', 'Dodge the red attacks'); hud.say('The Hunter', 'Enough. You earned the blade.', 3);
+            api.addHeat(1, 'Somebody called the police: a sword fight at the stadium.'); game.radio?.say('Police radio: "Fight at the National Stadium, one armed with a sword. Arrest both of them."', true); },
+          done: () => game.hunter.phase >= 3 },
+        { label: 'Finish it', where: () => game.hunter.pos,
+          enter: () => { moment('HE\'S DESPERATE', 'Finish it'); hud.say('The Hunter', 'Not like this. Not in the street.', 3); if (game.heat < 2) api.addHeat(2 - game.heat, 'More units on the way to the stadium.'); },
+          done: () => game.hunter.state === 'beaten' },
+        { label: 'The police want you too: escape', where: () => null,
+          enter: () => { const h = game.hunter; h.bar = false; hud.boss?.(null);
+            const ax = h.pos.x - player.pos.x, az = h.pos.z - player.pos.z, al = Math.hypot(ax, az) || 1; // they come in on the far side of the Hunter: a head start for you
+            C.data.cops = [-1, 1].map(k => api.gunman({ x: h.pos.x + ax / al * 6 - az / al * k * 2, z: h.pos.z + az / al * 6 + ax / al * k * 2, yaw: Math.atan2(-ax, -az), role: 'police' }));
+            api.scene([{ who: 'The Hunter', text: '(on one knee) In my country, when a man beats you fairly, you bow.' }, { who: 'The Hunter', text: 'They will send someone worse. Remember my face, Street Cat.' }, { who: 'Bolaji', text: 'Go home.' }, { who: 'Police', text: 'Nobody move! Both of you, on the ground!' }],
+              { x: h.pos.x, y: 0, z: h.pos.z }, () => { h.remove(); C.data.cuffed = true; for (const g of C.data.cops) g.stun(1.2); hud.card('In custody', 'The Hunter', 'blue'); moment('THE POLICE', 'Now they want you'); api.addHeat(Math.max(0, 3 - game.heat), 'They cuffed the Hunter. Now every unit is after Street Cat.'); }, 'THE HUNTER'); },
+          done: () => C.data.cuffed && game.heat === 0 },
+      ] },
     { title: 'A New Skin', time: 'day', start: () => (C.s8 ||= startNear(tailor)),
       brief: 'Sunny the tailor sent a text: "Come see me. I made something for you. No questions."',
       steps: [
@@ -424,6 +443,7 @@ export function createGeneral(game) {
     for (const t of [D.gen, D.ok]) if (t && !t.removed && !t.gone) (t.remove ? t.remove(scene) : null);
     if (D.car) { const car = D.car; setTimeout(() => game.traffic.remove(car), 15000); }
     if (D.hs && game.hunter?.active) game.hunter.remove();
+    if (D.hs) { game.hunter.mission = false; game.hunter.bar = false; hud.boss?.(null); }
     for (const e of D.extra || []) if (!e.removed && !e.gone) e.remove?.(scene);
   }
   function begin() {

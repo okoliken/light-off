@@ -781,3 +781,10 @@ body.missions .tpad [data-k="patrolBoard"] { display: none; }
   #hud .radiobox { width: min(300px, 40vw); padding: 6px 10px; } #hud .radiobox .tx { font-size: 11.5px; line-height: 1.35; } #hud .radiobox .st { font-size: 9px; }
 }
 #hud .radiobox, #hud .toasts, #hud .mcard, #hud .objective { pointer-events: none; } /* never swallow a thumb on the joystick or buttons */
+/* a boss's health, under the objective */
+#hud .bossbar { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); width: min(420px, 50vw); display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none; }
+#hud .bossbar b { font: 400 17px Anton, Impact, sans-serif; letter-spacing: 0.12em; color: #fff; text-shadow: 0 2px 0 #000; }
+#hud .bossbar div { width: 100%; height: 6px; background: rgba(255,255,255,0.15); }
+#hud .bossbar i { display: block; height: 100%; width: 100%; background: var(--red); transition: width 0.25s; }
+#hud .bossbar.low i { animation: pulse 0.8s ease-in-out infinite; }
+@media (max-height: 500px) { #hud .bossbar { top: 52px; } #hud .bossbar b { font-size: 13px; } }

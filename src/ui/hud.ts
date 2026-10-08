@@ -74,6 +74,7 @@ export function createHUD(root, world) {
     <div class="aimdot"></div>
     <div class="bannerwrap"></div>
     <div class="mcard"><small></small><strong></strong></div>
+    <div class="bossbar hidden"><b></b><div><i></i></div></div>
     <div class="overlays"></div>`;
   const $ = s => root.querySelector(s);
   const el = {
@@ -177,7 +178,13 @@ export function createHUD(root, world) {
     el.banner.innerHTML = `<div class="banner ${kind}"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>`;
     bannerT = Math.min(dur, 3.5);
   };
-  let cardT = 0;
+  let cardT = 0, bossK = -1;
+  // a boss's health under the objective (the Hunter)
+  H.boss = (info) => {
+    const el2 = root.querySelector('.bossbar'); el2.classList.toggle('hidden', !info); if (!info) { bossK = -1; return; }
+    if (el2.querySelector('b').textContent !== info.name) el2.querySelector('b').textContent = info.name;
+    const k = Math.max(0, Math.min(1, info.k)); if (Math.abs(k - bossK) > 0.002) { bossK = k; el2.querySelector('i').style.width = (k * 100) + '%'; el2.classList.toggle('low', k < 0.3); }
+  };
   H.card = (kicker, title, kind = '') => {
     const c = root.querySelector('.mcard');
     // a long line is a sentence, not a title: it goes small under the kicker
@@ -911,7 +918,7 @@ export function createHUD(root, world) {
   };
   H.loading = (on) => { if (on) el.overlays.innerHTML = '<div class="loading">BUILDING SURULERE…</div>'; else el.overlays.innerHTML = ''; };
   H.hasOverlay = () => !!el.overlays.innerHTML;
-  H.setHudVisible = (v) => { for (const k of ['.status', '.objective', '.minimap', '.power', '.modebox', '.help', '.toasts', '.markers', '.bannerwrap', '.say', '.prompt', '.catch', '.popups', '.notices', '.crosshair', '.clock', '.followed', '.combo', '.areaname', '.roommeters', '.tracker', '.eyes', '.radiobox', '.radiolight', '.mcard']) { const n = root.querySelector(k); if (n) n.style.visibility = v ? '' : 'hidden'; } };
+  H.setHudVisible = (v) => { for (const k of ['.status', '.objective', '.minimap', '.power', '.modebox', '.help', '.toasts', '.markers', '.bannerwrap', '.say', '.prompt', '.catch', '.popups', '.notices', '.crosshair', '.clock', '.followed', '.combo', '.areaname', '.roommeters', '.tracker', '.eyes', '.radiobox', '.radiolight', '.mcard', '.bossbar']) { const n = root.querySelector(k); if (n) n.style.visibility = v ? '' : 'hidden'; } };
   return H;
 }
 const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
