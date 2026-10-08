@@ -154,7 +154,7 @@ export function createHUD(root, world) {
     if (bl && bl.textContent !== S.badLabel) bl.textContent = S.badLabel;
     el.strug.classList.toggle('danger', (S.bad || 0) > 0.6);
   };
-  let sayT = 0, bannerT = 0, bigMap = false, lastWallet = null, cashT = 0, fightT = 0, playT = 0;
+  let sayT = 0, bannerT = 0, bigMap = false, lastWallet = null, cashT = 0, cashD = 0, fightT = 0, playT = 0;
 
   // alerts: one at a time on the left, the rest wait their turn (a newer copy of the same text replaces it)
   const toastQ: any[] = []; let toastOn = false;
@@ -462,8 +462,10 @@ export function createHUD(root, world) {
     el.hv.textContent = Math.ceil(Math.max(0, p.hp));
     const hi0 = game.hudInfo();
     root.querySelector('.heat').classList.toggle('off', !(game.heat > 0));
-    if (hi0.wallet !== lastWallet) { if (lastWallet != null) cashT = 3; lastWallet = hi0.wallet; } // cash shows when it changes
-    cashT -= dt; el.naira.classList.toggle('show', cashT > 0 && game.sub === 'free');
+    // Patrol: what's in his pocket, and a flash of what just came in or went out (Missions has no money)
+    if (hi0.wallet !== lastWallet) { if (lastWallet != null) { cashD += hi0.wallet - lastWallet; cashT = 2.5; } lastWallet = hi0.wallet; }
+    cashT -= dt; if (cashT <= 0) cashD = 0;
+    el.naira.classList.toggle('show', game.sub === 'free');
     { const tags = [hi0.hunger <= 0 ? 'STARVING' : hi0.hunger < 25 ? 'HUNGRY' : '', hi0.energy < 25 ? 'TIRED' : ''].filter(Boolean).map(t => `<span>${t}</span>`).join(''), nt = root.querySelector('.needtags'); if (nt.innerHTML !== tags) nt.innerHTML = tags; }
     { const near = (q, r) => (q.pos.x - p.pos.x) ** 2 + (q.pos.z - p.pos.z) ** 2 < r * r;
       const fighting = p.mode === 'act' || game.thugs.some(t => t.alive && t.engaged && !t.calm && near(t, 20)) || game.gunmen.some(g => g.alive && !g.arrestee && ['chase', 'aim'].includes(g.state) && near(g, 25));
@@ -475,7 +477,7 @@ export function createHUD(root, world) {
     if (cardT > 0) { cardT -= dt; if (cardT <= 0) root.querySelector('.mcard').classList.remove('show'); }
     { const sl: any = root.querySelector('.suitline'), on = !!game.life?.suit; sl.classList.toggle('hidden', !on); if (on) { const v = game.life.suitHP ?? 100, b = sl.querySelector('b'); b.style.width = v + '%'; b.style.background = v > 60 ? '#9e9e9e' : v > 25 ? '#ffab40' : '#ff5252'; } }
     el.stars.forEach((s, i) => s.classList.toggle('on', game.heat > i));
-    el.naira.innerHTML = game.mode === 'patrol' ? `₦${game.life.wallet.toLocaleString()}<span>CASH</span>` : `₦${game.stats.returned.toLocaleString()}<span>RETURNED</span>`;
+    { const t = `₦${game.life.wallet.toLocaleString()}<i class="${cashD ? 'on ' + (cashD > 0 ? 'up' : 'down') : ''}">${cashD > 0 ? '+' : cashD < 0 ? '−' : ''}₦${Math.abs(cashD).toLocaleString()}</i>`; if (el.naira.innerHTML !== t) el.naira.innerHTML = t; }
     const spd = Math.round(Math.hypot(p.vel.x, p.vel.z) * 3.6);
     el.mode.innerHTML = `${game.arrest ? 'Arrested' : p.mode === 'bike' && p.kind === 'bicycle' ? 'Bicycle' : p.cuffed && p.mode === 'foot' ? 'Handcuffed' : MODE_NAMES[p.mode] || p.mode}<small>${p.mode === 'grind' ? 'SPACE JUMP OFF · C HOP OFF' : spd + ' KM/H'}</small>`;
     const sk = p.mode === 'skitch' && p.skitch;
@@ -845,7 +847,7 @@ export function createHUD(root, world) {
           <div class="jsx-what"><b>${o.who}</b><span>${o.item}</span><i>${o.place.name}${o.place.area && !o.place.area.startsWith(o.place.name) ? ' · ' + o.place.area : ''} · ${dist(o.km)} away</i></div>
           ${o.canPass ? `<button class="jsx-cancel" data-pass="${o.id}"><b>Cancel</b><small>${o.takes.split(' ')[0]} takes it · −${money(o.pay ?? j.payEach)}</small>${o.late ? '<small class="rv">and a 2★ review</small>' : ''}</button>` : ''}
         </div>`;
-      const done = (o) => { const [ic, lbl] = STATUS[o.status] || ['·', o.status]; return `<div class="jsx-f ${o.status}"><em>${ic}</em><span><b>${o.who}</b> · ${o.item}</span><i>${o.status === 'passed' || o.status === 'reassigned' ? `${lbl} · ${o.by || 'another rider'}${o.lost ? ' · −' + money(o.lost) : ''}` : lbl}</i></div>`; };
+      const finished = (o) => { const [ic, lbl] = STATUS[o.status] || ['·', o.status]; return `<div class="jsx-f ${o.status}"><em>${ic}</em><span><b>${o.who}</b> · ${o.item}</span><i>${o.status === 'passed' || o.status === 'reassigned' ? `${lbl} · ${o.by || 'another rider'}${o.lost ? ' · −' + money(o.lost) : ''}` : lbl}</i></div>`; };
       wrap.innerHTML = `<div class="jsx-box">
         <header class="jsx-head"><div><div class="jsx-k">SWIFTDROP DISPATCH · DAY ${j.day}${j.shift ? ` · ${j.shift.toUpperCase()} SHIFT` : ''}</div><h1>Job sheet</h1></div>
           <button class="jsx-close">Back to work <kbd>J</kbd></button></header>
@@ -860,7 +862,7 @@ export function createHUD(root, world) {
             <h3>To deliver <span>${todo.length}</span></h3>
             ${todo.length ? todo.map(row).join('') : `<p class="jsx-none">${!j.employed ? 'You don\'t work at SwiftDrop right now.' : j.clockedIn ? 'All delivered. Clock out at the office in Ojuelegba to get paid.' : 'No parcels. Clock in at the SwiftDrop office in Ojuelegba: mornings before noon, extra shifts 12:30–4 PM and 10 PM–12:30 AM.'}</p>`}
             ${todo.length ? '<p class="jsx-note">Too far, or running late? <b>Cancel</b> hands it to the rider nearest the address. You don\'t get paid for it.</p>' : ''}
-            ${fin.length ? `<h3 class="jsx-sub">Finished <span>${fin.length}</span></h3>${fin.map(done).join('')}` : ''}
+            ${fin.length ? `<h3 class="jsx-sub">Finished <span>${fin.length}</span></h3>${fin.map(finished).join('')}` : ''}
           </section>
           <aside>
             <section class="jsx-card"><h3>Riders this week</h3>${j.rivals.map((r, k) => `<div class="jsx-r${r.me ? ' me' : ''}"><em>${k + 1}</em><span>${r.name}</span><i>${r.week} drops · ★${r.rating.toFixed(1)}</i></div>`).join('')}</section>

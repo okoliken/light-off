@@ -694,10 +694,13 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 .mm-logo .mm-sum { margin: 14px 0 0; max-width: 460px; font-size: 15px; line-height: 1.5; color: #e3ded2; }
 
 /* ---- HUD v2: one place for each message, most things only when they matter ---- */
-#hud .brand, #hud .respect, #hud .suitline, #hud .needs, #hud .health .hv, #hud .heat .lbl, #hud .power:not(.off), #hud .clock .cn, #hud .clock .cw, #hud .tracker, #hud .notices { display: none !important; }
+#hud .brand small, #hud .respect, #hud .suitline, #hud .needs, #hud .health .hv, #hud .heat .lbl, #hud .power:not(.off), #hud .clock .cn, #hud .clock .cw, #hud .tracker, #hud .notices { display: none !important; }
 #hud .health .hbar { height: 5px; width: 170px; }
 #hud .heat.off { display: none; }
-#hud .naira { opacity: 0; transition: opacity 0.3s; } #hud .naira.show { opacity: 1; }
+#hud .naira { display: none; font: 700 15px "JetBrains Mono", ui-monospace, Menlo, monospace; } #hud .naira.show { display: block; }
+#hud .naira span { display: none; }
+#hud .naira i { font-style: normal; font-size: 12px; margin-left: 8px; opacity: 0; transition: opacity 0.3s; } #hud .naira i.on { opacity: 1; }
+#hud .naira i.up { color: #9ccc65; } #hud .naira i.down { color: #ff8a80; }
 #hud .needtags { display: flex; gap: 6px; min-height: 0; }
 #hud .needtags span { font: 800 10px Inter, sans-serif; letter-spacing: 0.14em; color: #ffab40; background: rgba(8,10,16,0.6); padding: 3px 7px; }
 #hud .clock { top: 226px; } #hud .clock .ct { font: 700 13px "JetBrains Mono", ui-monospace, Menlo, monospace; color: rgba(255,255,255,0.8); text-shadow: 0 1px 3px #000; }
