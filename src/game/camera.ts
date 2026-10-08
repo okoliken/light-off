@@ -1,4 +1,4 @@
-// Third-person orbit camera: mouse / right stick look, auto-follows the board's heading when you stop
+// Third-person orbit camera: mouse / right stick look, auto-follows the direction of travel when you stop
 // steering the camera, pulls back and widens with speed, and never clips into buildings.
 import * as THREE from 'three';
 
@@ -37,24 +37,24 @@ export function createCamera(aspect, world) {
     c.yaw -= lx * 0.0024 * sensitivity;
     c.pitch = Math.max(-0.35, Math.min(1.2, c.pitch + ly * 0.0022 * sensitivity));
 
-    const onBoard = ['board', 'grind', 'skitch', 'ride', 'bike'].includes(player.mode);
+    const riding = ['skitch', 'ride', 'bike'].includes(player.mode);
     const hs = Math.hypot(player.vel.x, player.vel.z);
     // auto-follow: swing behind the direction of travel when the player isn't steering the camera
     if (c.lockOn && !player.aiming) { // locked on: swing round so the target stays in view, the player can still look away
       const want = Math.atan2(c.lockOn.x - player.pos.x, c.lockOn.z - player.pos.z);
       let d = want - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       if (Math.hypot(c.lockOn.x - player.pos.x, c.lockOn.z - player.pos.z) > 1.5) c.yaw += d * Math.min(1, dt * (c.idle > 0.5 ? 4 : 1.2));
-    } else if (c.idle > 1.1 && (onBoard || hs > 3) && player.mode !== 'climb' && !player.aiming) {
-      const want = onBoard ? player.heading : Math.atan2(player.vel.x, player.vel.z);
+    } else if (c.idle > 1.1 && (riding || hs > 3) && player.mode !== 'climb' && !player.aiming) {
+      const want = riding ? player.heading : Math.atan2(player.vel.x, player.vel.z);
       let d = want - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
-      c.yaw += d * Math.min(1, dt * (onBoard ? 1.6 : 0.9) * Math.min(1, hs / 6));
+      c.yaw += d * Math.min(1, dt * (riding ? 1.6 : 0.9) * Math.min(1, hs / 6));
       c.pitch += (0.26 - c.pitch) * Math.min(1, dt * 0.8);
     }
     if (player.mode === 'climb' && c.idle > 0.6) {
       let d = player.yaw - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       c.yaw += d * Math.min(1, dt * 2);
     }
-    const wantDist = c.closeUp ? c.closeUp : player.inRoom?.() ? 2.1 : player.aiming ? 2.6 : (onBoard ? 6.2 : 5.6) + Math.min(2.4, hs * 0.12) + (player.mode === 'down' ? 2 : 0);
+    const wantDist = c.closeUp ? c.closeUp : player.inRoom?.() ? 2.1 : player.aiming ? 2.6 : (riding ? 6.2 : 5.6) + Math.min(2.4, hs * 0.12) + (player.mode === 'down' ? 2 : 0);
     c.dist += (wantDist - c.dist) * Math.min(1, dt * 3);
     const wantFov = player.aiming ? 52 : 66 + Math.min(20, Math.max(0, hs - 5) * 1.3);
     c.fov += (wantFov - c.fov) * Math.min(1, dt * (player.aiming ? 10 : 3));

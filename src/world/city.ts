@@ -1,6 +1,6 @@
 // Procedural Surulere-style district at night: painted 1-4 storey buildings with burglar-proof windows,
-// compound walls, container shops, a market, a motor park, a football pitch the street kids turned into a
-// skate spot, street lights (some broken), transformers, potholes and concrete road medians to grind.
+// compound walls, container shops, a market, a motor park, a football pitch, street lights (some broken),
+// transformers, potholes and concrete road medians.
 import * as THREE from 'three';
 import { GeoBuilder, PrimBatch } from '../core/geo.ts';
 import * as T from '../core/textures.ts';
@@ -52,7 +52,7 @@ export function buildCity(scene, opt: any = {}) {
   const white = color('#ffffff');
 
   const world: any = {
-    collision: col, rails: [], potholes: [], transformers: [], lights: [], generators: [], spots: [], parked: [],
+    collision: col, potholes: [], transformers: [], lights: [], generators: [], spots: [], parked: [],
     blocks: [], stalls: [], home: null, marketSpot: null, motorparkSpot: null, pitchCenter: null,
   };
 
@@ -318,9 +318,7 @@ export function buildCity(scene, opt: any = {}) {
       S.add(tx - 1.2, 0, tz - 0.6, tx + 1.2, CURB + 0.95, tz + 0.6, 'stall');
       world.stalls.push({ x: tx, z: tz });
     }
-    // grind rails along the main aisle
     const mx = (ix0 + ix1) / 2;
-    for (const side of [-1.7, 1.7]) rail(mx + side, iz0 + 9, mx + side, iz0 + 21, 0.85, '#9e9e9e');
     world.marketSpot = { x: mx, z: iz0 + 5, nx: 0, nz: -1 };
   }
 
@@ -335,12 +333,10 @@ export function buildCity(scene, opt: any = {}) {
     B.metal.box(sw + 1, 0.1, sd + 1, { p: [sx + sw / 2, CURB + 3.45, sz + sd / 2], r: [0.06, 0, 0] }, '#8b7a66');
     S.add(sx - 0.5, CURB + 3.2, sz - 0.5, sx + sw + 0.5, CURB + 3.5, sz + sd + 0.5, 'shed');
     for (let k = 0; k < 3; k++) { B.misc.box(3, 0.45, 0.5, { p: [sx + 2 + k * 4, CURB + 0.23, sz + 3.5] }, '#6d4c41'); S.add(sx + 0.5 + k * 4, 0, sz + 3.25, sx + 3.5 + k * 4, CURB + 0.45, sz + 3.75, 'bench'); }
-    ramp(ix0 + 6, iz1 - 10, 'x', 1, 2.6, 1.6, 0.75);
-    ramp(ix0 + 16, iz1 - 6, 'x', -1, 2.6, 1.6, 0.75);
     world.motorparkSpot = { x: sx + sw / 2, z: sz - 3, nx: 0, nz: -1 };
   }
 
-  // ---------- pitch / skate spot ----------
+  // ---------- the Area Pitch (football) ----------
   function buildPitch(r) {
     const ix0 = r.x0 + WALK, ix1 = r.x1 - WALK, iz0 = r.z0 + WALK, iz1 = r.z1 - WALK;
     const cx = (ix0 + ix1) / 2, cz = (iz0 + iz1) / 2;
@@ -348,38 +344,10 @@ export function buildCity(scene, opt: any = {}) {
       for (const dx of [-3.6, 3.6]) { B.misc.cyl(0.07, 0.07, 2.4, { p: [cx + dx, CURB + 1.2, gz] }, '#eeeeee'); S.add(cx + dx - 0.08, 0, gz - 0.08, cx + dx + 0.08, CURB + 2.4, gz + 0.08, 'post'); }
       B.misc.cyl(0.07, 0.07, 7.2, { p: [cx, CURB + 2.4, gz], r: [0, 0, Math.PI / 2] }, '#eeeeee');
     }
-    ramp(cx - 12, cz - 8, 'x', 1, 3, 2, 0.9);
-    ramp(cx + 9, cz - 8, 'x', -1, 3, 2, 0.9);
-    ramp(cx - 4, cz + 10, 'z', -1, 3, 2.2, 1.1);
-    ramp(cx + 14, cz + 6, 'z', 1, 2.5, 1.6, 0.7);
-    rail(cx - 10, cz + 2, cx + 2, cz + 2, 0.7, '#b0bec5');
-    rail(cx + 6, cz - 2, cx + 6, cz + 12, 0.6, '#b0bec5');
-    // concrete ledge (grind its edge)
-    B.misc.box(8, 0.5, 1.2, { p: [cx - 14, CURB + 0.25, cz + 12] }, '#9e9a90');
-    S.add(cx - 18, 0, cz + 11.4, cx - 10, CURB + 0.5, cz + 12.6, 'ledge');
-    world.rails.push({ a: [cx - 18, CURB + 0.5, cz + 11.45], b: [cx - 10, CURB + 0.5, cz + 11.45] });
     world.pitchCenter = { x: cx, z: cz };
   }
 
-  function rail(x0, z0, x1, z1, h, c) {
-    const dx = x1 - x0, dz = z1 - z0, L = Math.hypot(dx, dz), yaw = Math.atan2(dx, dz);
-    B.metal.cyl(0.05, 0.05, L, { p: [(x0 + x1) / 2, CURB + h, (z0 + z1) / 2], r: [Math.PI / 2, yaw, 0] }, c, 8);
-    const n = Math.max(2, Math.round(L / 3));
-    for (let k = 0; k <= n; k++) { const t = k / n; B.metal.cyl(0.04, 0.04, h, { p: [x0 + dx * t, CURB + h / 2, z0 + dz * t] }, '#555', 6); }
-    world.rails.push({ a: [x0, CURB + h, z0], b: [x1, CURB + h, z1] });
-    S.add(Math.min(x0, x1) - 0.05, 0, Math.min(z0, z1) - 0.05, Math.max(x0, x1) + 0.05, CURB + h, Math.max(z0, z1) + 0.05, 'rail');
-  }
-
-  // (x,z) is the low end, centred across the ramp
-  function ramp(x, z, axis, sign, len, width, h) {
-    const yaw = axis === 'x' ? (sign > 0 ? 0 : Math.PI) : (sign > 0 ? -Math.PI / 2 : Math.PI / 2);
-    B.misc.add(wedge, { p: [x, CURB, z], ry: yaw, s: [len, h, width] }, '#8d6e4c');
-    const ax = axis === 'x', x0 = ax ? Math.min(x, x + sign * len) : x - width / 2, x1 = ax ? Math.max(x, x + sign * len) : x + width / 2;
-    const z0 = ax ? z - width / 2 : Math.min(z, z + sign * len), z1 = ax ? z + width / 2 : Math.max(z, z + sign * len);
-    col.ramps.push({ x0, x1, z0, z1, axis, sign, h, base: CURB });
-  }
-
-  // ---------- road medians (grindable ledges) ----------
+  // ---------- road medians ----------
   const MED = 3;
   for (let k = 0; k < N; k++) {
     // along x on the central east-west road, along z on the central north-south road
@@ -391,8 +359,8 @@ export function buildCity(scene, opt: any = {}) {
         const cc = s % 2 ? '#1f1f1f' : '#e0c030';
         if (alongX) B.misc.box(p1 - p0, 0.8, 0.5, { p: [pm, 0.4, c] }, cc); else B.misc.box(0.5, 0.8, p1 - p0, { p: [c, 0.4, pm] }, cc);
       }
-      if (alongX) { S.add(a, 0, c - 0.25, b, 0.8, c + 0.25, 'median'); world.rails.push({ a: [a, 0.8, c], b: [b, 0.8, c] }); }
-      else { S.add(c - 0.25, 0, a, c + 0.25, 0.8, b, 'median'); world.rails.push({ a: [c, 0.8, a], b: [c, 0.8, b] }); }
+      if (alongX) { S.add(a, 0, c - 0.25, b, 0.8, c + 0.25, 'median'); }
+      else { S.add(c - 0.25, 0, a, c + 0.25, 0.8, b, 'median'); }
     }
   }
   void MED;
@@ -507,17 +475,17 @@ export function buildCity(scene, opt: any = {}) {
   B.misc.box(BH * 2, 0.7, B0.deck0 - B0.deck1, { p: [0, DY - 0.35, (B0.deck0 + B0.deck1) / 2] }, '#8f8a80');
   { const za = B0.deck1, zb = B0.deck0; G.road.face([0, DY + 0.01, (za + zb) / 2], [BH, 0, 0], [0, 0, -(zb - za) / 2], [0, 1, 0], [0, -zb / 12, 1.33, -za / 12], white); }
   S.add(-BH, DY - 0.7, B0.deck1, BH, DY, B0.deck0, 'deck');
-  // centre median (grind it) and side barriers with a steel rail on top (grind those too)
+  // centre median and side barriers with a steel rail on top
   for (let z = B0.deck1 + 6; z < B0.deck0 - 6; z += 4) B.misc.box(0.5, 0.75, 3.9, { p: [0, DY + 0.375, z + 2] }, Math.round(z / 4) % 2 ? '#1f1f1f' : '#e0c030');
   S.add(-0.25, DY, B0.deck1 + 6, 0.25, DY + 0.75, B0.deck0 - 6, 'median');
-  world.rails.push({ a: [0, DY + 0.75, B0.deck0 - 6], b: [0, DY + 0.75, B0.deck1 + 6] });
+ 
   for (const sx of [-1, 1]) {
     const x = sx * (BH - 0.25);
     B.misc.box(0.4, 0.9, B0.deck0 - B0.deck1, { p: [x, DY + 0.45, (B0.deck0 + B0.deck1) / 2] }, '#a9a398');
     B.metal.cyl(0.07, 0.07, B0.deck0 - B0.deck1, { p: [x, DY + 1.15, (B0.deck0 + B0.deck1) / 2], r: [Math.PI / 2, 0, 0] }, '#9aa0a6', 6);
     for (let z = B0.deck1; z <= B0.deck0; z += 6) B.metal.cyl(0.04, 0.04, 0.3, { p: [x, DY + 1.0, z] }, '#777', 5);
     S.add(x - 0.25, DY - 1, B0.deck1, x + 0.25, DY + 1.2, B0.deck0, 'railing');
-    world.rails.push({ a: [x, DY + 1.2, B0.deck0 - 1], b: [x, DY + 1.2, B0.deck1 + 1] });
+   
   }
   // piers
   for (let z = B0.deck1 + 10; z < B0.deck0; z += 38) {
@@ -747,7 +715,7 @@ export function buildCity(scene, opt: any = {}) {
         S.add(x0, 0, Math.min(a, b), x1, F.y * (k / 6), Math.max(a, b), 'ramp');
       }
     }
-    // side barriers with a steel rail (grindable); a gap on the east side where the stair ramp arrives
+    // side barriers with a steel rail; a gap on the east side where the stair ramp arrives
     const RZ = roadLine(3) + ROAD / 2 + 8, RL = 26; // stair ramp in block (4,3): rises toward +z
     for (const sx of [-1, 1]) {
       const x = F.x + sx * (F.half - 0.2);
@@ -756,7 +724,7 @@ export function buildCity(scene, opt: any = {}) {
         B.misc.box(0.35, 0.9, b - a, { p: [x, F.y + 0.45, (a + b) / 2] }, '#a39d92');
         B.metal.cyl(0.06, 0.06, b - a, { p: [x, F.y + 1.05, (a + b) / 2], r: [Math.PI / 2, 0, 0] }, '#8f959a', 6);
         S.add(x - 0.2, F.y - 1, a, x + 0.2, F.y + 1.1, b, 'railing');
-        world.rails.push({ a: [x, F.y + 1.1, a + 1], b: [x, F.y + 1.1, b - 1] });
+       
       }
     }
     // pillars (not on the roads, not on the pitch)
@@ -1118,7 +1086,7 @@ export function buildCity(scene, opt: any = {}) {
     { const c = roadLine(8);
       for (let j = 0; j < N; j++) { const a = roadLine(j) + ROAD / 2 + 3, b = roadLine(j + 1) - ROAD / 2 - 3;
         if (j === 2) continue; // under the footbridge the buses need the whole road
-        B.misc.box(0.5, 0.6, b - a, { p: [c, 0.3, (a + b) / 2] }, '#b0a999'); S.add(c - 0.25, 0, a, c + 0.25, 0.6, b, 'median'); world.rails.push({ a: [c, 0.6, a], b: [c, 0.6, b] }); } }
+        B.misc.box(0.5, 0.6, b - a, { p: [c, 0.3, (a + b) / 2] }, '#b0a999'); S.add(c - 0.25, 0, a, c + 0.25, 0.6, b, 'median'); } }
     // Ikorodu Road along the north edge of Yaba: big corporate billboards overhead
     for (const [x, t, bg] of <any[]>[[300, 'MTN · EVERYWHERE YOU GO', '#fdd835'], [440, 'GLO · UNLIMITED NIGHT PLAN', '#2e7d32'], [540, 'INDOMIE · MAMA DO GOOD', '#e65100']]) {
       const z = roadLine(0) - ROAD / 2 - 3;

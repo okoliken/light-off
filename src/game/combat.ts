@@ -6,7 +6,7 @@
 //   G        launcher: kick an enemy into the air. Then F to leap up and juggle them; the 3rd air hit slams them.
 //   F        on a downed or webbed enemy: takedown (knocks them out).
 //   V        pounce: a cat's pounce onto an enemy up to 16 m away (knockdown). No target: a long leap.
-//   T        pick up / throw street junk (stones, bottles, sachets, buckets, tyres) or, with nothing to hand, the board.
+//   T        pick up / throw street junk (stones, bottles, sachets, buckets, tyres).
 // The director lets only one or two of them attack at a time, the rest circle and wait.
 
 const COMBO = ['jab', 'hook', 'jab', 'knee', 'flipkick'];
@@ -69,11 +69,10 @@ export function createCombat(game) {
   // Alley Cat Flurry: with a combo of 8+, G unloads a flurry of strikes that finishes whoever is in front of him
   C.flurryReady = () => C.combo >= 8 && !player.cuffed;
   C.flurry = (dir) => {
-    if (!['foot', 'board'].includes(player.mode) || !C.flurryReady()) return false;
+    if (player.mode !== 'foot' || !C.flurryReady()) return false;
     const t = pickTarget(dir, 4, x => !x.grounded && !x.airborne && x.takeHit);
     if (!t) return false;
     const n = C.combo;
-    if (player.mode === 'board') player.mode = 'foot';
     player.startAct('flurry', t, () => {
       if (!t.alive) return;
       const ko = t.takeHit(t.big ? 4 : 99, player.pos.x, player.pos.z, t.big ? 'heavy' : 'takedown'); if (ko) game.onKnockout?.(t);
@@ -87,9 +86,8 @@ export function createCombat(game) {
   const officers = () => game.gunmen.filter(g => g.alive && g.role === 'police' && !g.foe && ['chase', 'stunned', 'recover', 'aim'].includes(g.state));
   C.sweepReady = () => C.sweepCd <= 0 && [...game.thugs.filter(t => t.alive && !t.grounded && !t.airborne && t.engaged), ...officers()].filter(t => dist(t, player) < 3.8).length >= 3;
   C.sweep = () => {
-    if (!['foot', 'board'].includes(player.mode) || !C.sweepReady()) return false; // a leg sweep: cuffs don't matter
+    if (player.mode !== 'foot' || !C.sweepReady()) return false; // a leg sweep: cuffs don't matter
     C.sweepCd = 8;
-    if (player.mode === 'board') player.mode = 'foot';
     player.startAct('sweep', null, () => {
       let n = 0;
       for (const t of [...game.thugs, ...game.gunmen]) {
@@ -123,7 +121,7 @@ export function createCombat(game) {
 
   // F: returns true if it did a combat move
   C.attack = (dir, held: any = {}) => {
-    if (!['foot', 'board'].includes(player.mode)) return false;
+    if (player.mode !== 'foot') return false;
     // Wall Spring: F into a wall right in front of him kicks off it, flipping back onto the nearest enemy behind
     if (player.mode === 'foot' && player.onGround && !player.cuffed) {
       const wt = game.world.collision.raycast(player.pos.x, player.pos.y + 1, player.pos.z, dir[0], 0, dir[1], 1.4);
@@ -213,7 +211,7 @@ export function createCombat(game) {
   C.pounce = (dir) => {
     if (player.cuffed) return false;
     const chaining = game.time < (C.chainUntil || 0); // Cat Chain: pounce again straight after a pounce lands
-    if (!['foot', 'board'].includes(player.mode) || (!player.onGround && !chaining) || (player.leapCd > 0 && !chaining)) return false;
+    if (player.mode !== 'foot' || (!player.onGround && !chaining) || (player.leapCd > 0 && !chaining)) return false;
     let best = null, bs = Infinity;
     for (const t of foes()) {
       if (t.grounded || t.airborne || t.state === 'tail' && false) continue;
@@ -225,7 +223,7 @@ export function createCombat(game) {
     }
     const lk = game.lockOn?.foe(); if (lk && foes().includes(lk) && !lk.grounded && !lk.airborne && dist(lk, player) > 2.2 && dist(lk, player) < 16) best = lk;
     if (!best) return player.leap(dir);
-    player.leapCd = 1.2; if (player.mode === 'board') player.mode = 'foot';
+    player.leapCd = 1.2;
     const fromRoof = player.pos.y - best.pos.y > 2.5, unawareFoe = ['idle', 'patrol', 'return'].includes(best.state);
     C.chainUntil = 0;
     player.startAct('pounce', best, () => {
@@ -242,7 +240,7 @@ export function createCombat(game) {
 
   // G: launcher
   C.launch = (dir) => { // a kick: works in cuffs too
-    if (!['foot', 'board'].includes(player.mode)) return false;
+    if (player.mode !== 'foot') return false;
     const t = pickTarget(dir, 3.2, x => x.takeHit && !x.grounded && !x.airborne);
     if (!t) return false;
     C.air = 0;

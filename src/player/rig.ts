@@ -1,5 +1,5 @@
 // Procedural character rig: a bone hierarchy of pivots with primitive meshes, posed every frame by
-// small pose functions (run, skate, grind, climb, punch...) and smoothed toward the target pose.
+// small pose functions (run, climb, wall-run, punch...) and smoothed toward the target pose.
 // The character faces +z. Rotation conventions (radians):
 //   thigh/shoulder x < 0 swings the limb forward, knee x > 0 bends back, elbow x < 0 bends forward,
 //   spine/chest/head x > 0 leans forward, left limbs abduct with +z, right limbs with -z.
@@ -17,18 +17,18 @@ function cloth(color, sheen = '#56637f') {
 
 export const OUTFITS = {
   // his everyday clothes: faded tee, shorts, bathroom slippers
-  bolajiDay: { scale: 1.04, skin: '#5b3a26', top: '#e65100', bottom: '#2b2f36', sock: '#2b2f36', sole: '#1f1f22', glove: null, hood: false, shorts: false, cap: '#e65100', boardOnBack: false, sheen: '#886655' }, // a grown man in his SwiftDrop rider shirt and cap
-  bolajiCivil: { scale: 1.04, skin: '#5b3a26', top: '#37474f', bottom: '#263238', sock: '#263238', sole: '#1f1f22', glove: null, hood: false, shorts: false, cap: null, boardOnBack: false, sheen: '#886655' }, // off the job: a plain shirt, no cap
+  bolajiDay: { scale: 1.04, skin: '#5b3a26', top: '#e65100', bottom: '#2b2f36', sock: '#2b2f36', sole: '#1f1f22', glove: null, hood: false, shorts: false, cap: '#e65100', sheen: '#886655' }, // a grown man in his SwiftDrop rider shirt and cap
+  bolajiCivil: { scale: 1.04, skin: '#5b3a26', top: '#37474f', bottom: '#263238', sock: '#263238', sole: '#1f1f22', glove: null, hood: false, shorts: false, cap: null, sheen: '#886655' }, // off the job: a plain shirt, no cap
   // more of his own clothes, from the nail by the door at home (see CASUAL_FITS)
-  bolajiJersey: { scale: 1.04, skin: '#5b3a26', top: '#0b8a3e', bottom: '#f2f2f2', sock: '#f2f2f2', sole: '#1f1f22', glove: null, hood: false, shorts: true, cap: null, boardOnBack: false, sheen: '#557766' }, // Super Eagles jersey and white shorts
-  bolajiKaftan: { scale: 1.04, skin: '#5b3a26', top: '#e9e2d0', bottom: '#e9e2d0', sock: '#5b3a26', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#4e342e', boardOnBack: false, sheen: '#aaa59a' }, // white kaftan and a cap, for church or a party
-  bolajiSinglet: { scale: 1.04, skin: '#5b3a26', top: '#f5f5f5', bottom: '#2c4a73', sock: '#2c4a73', sole: '#1f1f22', glove: null, hood: false, shorts: false, singlet: true, cap: null, boardOnBack: false, sheen: '#888888' }, // singlet and jeans, a hot afternoon
+  bolajiJersey: { scale: 1.04, skin: '#5b3a26', top: '#0b8a3e', bottom: '#f2f2f2', sock: '#f2f2f2', sole: '#1f1f22', glove: null, hood: false, shorts: true, cap: null, sheen: '#557766' }, // Super Eagles jersey and white shorts
+  bolajiKaftan: { scale: 1.04, skin: '#5b3a26', top: '#e9e2d0', bottom: '#e9e2d0', sock: '#5b3a26', sole: '#5d4037', glove: null, hood: false, shorts: false, cap: '#4e342e', sheen: '#aaa59a' }, // white kaftan and a cap, for church or a party
+  bolajiSinglet: { scale: 1.04, skin: '#5b3a26', top: '#f5f5f5', bottom: '#2c4a73', sock: '#2c4a73', sole: '#1f1f22', glove: null, hood: false, shorts: false, singlet: true, cap: null, sheen: '#888888' }, // singlet and jeans, a hot afternoon
   // the suit as it wears out: torn (faded, the padding showing), then rags (the mask gone)
-  bolajiTorn: { scale: 1.04, skin: '#5b3a26', top: '#2c2d33', bottom: '#222328', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#7a6a5a', cat: true },
-  bolajiRags: { scale: 1.04, skin: '#5b3a26', top: '#3a3b41', bottom: '#2e2f35', sock: '#5b3a26', sole: '#2b2b2e', glove: null, hood: false, shorts: true, boardOnBack: true, sheen: '#8a7a6a', cat: false },
-  // the new suit (Act 3 on): a panther. Matte black, a full helmet, silver fangs and trim, violet energy lines, long claws. No board
-  bolajiCat: { scale: 1.05, skin: '#5b3a26', top: '#101116', bottom: '#0e0f13', sock: '#0b0b0e', sole: '#08080a', glove: '#0b0b0d', hood: false, shorts: false, boardOnBack: false, sheen: '#4a4f66', panther: true },
-  bolaji: { scale: 1.04, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, boardOnBack: true, sheen: '#6a7898', cat: true },
+  bolajiTorn: { scale: 1.04, skin: '#5b3a26', top: '#2c2d33', bottom: '#222328', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, sheen: '#7a6a5a', cat: true },
+  bolajiRags: { scale: 1.04, skin: '#5b3a26', top: '#3a3b41', bottom: '#2e2f35', sock: '#5b3a26', sole: '#2b2b2e', glove: null, hood: false, shorts: true, sheen: '#8a7a6a', cat: false },
+  // the new suit (Act 3 on): a panther. Matte black, a full helmet, silver fangs and trim, violet energy lines, long claws.
+  bolajiCat: { scale: 1.05, skin: '#5b3a26', top: '#101116', bottom: '#0e0f13', sock: '#0b0b0e', sole: '#08080a', glove: '#0b0b0d', hood: false, shorts: false, sheen: '#4a4f66', panther: true },
+  bolaji: { scale: 1.04, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, sheen: '#6a7898', cat: true },
   agbero: { skin: '#4a2e1f', top: '#2e7d32', bottom: '#263238', sock: '#4e342e', sole: '#3e2723', glove: null, hood: false, shorts: false, singlet: true, cap: '#b71c1c', scale: 1.08, sheen: '#445544' },
   agbero2: { skin: '#3f2618', top: '#f9a825', bottom: '#1a1a1a', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, singlet: true, cap: null, scale: 1.1, sheen: '#665533' },
   // the Red Caps: an agbero cult. Red berets, black clothes, red bandanas
@@ -230,15 +230,6 @@ export class Rig {
       M(new THREE.BoxGeometry(0.1, 0.075, 0.25), sock, ft, 0, -0.025, 0.06);
       M(new THREE.BoxGeometry(0.105, 0.022, 0.26), sole, ft, 0, -0.065, 0.06);
     }
-    // skateboard strapped on his back
-    if (o.boardOnBack) {
-      const g = new THREE.Group(); g.position.set(0, 0.1, -0.2); g.rotation.set(0.1, 0, 0.42); b.chest.add(g);
-      this.backBoard = g;
-      const deck = makeBoardMesh();
-      deck.rotation.set(Math.PI / 2, 0, 0); deck.position.y = 0.05; deck.scale.setScalar(0.95);
-      g.add(deck);
-      M(new THREE.BoxGeometry(0.035, 0.62, 0.012), cloth('#2a2c33', o.sheen), b.chest, 0, 0.12, 0.13, 1, 1, 1, 0, 0, 0.6); // strap across the chest
-    }
     if (o.strips) { // reflective strips: dull until the flash lights them up
       const sm = this.stripMat = new THREE.MeshStandardMaterial({ color: '#c8ccd2', roughness: 0.3, metalness: 0.2, emissive: '#ffffff', emissiveIntensity: 0.06 });
       M(new THREE.BoxGeometry(0.34, 0.025, 0.2), sm, b.chest, 0, 0.2, 0.02, 1, 1, 1.1);
@@ -339,7 +330,7 @@ export class Rig {
 
   rebuild(outfit) {
     for (const m of this.meshes) m.parent?.remove(m);
-    for (const k of ['backBoard', 'muzzle']) { this[k]?.parent?.remove(this[k]); this[k] = null; }
+    for (const k of ['muzzle']) { this[k]?.parent?.remove(this[k]); this[k] = null; }
     this.stripMat = null;
     this.o = outfit; this.build();
     this.root.scale.setScalar(outfit.scale || 1);
@@ -404,34 +395,6 @@ export const Pose = {
     r.set('thLX', -1.4); r.set('knLX', 1.6); r.set('thRX', -1.1); r.set('knRX', 1.9); r.set('thLZ', 0.4); r.set('thRZ', 0.2);
     r.set('shLX', -1.0); r.set('shRX', -1.0); r.set('shLZ', 0.3); r.set('spineX', 0.45); r.set('hipsY', HIP_H + 0.05);
   },
-  skate(r, time, { crouch = 0.3, push = 0, lean = 0, air = false } = {}) {
-    r.reset();
-    const c = crouch;
-    r.set('hipsY', HIP_H - 0.06 - c * 0.22);
-    r.set('thLZ', 0.26); r.set('thRZ', -0.26);
-    r.set('thLX', -0.5 * c - 0.1); r.set('knLX', 0.95 * c + 0.2); r.set('ftLX', -0.45 * c);
-    r.set('thRX', -0.5 * c - 0.1); r.set('knRX', 0.95 * c + 0.2); r.set('ftRX', -0.45 * c);
-    r.set('spineX', 0.18 + c * 0.25); r.set('chestY', 0.35); r.set('headY', 1.05); r.set('headX', -0.15);
-    r.set('shLZ', 0.45 + lean * 0.4); r.set('shRZ', -0.55 + lean * 0.4); r.set('elLX', -0.35); r.set('elRX', -0.3); r.set('shLX', -0.2); r.set('shRX', 0.15);
-    r.set('hipsRZ', lean * 0.18);
-    if (push > 0) { // back foot kicks along the ground
-      const k = Math.sin(time * 7.5);
-      r.set('thRZ', -0.15 - 0.45 * (0.5 + 0.5 * k) * push); r.set('knRX', 0.25); r.set('thRX', -0.1);
-      r.set('knLX', 0.95 * c + 0.45 * push); r.set('thLX', -0.5 * c - 0.3 * push); r.set('hipsY', HIP_H - 0.1 - c * 0.22 - 0.06 * push);
-      r.set('shRX', -0.4 * k * push); r.set('shLX', 0.4 * k * push);
-    }
-    if (air) { r.set('thLX', -1.0); r.set('knLX', 1.5); r.set('thRX', -1.0); r.set('knRX', 1.5); r.set('shLZ', 0.9); r.set('shRZ', -0.9); r.set('hipsY', HIP_H - 0.12); }
-  },
-  grind(r, time) {
-    Pose.skate(r, time, { crouch: 0.75 });
-    r.set('shLZ', 1.25 + Math.sin(time * 5) * 0.12); r.set('shRZ', -1.25 + Math.sin(time * 5 + 1) * 0.12); r.set('elLX', -0.1); r.set('elRX', -0.1);
-  },
-  skitch(r, time) {
-    r.reset();
-    r.set('hipsY', HIP_H - 0.2);
-    r.set('thLX', -0.55); r.set('knLX', 1.0); r.set('ftLX', -0.45); r.set('thRX', -0.2); r.set('knRX', 0.7); r.set('ftRX', -0.4); r.set('thLZ', 0.1); r.set('thRZ', -0.15);
-    r.set('spineX', 0.35); r.set('shRX', -1.55 + Math.sin(time * 9) * 0.03); r.set('elRX', -0.1); r.set('shLZ', 0.8); r.set('elLX', -0.4); r.set('headX', -0.35);
-  },
   climb(r, p) {
     r.reset();
     const s = Math.sin(p);
@@ -488,11 +451,6 @@ export const Pose = {
   flash(r, k) {
     const e = Math.sin(Math.min(1, k) * Math.PI);
     r.set('shLZ', 1.5 * e); r.set('shRZ', -1.5 * e); r.set('chestX', -0.3 * e); r.set('headX', -0.3 * e); r.set('spineX', -0.15 * e);
-  },
-  trickAir(r, k) {
-    const e = Math.sin(Math.min(1, k) * Math.PI);
-    r.set('thLX', -1.2 * e - 0.4); r.set('knLX', 1.7); r.set('thRX', -0.9 * e - 0.4); r.set('knRX', 1.6); r.set('hipsY', HIP_H - 0.1 + 0.12 * e);
-    r.set('shRX', -0.6 * e); r.set('shRZ', -0.3); r.set('elRX', -0.4);
   },
   cough(r, t) { // blinded by pepper
     Pose.idle(r, t, false);
@@ -585,31 +543,3 @@ export const Pose = {
     r.set('spineX', -0.45 * (1 - k)); r.set('chestX', -0.2 * (1 - k)); r.set('headX', -0.4 * (1 - k)); r.set('shLZ', 0.8); r.set('shRZ', -0.8);
   },
 };
-
-// ---------- the skateboard ----------
-let boardGeo = null;
-export function makeBoardMesh() {
-  if (!boardGeo) {
-    const wood = new THREE.MeshStandardMaterial({ color: '#8a5a33', roughness: 0.75 });
-    const grip = new THREE.MeshStandardMaterial({ color: '#141414', roughness: 1 });
-    const paint = new THREE.MeshStandardMaterial({ color: '#c62828', roughness: 0.7 });
-    const metal = new THREE.MeshStandardMaterial({ color: '#9ea3a8', roughness: 0.35, metalness: 0.8 });
-    const wheel = new THREE.MeshStandardMaterial({ color: '#efe6c8', roughness: 0.5 });
-    boardGeo = { wood, grip, paint, metal, wheel };
-  }
-  const { wood, grip, paint, metal, wheel } = boardGeo;
-  const g = new THREE.Group();
-  const add = (geo, mat, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); m.castShadow = true; g.add(m); return m; };
-  // deck (length along z), cut from an old door: plain wood underside with a red painted stripe
-  add(new THREE.BoxGeometry(0.22, 0.02, 0.56), wood, 0, 0.1, 0);
-  add(new THREE.BoxGeometry(0.221, 0.004, 0.56), grip, 0, 0.112, 0);
-  add(new THREE.BoxGeometry(0.22, 0.02, 0.14), wood, 0, 0.118, 0.34, -0.3);
-  add(new THREE.BoxGeometry(0.22, 0.02, 0.14), wood, 0, 0.118, -0.34, 0.3);
-  add(new THREE.BoxGeometry(0.06, 0.003, 0.5), paint, 0, 0.088, 0);
-  add(new THREE.BoxGeometry(0.03, 0.004, 0.04), metal, 0.07, 0.087, 0.2); add(new THREE.BoxGeometry(0.03, 0.004, 0.04), metal, 0.07, 0.087, -0.2); // old hinge plates
-  for (const z of [0.2, -0.2]) {
-    add(new THREE.BoxGeometry(0.16, 0.03, 0.04), metal, 0, 0.07, z);
-    for (const x of [0.085, -0.085]) add(new THREE.CylinderGeometry(0.03, 0.03, 0.035, 10), wheel, x, 0.035, z, 0, Math.PI / 2);
-  }
-  return g;
-}

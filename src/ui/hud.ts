@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.ts';
 import { buildStyledMap } from './mapstyle.ts';
 
-const MODE_NAMES = { foot: 'On foot', board: 'Skating', grind: 'Grinding', skitch: 'Skitching', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', crawl: 'Badly hurt', getup: 'Getting up', act: 'Fighting', bike: 'Okada', ride: 'Riding', zip: 'Wire ride' };
+const MODE_NAMES = { foot: 'On foot', skitch: 'Hanging on', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', crawl: 'Badly hurt', getup: 'Getting up', act: 'Fighting', bike: 'Okada', ride: 'Riding', zip: 'Wire ride' };
 
 const FILLER = [
   'Residents say the situation has gone on for too long. "We are tired," said one trader who asked not to be named.',
@@ -17,12 +17,12 @@ const FILLER = [
 const CONTROLS: any[] = [
   ['Move', 'W A S D  /  Left stick'], ['Camera', 'Mouse  /  Right stick'],
   ['Jump (hold to charge a cat leap, up to ~5 m) · Climb at a wall', 'Space  /  A'], ['Flip (in the air)', 'Space again  /  A'],
-  ['Sprint · Push harder', 'Shift  /  RT'], ['Unclip board / strap it on', 'R  /  Y'],
-  ['Skitch: grab a vehicle / let go', 'E  /  RB'], ['Strike (toward where you push) · Interact', 'F or Left click  /  X'],
+  ['Sprint', 'Shift  /  RT'], ['Get off the bicycle or okada', 'R  /  Y'],
+  ['Hang on to a vehicle / let go', 'E  /  RB'], ['Strike (toward where you push) · Interact', 'F or Left click  /  X'],
   ['Counter when "!" flashes · Dodge', 'C  /  B'], ['Launch kick (then F to juggle)', 'G  /  D-pad up'],
-  ['Pounce onto an enemy · Cat leap', 'V  /  D-pad down'], ['Pick up · Throw (junk, or your board)', 'T  /  D-pad left'],
+  ['Pounce onto an enemy · Cat leap', 'V  /  D-pad down'], ['Pick up · Throw street junk', 'T  /  D-pad left'],
   ['Aim a throw · Throw', 'Right mouse · Left click  /  LT · RT'],
-  ['Pocket radio: news, leads, trouble nearby', 'N  /  D-pad right'], ['Board trick (in the air)', 'F  /  X'], ['Big map · Pause', 'M · Esc'],
+  ['Pocket radio: news, leads, trouble nearby', 'N  /  D-pad right'], ['Big map · Pause', 'M · Esc'],
 ];
 
 export function createHUD(root, world) {
@@ -119,7 +119,7 @@ export function createHUD(root, world) {
   let padType = null;
   const PAD = {
     xbox: { F: 'X', C: 'B', SPACE: 'A', R: 'Y', E: 'RB', G: 'D-PAD ↑', V: 'D-PAD ↓', T: 'D-PAD ←', N: 'D-PAD →', Q: 'LB', M: 'VIEW', J: 'MENU', P: 'MENU', SHIFT: 'RT' },
-    touch: { F: 'HIT/USE', C: 'DODGE', SPACE: 'JUMP', R: 'BOARD', E: 'GRAB', G: 'LAUNCH', V: 'POUNCE', T: 'THROW', N: 'RADIO', Q: 'SENSE', M: 'MAP', J: '❚❚', P: '❚❚', ESC: '❚❚', SHIFT: 'STICK ALL THE WAY', U: 'SUIT', L: 'TORCH', X: 'BELLY', H: '❚❚' },
+    touch: { F: 'HIT/USE', C: 'DODGE', SPACE: 'JUMP', R: 'GET OFF', E: 'GRAB', G: 'LAUNCH', V: 'POUNCE', T: 'THROW', N: 'RADIO', Q: 'SENSE', M: 'MAP', J: '❚❚', P: '❚❚', ESC: '❚❚', SHIFT: 'STICK ALL THE WAY', U: 'SUIT', L: 'TORCH', H: '❚❚' },
     ps: { F: '□', C: '○', SPACE: '✕', R: '△', E: 'R1', G: 'D-PAD ↑', V: 'D-PAD ↓', T: 'D-PAD ←', N: 'D-PAD →', Q: 'L1', M: 'SHARE', J: 'OPTIONS', P: 'OPTIONS', SHIFT: 'R2' },
   };
   const glyph = (html) => {
@@ -306,7 +306,7 @@ export function createHUD(root, world) {
     // player arrow (always centre, pointing up in heading-up mode)
     c.save(); c.translate(W / 2, W / 2);
     if (bigMap) c.rotate(-(game.player.yaw) + Math.PI);
-    else c.rotate(-(game.player.mode === 'board' || game.player.mode === 'grind' || game.player.mode === 'skitch' ? game.player.heading : game.player.yaw) + yaw);
+    else c.rotate(-(game.player.mode === 'skitch' ? game.player.heading : game.player.yaw) + yaw);
     c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 4); c.lineTo(-8, 9); c.closePath();
     c.fillStyle = '#f2b705'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#000'; c.stroke();
     c.restore();
@@ -341,7 +341,7 @@ export function createHUD(root, world) {
       const ride = (m, label) => Q[m].no ? opt(m, label, Q[m].no, false) : opt(m, label, `₦${Q[m].fare} · about ${mins(Q[m].secs)}${m === 'danfo' && Q.danfo.stopDist > 6 ? ` · from ${Q.danfo.stop.name} stop (${Q.danfo.stopDist} m)` : ''}`, true);
       pickEl.innerHTML = `<div class="bm-card"><div class="bm-ct"><span>${ICON[q.kind] || '📍'}</span><div><b>${q.name}</b><i>${q.area || ''} · ${Q.dist} m away</i></div><button class="bm-x" data-x>✕</button></div>
         <div class="bm-how">HOW DO YOU WANT TO GET THERE?</div>
-        ${game.player.noBoard ? opt('skate', game.job?.hasCycle ? 'Bicycle / walk' : 'Walk', `Free · about ${mins(game.job?.hasCycle ? Math.round(Q.dist / 7) : Q.walk.secs)} · follow the trail`, true) : opt('skate', 'Skate / walk', `Free · about ${mins(Q.skate.secs)} on the board · follow the trail`, true)}
+        ${opt('walk', game.job?.hasCycle ? 'Bicycle / walk' : 'Walk', `Free · about ${mins(game.job?.hasCycle ? Math.round(Q.dist / 7) : Q.walk.secs)} · follow the trail`, true)}
         ${Q.ferry ? (Q.ferry.no ? opt('ferry', 'Ferry', Q.ferry.no, false) : opt('ferry', 'Ferry across the lagoon', `₦${Q.ferry.fare} · from ${Q.ferry.jetty.name} (${Q.ferry.jettyDist} m) · skip the bridge traffic`, true)) : ''}${ride('okada', 'Okada')}${ride('keke', 'Keke')}${ride('danfo', 'Danfo')}</div>`;
       pickEl.querySelector<HTMLElement>('[data-x]').onclick = () => { picked = null; pickEl.innerHTML = ''; };
       pickEl.querySelectorAll<HTMLElement>('[data-go]').forEach(b => b.onclick = () => { const m = b.dataset.go; close(); game.travel(q, m); });
@@ -471,7 +471,7 @@ export function createHUD(root, world) {
       const fighting = p.mode === 'act' || game.thugs.some(t => t.alive && t.engaged && !t.calm && near(t, 20)) || game.gunmen.some(g => g.alive && !g.arrestee && ['chase', 'aim'].includes(g.state) && near(g, 25));
       fightT = fighting ? 4 : fightT - dt; }
     root.classList.toggle('in-fight', fightT > 0); // the move keys only in a fight
-    root.classList.toggle('riding', ['board', 'grind', 'skitch', 'bike', 'ride', 'zip', 'crawl', 'down'].includes(p.mode) || !!p.cuffed || !!game.arrest);
+    root.classList.toggle('riding', ['skitch', 'bike', 'ride', 'zip', 'crawl', 'down'].includes(p.mode) || !!p.cuffed || !!game.arrest);
     root.classList.toggle('sensing', !!game.sense || game.senseMeter < 99);
     playT += dt; root.classList.toggle('help-faded', playT > 60);
     if (cardT > 0) { cardT -= dt; if (cardT <= 0) root.querySelector('.mcard').classList.remove('show'); }
@@ -479,7 +479,7 @@ export function createHUD(root, world) {
     el.stars.forEach((s, i) => s.classList.toggle('on', game.heat > i));
     { const t = `₦${game.life.wallet.toLocaleString()}<i class="${cashD ? 'on ' + (cashD > 0 ? 'up' : 'down') : ''}">${cashD > 0 ? '+' : cashD < 0 ? '−' : ''}₦${Math.abs(cashD).toLocaleString()}</i>`; if (el.naira.innerHTML !== t) el.naira.innerHTML = t; }
     const spd = Math.round(Math.hypot(p.vel.x, p.vel.z) * 3.6);
-    el.mode.innerHTML = `${game.arrest ? 'Arrested' : p.mode === 'bike' && p.kind === 'bicycle' ? 'Bicycle' : p.cuffed && p.mode === 'foot' ? 'Handcuffed' : MODE_NAMES[p.mode] || p.mode}<small>${p.mode === 'grind' ? 'SPACE JUMP OFF · C HOP OFF' : spd + ' KM/H'}</small>`;
+    el.mode.innerHTML = `${game.arrest ? 'Arrested' : p.mode === 'bike' && p.kind === 'bicycle' ? 'Bicycle' : p.cuffed && p.mode === 'foot' ? 'Handcuffed' : MODE_NAMES[p.mode] || p.mode}<small>${spd} KM/H</small>`;
     const sk = p.mode === 'skitch' && p.skitch;
     el.grip.classList.toggle('hidden', !sk);
     if (sk) el.gripB.style.width = Math.max(0, p.skitch.grip) + '%';
@@ -501,7 +501,7 @@ export function createHUD(root, world) {
     el.cross.classList.toggle('hidden', !hi.aiming);
     el.chargeW.classList.toggle('hidden', hi.charge == null || hi.charge < 0.1);
     if (hi.charge != null) el.chargeB.style.width = Math.min(100, (hi.charge - 0.08) / 0.5 * 100) + '%';
-    el.held.textContent = hi.holding ? '· ' + hi.holding : hi.boardLost ? '· BOARD IS OUT THERE' : '';
+    el.held.textContent = hi.holding ? '· ' + hi.holding : '';
     el.gThrow.classList.toggle('on', !!hi.holding);
     { const k = hi.kit || {}, t = `<span>PEPPER ×${k.pepper || 0} <i>1</i></span><span>ASH ×${k.smoke || 0} <i>2</i></span><span>NAILS ×${k.nails || 0} <i>3</i></span>`; const gk = root.querySelector('.gkit'); if (gk && gk.innerHTML !== t) gk.innerHTML = t; }
     { const g = hi.flurry ? 'FLURRY' : hi.sweep ? 'SWEEP' : 'LAUNCH'; if (g !== el.gLaunch._sw) { el.gLaunch._sw = g; el.gLaunch.innerHTML = (g === 'FLURRY' ? 'ALLEY CAT FLURRY' : g === 'SWEEP' ? 'CAT SWEEP' : 'LAUNCH') + ' <i>G</i>'; el.gLaunch.classList.toggle('on', g !== 'LAUNCH'); } }
@@ -533,14 +533,12 @@ export function createHUD(root, world) {
   // [what, keyboard, gamepad, phone]
   const CONTROL_GROUPS: any[] = [
     ['Game', [['Pause · menu', 'Esc · P', 'Start', '❚❚'], ['Map: search a place, pick how to get there', 'M', 'View', 'MAP'], ['Job sheet: parcels, pay, cancel a parcel', 'J', '—', 'JOB'], ['This controls card', 'H', '—', '❚❚ → Controls']]],
-    ['Moving', [['Move', 'W A S D', 'L-Stick', 'Left thumb'], ['Look around', 'Mouse', 'R-Stick', 'Drag on the right'], ['Jump · climb a wall', 'Space', 'A', 'JUMP'], ['Hold: charge a cat leap', 'Space', 'A', 'Hold JUMP'], ['Sprint', 'Shift', 'RT', 'Stick all the way'],
+    ['Moving', [['Move', 'W A S D', 'L-Stick', 'Left thumb'], ['Look around', 'Mouse', 'R-Stick', 'Drag on the right'], ['Jump · climb a wall', 'Space', 'A', 'JUMP'], ['Hold: charge a cat leap', 'Space', 'A', 'Hold JUMP'], ['Sprint', 'Shift', 'RT', 'Stick all the way'], ['Hang on to a moving vehicle · let go', 'E', 'RB', 'GRAB'],
       ['Lock on: someone to fight (nearest threat first), or a spot to escape to · again: the next one · after the last: off', 'Tab', 'R3', 'Tap it'], ['Let go of the lock (it also lets go when you run away from it)', 'Hold Tab', 'Hold R3', '✕ LOCK'], ['Locked on: flick the camera to switch to the next one that side', 'Flick the mouse', 'Flick R-Stick', 'Swipe'], ['Locked on a roof, ledge or car roof: leap onto it', 'Space', 'A', 'JUMP']]],
     ['Fighting', [['Strike (the locked foe, or toward where you push)', 'F · Click', 'X', 'HIT/USE'], ['Counter when "!" flashes · Dodge', 'C', 'B', 'DODGE'], ['Launch kick · Cat Sweep (3+ close)', 'G', 'D-Pad ↑', 'LAUNCH'],
       ['Pounce onto an enemy (the locked one first)', 'V', 'D-Pad ↓', 'POUNCE'], ['Pick up · Throw', 'T', 'D-Pad ←', 'THROW'], ['Aim a throw', 'Right click', 'LT', '—'],
       ['Knocked down: mash to get back up', 'Space', 'A', 'Tap JUMP fast'], ['An officer has you: run, don\'t stand still', 'W A S D', 'L-Stick', 'Left thumb']]],
-    ['Skating', [['Board on / off (the suit only)', 'R', 'Y', 'BOARD'], ['Ollie (faster or holding Shift = higher)', 'Space', 'A', 'JUMP'], ['In the air: board flip (+ a direction)', 'F', 'X', 'HIT/USE'], ['In the air: backflip / frontflip / 360 spin (pull back / push forward / sideways)', 'Space', 'A', 'JUMP'],
-      ['Lie on your belly (when fast) · again to get up', 'X', '—', 'BELLY'], ['Skitch: grab a vehicle', 'E', 'RB', 'GRAB']]],
-    ['Bicycle & okada', [['Get on your SwiftDrop bicycle (or take an okada)', 'F', 'X', 'HIT/USE'], ['Ride · full speed', 'W A S D · Shift', 'L-Stick · RT', 'Stick · all the way'], ['Brake', 'Space', 'A', 'JUMP'], ['Get off', 'R', 'Y', 'BOARD']]],
+    ['Bicycle & okada', [['Get on your SwiftDrop bicycle (or take an okada)', 'F', 'X', 'HIT/USE'], ['Ride · full speed', 'W A S D · Shift', 'L-Stick · RT', 'Stick · all the way'], ['Brake', 'Space', 'A', 'JUMP'], ['Get off', 'R', 'Y', 'GET OFF']]],
     ['Police', [['Held for the car: get ready', '—', '—', '—'], ['In the police car: mash to kick the door out', 'F · Space', 'X · A', 'Tap JUMP fast'], ['In cuffs, out of sight: hold to slip them', 'F', 'X', 'Hold HIT/USE']]],
     ['Escape kit', [['Pepper bomb · Ash cloud · Nail plank', '1 · 2 · 3', '—', 'PEPPER · SMOKE'], ['Hang on a danfo (Space: climb onto the roof)', 'E', 'RB', 'GRAB'], ['Ride a NEPA wire (Coach Ayo teaches it)', 'E', 'RB', 'GRAB'], ['Blackout: pull a transformer fuse', 'F', 'X', 'HIT/USE']]],
     ['The street', [['Interact · buy · talk · hand over a parcel', 'F', 'X', 'HIT/USE'], ['Change into / out of the suit (nobody watching)', 'U', '—', 'SUIT'], ['At home: change clothes at the nail by the door', 'F', 'X', 'HIT/USE'], ['Pocket radio', 'N', 'D-Pad →', 'RADIO'], ['Torch (buy one at E-Centre Mall)', 'L', '—', 'TORCH'], ['Street Sense (hold)', 'Q', 'LB', 'SENSE']]],
@@ -723,7 +721,7 @@ export function createHUD(root, world) {
       opts.tutorial?.active ? { label: 'Skip tutorial', sub: 'You can replay it from here later', action: () => { M.destroy(); opts.tutorial.skip(); } }
         : { label: 'Tutorial', sub: 'Learn the delivery life, or the street cat', action: (m) => m.open('WHICH LIFE?', `<div class="mm-missions">
             <div class="mmr cur"><span class="n">☀</span><span class="t"><b>Delivery life</b><i>Move, run, jump, the job sheet, the map, pausing</i></span><button class="mm-btn hot" data-nav data-tut="day">Play</button></div>
-            <div class="mmr cur"><span class="n">🐈</span><span class="t"><b>Street cat</b><i>The board, climbing, wall-runs, cat drops, wires, fighting a group</i></span><button class="mm-btn hot" data-nav data-tut="night">Play</button></div></div>`,
+            <div class="mmr cur"><span class="n">🐈</span><span class="t"><b>Street cat</b><i>Climbing, wall-runs, cat drops, wires, fighting a group</i></span><button class="mm-btn hot" data-nav data-tut="night">Play</button></div></div>`,
           (p) => p.querySelectorAll('[data-tut]').forEach((b: any) => b.onclick = () => { M.destroy(); b.dataset.tut === 'night' ? opts.tutorial?.replayNight() : opts.tutorial?.replay(); })) },
       { label: 'Controls', attr: 'data-ct', action: (m) => m.open('CONTROLS', controlsPanel()) },
       { label: 'Settings', attr: 'data-st', action: (m) => m.open('SETTINGS', settingsPanel(opts), qualityWire(opts, v => opts.onQuality(v))) },
@@ -741,8 +739,8 @@ export function createHUD(root, world) {
       <h1 class="title" style="font-size:clamp(48px,9vw,110px)">NIGHT COMPLETE</h1>
       <div class="subtitle">Surulere will talk about this for weeks</div>
       <div class="stats">${S('₦' + stats.returned.toLocaleString(), 'Returned to the people')}${S(stats.families, 'Families helped')}${S(stats.knockdowns, 'Agberos put down')}
-        ${S(stats.blackouts, 'Blackouts survived')}${S(Math.round(stats.topSpeed * 3.6) + ' km/h', 'Top speed')}${S(Math.round(stats.skitchDist) + ' m', 'Skitched')}
-        ${S(stats.longestGrind.toFixed(1) + ' m', 'Longest grind')}${S(stats.busted, 'Times busted')}${S(fmtTime(stats.time), 'Time')}</div>
+        ${S(stats.blackouts, 'Blackouts survived')}${S(Math.round(stats.topSpeed * 3.6) + ' km/h', 'Top speed')}${S(Math.round(stats.skitchDist) + ' m', 'Hung on')}
+        ${S(stats.busted, 'Times busted')}${S(fmtTime(stats.time), 'Time')}</div>
       <p class="intro">Tomorrow he has an 8 AM lecture at UNILAG. Tonight, the street is quiet for once.</p>
       <div class="row"><button class="btn" data-go>Keep roaming</button></div></div></div>`;
     el.overlays.querySelector('[data-go]').onclick = () => { el.overlays.innerHTML = ''; onContinue(); };

@@ -24,7 +24,7 @@ export function createHunter(game) {
   const col = world.collision, L = game.life;
   const body = createPlayer(scene, world, traffic);
   body.rig.rebuild(OUTFITS.hunter);
-  Object.assign(body, { noBoard: true, eff: 1, energy: 100, hp: 1e6, maxHp: 1e6, skills: { leap2: true, wallrun2: true, roll: true } });
+  Object.assign(body, { eff: 1, energy: 100, hp: 1e6, maxHp: 1e6, skills: { leap2: true, wallrun2: true, roll: true } });
   body.rig.root.visible = false; body.pos.set(0, -80, 0);
 
   const H: any = { hunter: true, name: 'THE HUNTER', variant: 'hunter', active: false, hp: 40, maxHp: 40, state: 'gone', t: 0, cd: 0, big: true, group: null, lastBlocked: false, evaded: false, koCounted: true };

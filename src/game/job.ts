@@ -1,5 +1,5 @@
 // Bolaji's day job: a rider for SwiftDrop Dispatch, without a bike. Clock in at the office in the
-// morning, take the day's parcels, get each one to the customer before its deadline (skate, walk, or
+// morning, take the day's parcels, get each one to the customer before its deadline (bicycle, walk, or
 // pay for danfos, kekes and okadas). Customers leave reviews; late or missing parcels hurt. Pay is
 // per delivery, paid at the end of each day's shift. Rent is weekly too. Fall too low and you're sacked; come back in a couple of
 // days and beg for the job. Everything here is saved.

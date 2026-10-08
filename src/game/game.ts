@@ -50,10 +50,9 @@ const NIGHT_TIPS: any[] = [
   [90, 'Police chase anyone in black on sight. <b>Rooftops, wires and crowds</b> lose them. Coach Ayo at the Stadium teaches wire riding (by day).'],
 ];
 const TIPS: any[] = [
-  [2, 'Press <span class="key">R</span> to unclip your board and skate. <span class="key">R</span> again straps it back on.'],
   [14, 'Fighting: <span class="key">F</span> strikes whoever you push toward, <span class="key">C</span> counters when <b>"!"</b> flashes over someone, <span class="key">G</span> launches them into the air (then <span class="key">F</span> to juggle).'],
   [30, '<span class="key">V</span> <b>pounces</b> onto an enemy up to 15 m away, like a cat on a rat. With no target it\'s a huge leap.'],
-  [40, '<span class="key">T</span> picks up street junk (stones, bottles, pure water, buckets, tyres) and throws it. With nothing in reach, T throws your <b>board</b> (then go and get it).'],
+  [40, '<span class="key">T</span> picks up street junk (stones, bottles, pure water, buckets, tyres) and throws it.'],
   [46, 'Watch your <b>hunger</b> and <b>energy</b>. Low means slower, weaker, no flips. Eat at suya / akara / mama-put stands, or cook at home.'],
   [62, '<b>Street Sense</b> wakes up by itself when danger starts: time slows and a green trail shows the way out.'],
   [80, 'Get home before <b>5:30 AM</b>. And never lead anyone to your gate.'],
@@ -70,9 +69,9 @@ export function createGame(ctx) {
     sense: false, senseMeter: 100, senseCd: 0, timeScale: 1, senseTaught: false, escape: null, escapeT: 0,
     thugs: [], gunmen: [], sites: [], civilians: [], delivery: null, carrying: null, dropped: null,
     respect: 0,
-    stats: { returned: 0, families: 0, knockdowns: 0, blackouts: 0, topSpeed: 0, skitchDist: 0, longestGrind: 0, busted: 0, time: 0, tricks: 0, saved: 0, bestCombo: 0 },
+    stats: { returned: 0, families: 0, knockdowns: 0, blackouts: 0, topSpeed: 0, skitchDist: 0, busted: 0, time: 0, saved: 0, bestCombo: 0 },
     markers: [], mapMarkers: [], dangers: [], prompt: null, policeRange: 55, gunDanger: [],
-    respawnT: 0, tipI: 0, spawnCd: 3, grindLen: 0, patrolT: 3, areaName: '',
+    respawnT: 0, tipI: 0, spawnCd: 3, patrolT: 3, areaName: '',
   };
   game.logNight = (k, o: any = {}) => (game.nightLog ||= []).push({ k, ...o });
   game.say = (npc, text, who = 'Red Cap', range = 45) => { if (npc?.gboy && who === 'Red Cap') who = 'Boy in black'; if (!npc || !npc.pos || npc.pos.distanceTo(player.pos) < range) hud.say(who, text); };
@@ -112,7 +111,7 @@ export function createGame(ctx) {
   function moveDir(inp) {
     const m = inp.move, cy = camera.yaw;
     if (Math.hypot(m.x, m.y) > 0.2) { const x = Math.sin(cy) * m.y - Math.cos(cy) * m.x, z = Math.cos(cy) * m.y + Math.sin(cy) * m.x, l = Math.hypot(x, z); return [x / l, z / l]; }
-    const y = ['board', 'bike'].includes(player.mode) ? player.heading : player.yaw; return [Math.sin(y), Math.cos(y)];
+    const y = player.mode === 'bike' ? player.heading : player.yaw; return [Math.sin(y), Math.cos(y)];
   }
   function findSpot(minD, maxD) {
     const c = world.spots.filter(s => { const d = Math.hypot(s.x - player.pos.x, s.z - player.pos.z); return d > minD && d < maxD && !(s.bi === 1 && s.bj === 1) && s.bi !== 4 && game.sites.every(q => dist2(q.spot, s) > 30 * 30) && world.vendors.every(v => dist2(v, s) > 15 * 15); });
@@ -312,7 +311,7 @@ export function createGame(ctx) {
 
   // ---------- street throws (T) ----------
   const TH = game.throwables = createThrowables(scene, world);
-  const KIND_FX = { stone: 0xbdb6a6, brick: 0xc0703f, bottle: 0x9ccc65, sachet: 0xe3f2fd, bucket: 0x42a5f5, tyre: 0x444444, board: 0xd7a86e };
+  const KIND_FX = { stone: 0xbdb6a6, brick: 0xc0703f, bottle: 0x9ccc65, sachet: 0xe3f2fd, bucket: 0x42a5f5, tyre: 0x444444 };
   player.dropHeld = () => { if (player.holding) { TH.drop(player.holding, player.pos); player.holding = null; } };
   function throwTarget(dir) {
     if (player.aiming) { const cam = camera.cam; cam.getWorldDirection(_d); const hitT = col.raycast(cam.position.x, cam.position.y, cam.position.z, _d.x, _d.y, _d.z, 40); return _t.copy(cam.position).addScaledVector(_d, Math.min(hitT, 40)).clone(); }
@@ -331,7 +330,7 @@ export function createGame(ctx) {
   }
   function doThrow(dir) {
     if (player.cuffed) { hud.popup('HANDS CUFFED'); return; }
-    if (!['foot', 'board'].includes(player.mode)) return;
+    if (player.mode !== 'foot') return;
     if (player.holding) {
       const to = throwTarget(dir) || new THREE.Vector3(player.pos.x + dir[0] * 12, player.pos.y, player.pos.z + dir[1] * 12);
       player.handPos(_o); const it = player.holding; player.holding = null;
@@ -342,15 +341,6 @@ export function createGame(ctx) {
     }
     const it = TH.nearest(player.pos, 2.2);
     if (it) { player.holding = it; TH.pickUp(it, player.rig.b.haR); audio.grab(); hud.popup(`${it.kind === 'sachet' ? 'PURE WATER' : it.kind.toUpperCase()} · <b>T</b> TO THROW`); return; }
-    if (!player.boardLost && !player.noBoard && player.mode === 'foot') {
-      const to = throwTarget(dir);
-      if (!to) { hud.popup('NOTHING TO THROW'); return; }
-      player.handPos(_o); player.startThrow(); player.boardLost = true;
-      const m = player.board.clone(); m.visible = true;
-      TH.launch('board', m, _o.clone(), to, 'player', 20); audio.swing();
-      hud.toast('You threw your board. <b>Go and pick it up</b> before you can skate again.', 'blue');
-      return;
-    }
     hud.popup('NOTHING TO THROW');
   }
   function hitTest(a, b, owner) {
@@ -372,12 +362,12 @@ export function createGame(ctx) {
     if (!target) return;
     if (target.hunter && target.cutThrow?.()) return; // the Hunter cut it out of the air
     if (target.car) { // a stone through the windscreen
-      const v = target.car; v.ai.health -= kind === 'brick' || kind === 'tyre' || kind === 'board' ? 2 : 1; audio.glass(); camera.shake = 0.2;
+      const v = target.car; v.ai.health -= kind === 'brick' || kind === 'tyre' ? 2 : 1; audio.glass(); camera.shake = 0.2;
       hud.popup(v.ai.health > 0 ? `WINDSCREEN · <b>${v.ai.health} MORE</b>` : '<b>THE DRIVER LOST IT</b>');
       if (v.ai.health <= 0) { v.ai.smashed = true; game.addRespect(300, 'CAR STOPPED'); }
       return;
     }
-    const eff = { stone: ['light', 1, 'stun', 1.0], brick: ['light', 2, 'stun', 1.4], bottle: ['light', 1, 'stun', 1.8], sachet: [null, 0, 'blind', 2.4], bucket: [null, 0, 'blind', 3.4], tyre: ['heavy', 2, null], board: ['heavy', 2, null] }[kind];
+    const eff = { stone: ['light', 1, 'stun', 1.0], brick: ['light', 2, 'stun', 1.4], bottle: ['light', 1, 'stun', 1.8], sachet: [null, 0, 'blind', 2.4], bucket: [null, 0, 'blind', 3.4], tyre: ['heavy', 2, null] }[kind];
     let ko = false;
     if (eff[0]) ko = target.takeHit ? target.takeHit(eff[1], player.pos.x, player.pos.z, eff[0] === 'light' && target.big ? 'heavy' : eff[0]) : target.hit(eff[1], player.pos.x, player.pos.z, 5);
     if (!ko && eff[2] === 'stun') target.stun?.(eff[3]);
@@ -439,7 +429,6 @@ export function createGame(ctx) {
     const c = new Civilian(scene, world, { x: x + Math.cos(yaw) * 1.4, z: z - Math.sin(yaw) * 1.4, yaw, outfit: { skin: '#4a2e1f', top: '#6d4c41', bottom: '#263238', sock: '#3e2723', sole: '#2b2b2b', cap: null, sheen: '#556070' } });
     c.name = 'Okada man'; c.mood = 'scared'; game.civilians.push(c);
     setTimeout(() => { if (!c.gone) c.runHome(c.pos.x + (Math.random() - 0.5) * 60, c.pos.z + 40); }, 2500);
-    if (player.mode === 'board') player.mode = 'foot';
     player.pos.set(x, player.pos.y, z); player.mountBike(yaw);
     audio.punch(); camera.shake = 0.3;
     hud.say('Okada man', ['Ole! Ole! My okada!', 'Thief! Somebody hold am!', 'Na my daily bread you carry o!'][Math.floor(Math.random() * 3)], 3);
@@ -452,7 +441,6 @@ export function createGame(ctx) {
   function enterMall(shop) {
     if (!mallOpen()) { hud.toast(`<b>${shop.name}</b> is closed. Open 9 AM to 9 PM.`, 'red'); return; }
     if (game.heat > 0) { hud.say('Security', 'Oga, police dey find you? Go back. You no dey enter here.', 3); return; }
-    if (player.mode === 'board') player.mode = 'foot';
     game.mallFrom = { x: player.pos.x, z: player.pos.z, yaw: player.yaw + Math.PI, name: shop.name };
     const M = world.mall; game.inMall = true; M.light.visible = true; M.light.intensity = 9;
     player.respawn(M.spawn.x, M.spawn.z, M.spawn.yaw); player.pos.y = 0; camera.snapBehind(M.spawn.yaw);
@@ -501,7 +489,7 @@ export function createGame(ctx) {
   function interactOption() {
     if (game.inMall) return mallOption();
     if (L.inside) return roomOption();
-    if (!['foot', 'board'].includes(player.mode) || (player.mode === 'board' && !player.onGround)) return null;
+    if (player.mode !== 'foot') return null;
     const busy = game.thugs.some(t => t.alive && (t.state === 'windup' || t.state === 'strike') && dist2(t.pos, player.pos) < 9);
     { const tl = DAY.pois.tailor; if (tl && !(game.sub === 'story' && game.general.case.ch === 7) && !L.suit && (L.suitHP ?? 100) < 100 && dist2(tl, player.pos) < 4 * 4) return { kind: 'tailor', text: `<span class="key">F</span>Sunny Tailoring: a new black suit, no questions asked (₦8,000 · yours is ${Math.round(L.suitHP)}%)` }; }
     if (game.dropped && dist2(game.dropped.mesh.position, player.pos) < 2.4 * 2.4) return { kind: 'pickup', text: `<span class="key">F</span>Pick up ${game.dropped.item.label}` };
@@ -512,7 +500,7 @@ export function createGame(ctx) {
     if (game.mode === 'patrol') { const co = game.general.option(); if (co) return co; }
     { const ca = game.coach.option(); if (ca && ca.kind !== 'none') return ca; }
     // okadas: his own (where he left it), or somebody else's
-    if (player.mode === 'foot' && !player.cuffed && player.nearCycle()) return { kind: 'mountCycle', text: '<span class="key">F</span>Get on your SwiftDrop bicycle' };
+    if (game.sub !== 'story' && player.mode === 'foot' && !player.cuffed && player.nearCycle()) return { kind: 'mountCycle', text: '<span class="key">F</span>Get on your SwiftDrop bicycle' };
     if (player.mode === 'foot' && !player.cuffed && player.nearBike()) return { kind: 'mount', text: '<span class="key">F</span>Get on the okada' };
     const ds = game.story.dayStart(); if (ds && dist2(ds, player.pos) < 5 * 5) { const d = game.story.dayAvailable(); return { kind: 'dayMission', text: `<span class="key">F</span>Start: <b>${d.title}</b> (daytime mission)` }; }
     if (game.nepa && !game.nepa.cut && dist2(game.nepa.boss.pos, player.pos) < 2.6 * 2.6) return { kind: 'nepaBribe', text: `<span class="key">F</span>"Settle" the NEPA man to leave your light (₦1,000)` };
@@ -542,12 +530,11 @@ export function createGame(ctx) {
     if (dist2(world.homeDoor, player.pos) < 2.8 * 2.8) {
       if (L.watched()) return { kind: 'none', text: '<b>Someone is watching you.</b> Lose them before you go in.' };
       if (player.fightingNear) return { kind: 'none', text: '<b>Deal with the Red Caps first.</b> Don\'t fight at your own gate.' };
-      if (player.boardLost) return { kind: 'none', text: 'Your board is still out there. Go and get it.' };
       if (player.cuffed) return { kind: 'none', text: game.mode === 'patrol' ? 'Not in <b>handcuffs</b>: the neighbours will see. Get them cut at Baba Kolade\'s workshop.' : 'You can\'t walk in on Mama in <b>handcuffs</b>. Get them cut at Baba Kolade\'s workshop.' };
       if (game.mode === 'patrol') return { kind: 'home', text: '<span class="key">F</span>Go into your room' };
       return { kind: 'home', text: L.phase === 'day' ? '<span class="key">F</span>Go inside (nobody is home)' : '<span class="key">F</span>Go inside quietly (Mama is asleep)' };
     }
-    if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && (v.speed < 2.5 || player.mode === 'board')); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
+    if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && v.speed < 2.5); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
     const v = world.vendors.find(q => dist2(q, player.pos) < 2.4 * 2.4);
     if (v) return { kind: 'food', v, text: `<span class="key">F</span>Buy ${v.food} · ₦${v.price.toLocaleString()} <small style="opacity:.7">(you have ₦${L.wallet.toLocaleString()})</small>` };
     if (game.mode === 'patrol' && game.sub === 'free') { const jo = game.job.option(); if (jo) return jo; }
@@ -908,7 +895,7 @@ export function createGame(ctx) {
   let visT = 0;
   const onFoot = () => ['foot', 'climb', 'wallrun', 'roll', 'down', 'act'].includes(player.mode);
   function updatePolice(dt) {
-    game.policeRange = game.weather.visionScale() * (game.power > 0.5 ? 58 : 22) * (player.pos.y > 4 ? 0.6 : 1) * (player.prone ? 0.35 : 1) * (game.torchOn ? 1.35 : 1); // flat on the board: hard to spot; a torch: easy
+    game.policeRange = game.weather.visionScale() * (game.power > 0.5 ? 58 : 22) * (player.pos.y > 4 ? 0.6 : 1) * (game.torchOn ? 1.35 : 1); // a torch: easy to spot
     visT -= dt; game.assaultCd -= dt;
     const pol = traffic.police();
     if (visT <= 0) {
@@ -981,7 +968,7 @@ export function createGame(ctx) {
   function busted() { arrest(); }
   // ---------- arrested: cuffed in the back of a police car on the way to the station ----------
   // Mash F / Space to kick the door out; the healthier he is, the harder he kicks. Break out and he runs
-  // in handcuffs (no fighting, no board, no climbing) with every unit in Surulere after him, until Baba
+  // in handcuffs (no fighting, no climbing) with every unit in Surulere after him, until Baba
   // Kolade cuts the cuffs. Fail, and it's a night in the cell.
   game.arrest = null;
   function arrest() {
@@ -1088,7 +1075,6 @@ export function createGame(ctx) {
       game.heat = 0; game.catchMeter = 0; loseItem(); player.dropHeld();
       for (const t of game.thugs) if (t.alive && t.engaged) t.state = 'return';
       for (const t of game.thugs) if (t.state === 'tail') t.remove();
-      if (player.boardLost && TH.boardOnGround) { scene.remove(TH.boardOnGround); TH.boardOnGround = null; player.boardLost = false; }
       game.respawnT = 0; player.mode = 'foot';
       L.inside = true; player.respawn(R0.mat.x, R0.mat.z, 0); player.pos.y = 0;
       game.onBeaten?.();
@@ -1187,9 +1173,9 @@ export function createGame(ctx) {
     const opt = game.respawnT > 0 ? null : interactOption();
     let prompt = opt?.text || null;
     if (!prompt && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) prompt = '<span class="key">F</span>Tackle him';
-    if (!prompt && !L.inside && ['foot', 'board'].includes(player.mode) && player.onGround && !player.aiming && !player.fightingNear) {
+    if (!prompt && !L.inside && player.mode === 'foot' && player.onGround && !player.aiming && !player.fightingNear) {
       const v = traffic.nearestSkitch(player.pos);
-      if (v) prompt = `<span class="key">E</span>Skitch the ${v.spec.label.toLowerCase()}`;
+      if (v) prompt = `<span class="key">E</span>Hang on to the ${v.spec.label.toLowerCase()}`;
     }
     if (!prompt && (!player.onGround || player.pos.y > 3) && player.wireNear?.()) prompt = '<span class="key">E</span>Ride the wire';
     game.prompt = prompt;
@@ -1204,9 +1190,8 @@ export function createGame(ctx) {
     updateFare();
     if (game.respawnT <= 0 && player.mode !== 'down' && player.mode !== 'bike') {
       if ((input.pressed.fire && player.aiming) || input.pressed.throw) { if (!L.inside) doThrow(dir); }
-      else if (input.pressed.act && ['foot', 'board'].includes(player.mode) && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) {
+      else if (input.pressed.act && player.mode === 'foot' && game.thugs.some(t => t.alive && t.state === 'run' && dist2(t.pos, player.pos) < 2.8 * 2.8)) {
         const t = game.thugs.filter(q => q.alive && q.state === 'run').sort((a, b) => dist2(a.pos, player.pos) - dist2(b.pos, player.pos))[0];
-        if (player.mode === 'board') player.mode = 'foot';
         player.startAct('pounce', t, () => { t.takeHit(99, player.pos.x, player.pos.z, 'takedown'); game.onKnockout(t); camera.shake = 0.5; fx.dust(t.pos.x, t.pos.y + 0.1, t.pos.z, 10); audio.punch(); game.addRespect(200, 'TACKLED'); }, { invuln: true, reach: 0.6 });
       }
       else if (input.pressed.act && player.mode === 'skitch' && player.skitch?.v?.kind === 'getaway') {
@@ -1217,7 +1202,6 @@ export function createGame(ctx) {
       }
       else if (input.pressed.act) {
         if (opt && opt.kind !== 'none' && opt.kind !== 'pickhint' && doInteraction(opt)) { /* handled */ }
-        else if (player.mode === 'board' && !player.onGround) player.tryTrick();
         else if (!combat.attack(dir, { sprint: input.held.sprint, moving: Math.hypot(input.move.x, input.move.y) > 0.3 })) { player.tryPunch(); audio.swing(); }
       }
       if (input.pressed.roll && combat.counter()) input.pressed.roll = false;
@@ -1229,14 +1213,11 @@ export function createGame(ctx) {
       if (input.pressed.g1) game.gadgets.use(1); if (input.pressed.g2) game.gadgets.use(2); if (input.pressed.g3) game.gadgets.use(3);
     }
 
-    player.noBoard = !L.suit; // the board belongs to Street Cat; by day he walks and pays for rides
-    if (player.noBoard && ['board', 'grind'].includes(player.mode)) { player.mode = 'foot'; player.prone = false; }
     player.update(sdt, input, camera.yaw, game.time);
     for (const e of player.events) handleEvent(e);
     traffic.update(sdt, game);
     fx.update(sdt, () => null, () => {});
     TH.update(sdt, hitTest, onThrowHit);
-    if (TH.boardOnGround && player.boardLost && dist2(TH.boardOnGround.position, player.pos) < 1.8 * 1.8) { scene.remove(TH.boardOnGround); TH.boardOnGround = null; player.boardLost = false; audio.grab(); hud.popup('GOT YOUR BOARD BACK'); }
     updateRoom(dt);
     // evening rolls into night: once it's dark and he's home, Mama and Tobi eat and go to sleep (no need to 'wait')
     if (L.phase === 'day' && L.inside && L.clock >= 20 * 60 && !game.story.active) game.toNight();
@@ -1296,7 +1277,7 @@ export function createGame(ctx) {
     game.weather.update(dt, camera.cam);
     game.story.update(sdt);
     L.update(sdt);
-    if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && ['foot', 'board'].includes(player.mode)) deliver();
+    if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 2.2 * 2.2 && Math.hypot(player.vel.x, player.vel.z) < 3 && player.mode === 'foot') deliver();
 
     updateDowned(dt);
     if (['down', 'crawl'].includes(player.mode) && !game.arrest) {
@@ -1313,7 +1294,6 @@ export function createGame(ctx) {
     const spd = Math.hypot(player.vel.x, player.vel.z);
     if (player.mode !== 'down') game.stats.topSpeed = Math.max(game.stats.topSpeed, Math.min(spd, 30));
     if (player.mode === 'skitch') game.stats.skitchDist += spd * sdt;
-    if (player.mode === 'grind') { game.grindLen += spd * sdt; game.stats.longestGrind = Math.max(game.stats.longestGrind, game.grindLen); }
     game.stats.bestCombo = Math.max(game.stats.bestCombo, combat.best);
     if (!L.inside) game.outT = (game.outT || 0) + dt;
     game.autoT = (game.autoT || 0) + dt; if (game.autoT > 20 && !game.arrest && player.mode !== 'ride') { game.autoT = 0; game.save(); }
@@ -1411,7 +1391,7 @@ export function createGame(ctx) {
       navT = 4;
       // straight-line guidance sticks once it starts (no flicker between "direct" and "by road")
       navDirect = clear || (navDirect && d < 45);
-      const yaw = ['board', 'grind', 'skitch', 'bike', 'zip'].includes(player.mode) ? player.heading : player.yaw;
+      const yaw = ['skitch', 'bike', 'zip'].includes(player.mode) ? player.heading : player.yaw;
       game.navRoute = navDirect ? [[t.x, t.z]] : traffic.route(player.pos.x, player.pos.z, yaw, t.x, t.z);
       navTarg = { x: t.x, z: t.z };
     } else if (!navDirect && clear && d < 30) { navDirect = true; game.navRoute = [[t.x, t.z]]; }
@@ -1474,14 +1454,10 @@ export function createGame(ctx) {
   function handleEvent(ev) {
     switch (ev.e) {
       case 'tooTired': if (!game.tiredT || game.time - game.tiredT > 6) { game.tiredT = game.time; hud.popup('TOO TIRED TO FLIP · <b>EAT OR REST</b>'); } break;
-      case 'noBoard': if (!game.noBoardT || game.time - game.noBoardT > 15) { game.noBoardT = game.time; hud.toast('No board by day: it stays hidden with the suit. <b>Walk, run, or pay for a danfo, keke or okada.</b> The board comes out with Street Cat.', 'blue'); } break;
       case 'bikeOn': audio.horn?.(player.pos); break;
       case 'bikeOff': if (ev.crash) { audio.land(1); camera.shake = 0.6; hud.popup('CRASHED'); } break;
-      case 'jump': audio.ollie(); if (ev.power > 0.6) { fx.dust(player.pos.x, player.pos.y + 0.05, player.pos.z, 10); camera.shake = 0.2; } break;
-      case 'ollie': audio.ollie(); break;
+      case 'jump': audio.hop(); if (ev.power > 0.6) { fx.dust(player.pos.x, player.pos.y + 0.05, player.pos.z, 10); camera.shake = 0.2; } break;
       case 'land': audio.land(Math.min(1, -ev.vy / 14)); if (ev.vy < -13) camera.shake = 0.35; break;
-      case 'grind': game.grindLen = 0; audio.grab(); break;
-      case 'grindEnd': if (game.grindLen > 3) game.addRespect(game.grindLen * 6, `GRIND ${game.grindLen.toFixed(0)}M`); break;
       case 'bail': audio.bail(); camera.shake = 0.5; break;
       case 'hurt': game.hitsTaken = (game.hitsTaken || 0) + 1; audio.hurt(); env.grade.uniforms.hurt.value = 1; combat.hit();
         break;
@@ -1491,17 +1467,14 @@ export function createGame(ctx) {
       case 'swatted': hud.toast('The conductor knocked your hand off!', 'red'); break;
       case 'wallhit': camera.shake = 0.6; break;
       case 'pothole': audio.land(0.6); break;
-      case 'vault': case 'mantle': case 'grab': case 'boardOn': case 'boardOff': audio.grab(); break;
+      case 'vault': case 'mantle': case 'grab': audio.grab(); break;
       case 'swing': case 'roll': case 'flip': case 'act': audio.swing(); break;
       case 'flipLand': if (player.fightingNear) game.expose(5); game.addRespect(ev.kind === 'side' ? 40 : 30, ev.kind === 'back' ? 'BACKFLIP' : ev.kind === 'side' ? 'SIDE FLIP' : 'FRONT FLIP'); break;
       case 'wallrun': if (player.fightingNear) game.expose(5); audio.grab(); game.addRespect(40, 'WALL-RUN'); break;
-      case 'walljump': audio.ollie(); game.addRespect(30, 'WALL FLIP'); break;
+      case 'walljump': audio.hop(); game.addRespect(30, 'WALL FLIP'); break;
       case 'landRoll': audio.swing(); game.addRespect(20, 'SAFETY ROLL'); break;
       case 'hardland': hud.toast('Hard landing. Press <span class="key">C</span> just before you land to roll.', 'red'); break;
-      case 'trick': audio.swing(); break;
-      case 'trickLand': game.stats.tricks += ev.names.length; game.addRespect(ev.pts, ev.names.map(t => t.name.toUpperCase()).join(' + ')); audio.land(0.3); break;
-      case 'trickFail': hud.popup('SLAM'); break;
-      case 'leap': audio.ollie(); break;
+      case 'leap': audio.hop(); break;
       case 'splash': fx.burst(player.pos.x, player.pos.y + 0.1, player.pos.z, 0x8d7b62, 6, 3); audio.splash?.(); break;
       case 'down': camera.shake = 0.7; if (ev.critical) hud.banner('CRITICAL', 'You can barely move. <b>Crawl away</b> and get out of their sight!', 'red', 3); else hud.notice('DOWN', 'stay down a moment, then get back up', 'red'); break;
       case 'getup': audio.grab(); break;
@@ -1520,9 +1493,6 @@ export function createGame(ctx) {
         break;
       }
       case 'nineLives': camera.shake = 0.6; game.hitStop = 0.2; audio.alert(); hud.banner('NINE LIVES', 'He twists out of it and lands on his feet. That was the one for tonight.', 'green', 2.6); break;
-      case 'proneOn': audio.grab(); hud.popup('BELLY BOARD · <b>LOW AND HARD TO SPOT</b>'); break;
-      case 'proneOff': audio.grab(); break;
-      case 'proneSlow': hud.popup('GO FASTER FIRST, THEN X'); break;
       case 'adrenaline': audio.alert(); camera.shake = 0.6; hud.popup('ADRENALINE · <b>RUN</b>'); fx.dust(player.pos.x, player.pos.y + 0.1, player.pos.z, 12); break;
     }
   }
@@ -1543,6 +1513,7 @@ export function createGame(ctx) {
   game.playMission = (i) => {
     const m = game.general.missions[i]; if (!m) return;
     loseItem(); player.dropHeld(); if (player.mode === 'ride') player.endRide(player.pos.x, player.pos.z);
+    player.cycle = null; // no SwiftDrop bicycle in Missions: the job is Patrol's
     for (const t of game.thugs) if (t.state === 'tail') t.remove();
     for (const v of traffic.police()) { v.police.mode = 'patrol'; v.police.siren = false; v.police.route = []; }
     game.arrest = null; document.body.classList.remove('arrested'); player.cuffed = false; game.heat = 0; game.heatTimer = 0; game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null; game.respawnT = 0; game.waypoint = null;
@@ -1586,7 +1557,7 @@ export function createGame(ctx) {
     for (const p of out) p.area = world.areaAt(p.x, p.z);
     return out;
   };
-  game.travel = (place, mode) => mode === 'skate' ? (game.setWaypoint({ x: place.x, z: place.z, title: place.name }), true) : TR.trip(place, mode);
+  game.travel = (place, mode) => mode === 'walk' ? (game.setWaypoint({ x: place.x, z: place.z, title: place.name }), true) : TR.trip(place, mode);
   game.setWaypoint = (e, silent = false) => { game.waypoint = e ? { x: e.x, z: e.z, label: e.title } : null; if (e && !silent) hud.notice('WAYPOINT', e.title, 'blue'); };
   game.patrolTracker = () => {
     const b = game.patrolBoard().slice(0, 3), r = game.rank();
@@ -1632,7 +1603,7 @@ export function createGame(ctx) {
   };
 
   game.hudInfo = () => ({
-    respect: game.respect, holding: player.holding ? (player.holding.kind === 'sachet' ? 'PURE WATER' : player.holding.kind.toUpperCase()) : null, boardLost: player.boardLost,
+    respect: game.respect, holding: player.holding ? (player.holding.kind === 'sachet' ? 'PURE WATER' : player.holding.kind.toUpperCase()) : null,
     hp: player.hp, cap: player.cap(), cuffed: player.cuffed, sweep: combat.sweepReady(), flurry: combat.flurryReady(), charge: player.charge, label: L.label(), inside: L.inside, noise: L.noise, suspicion: L.suspicion, suit: L.suit, critical: player.mode === 'crawl', downT: player.mode === 'down' ? player.downT : -1, aiming: player.aiming, combo: combat.combo, clock: L.timeStr(), night: L.night,
     hunger: L.hunger, energy: L.energy, wallet: L.wallet, kit: L.items, wanted: L.wanted, followed: L.followers().length > 0, watched: L.watched(),
   });

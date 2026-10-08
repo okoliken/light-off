@@ -2,9 +2,9 @@
 //   action      keyboard          gamepad
 //   move        WASD / arrows     left stick
 //   camera      mouse             right stick
-//   jump/ollie  Space             A / Cross
+//   jump        Space             A / Cross
 //   sprint/push Shift             RT / R2
-//   board       R                 Y / Triangle   (unclip the board / strap it back on)
+//   off         R                 Y / Triangle   (get off the bicycle or okada)
 //   skitch      E                 RB / R1        (grab / let go of a vehicle)
 //   act         F / left mouse    X / Square     (strike, snatch, interact)
 //   dodge roll  C                 B / Circle
@@ -40,7 +40,7 @@ export function createInput(canvas) {
   };
 
   const padPrev: any = {};
-  const MAP = { jump: 0, roll: 1, act: 2, board: 3, sense: 4, skitch: 5, aim: 6, sprint: 7, pause: 9, gadget: 12, flash: 13, throw: 14, map: 8, radio: 15, lock: 11 };
+  const MAP = { jump: 0, roll: 1, act: 2, off: 3, sense: 4, skitch: 5, aim: 6, sprint: 7, pause: 9, gadget: 12, flash: 13, throw: 14, map: 8, radio: 15, lock: 11 };
   const dz = v => (Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85);
 
   st.poll = () => {
@@ -48,12 +48,12 @@ export function createInput(canvas) {
     let mx = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
     let my = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
     const held: any = {
-      jump: k('Space'), sprint: k('ShiftLeft') || k('ShiftRight'), board: k('KeyR'), skitch: k('KeyE'),
+      jump: k('Space'), sprint: k('ShiftLeft') || k('ShiftRight'), off: k('KeyR'), skitch: k('KeyE'),
       act: k('KeyF') || mouse.down, roll: k('KeyC'), sense: k('KeyQ'), pause: false, map: k('KeyM'), aim: mouse.right, lock: k('Tab'),
     };
     const pressed: any = {
-      jump: t('Space'), board: t('KeyR'), skitch: t('KeyE'), act: t('KeyF') || mouse.clicked, roll: t('KeyC'),
-      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'), change: t('KeyU'), prone: t('KeyX'), torch: t('KeyL'), lock: t('Tab'), g1: t('Digit1'), g2: t('Digit2'), g3: t('Digit3'),
+      jump: t('Space'), off: t('KeyR'), skitch: t('KeyE'), act: t('KeyF') || mouse.clicked, roll: t('KeyC'),
+      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'), change: t('KeyU'), torch: t('KeyL'), lock: t('Tab'), g1: t('Digit1'), g2: t('Digit2'), g3: t('Digit3'),
     };
     let lx = mouse.dx, ly = mouse.dy;
     mouse.dx = mouse.dy = 0; mouse.clicked = false; tapped.clear();

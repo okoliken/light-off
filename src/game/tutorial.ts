@@ -18,12 +18,6 @@ const STEPS: Step[] = [
 
 // Street Cat: the night skills (taught the first time he's out in the suit)
 const NIGHT: Step[] = [
-  { id: 'board', title: 'Get on your board', how: { kb: 'Press <kbd>R</kbd>', touch: 'Tap <b>BOARD</b>', pad: 'Press <kbd>Y</kbd> / <kbd>△</kbd>' }, done: s => s.mode === 'board' },
-  { id: 'ride', title: 'Skate fast', how: { kb: 'Hold <kbd>W</kbd> and <kbd>Shift</kbd> to push', touch: 'Push the joystick forward, all the way', pad: 'Left stick forward, hold <kbd>RT</kbd>' }, done: s => s.mode === 'board' && s.speed > 9 },
-  { id: 'ollie', title: 'Ollie', how: { kb: 'Press <kbd>Space</kbd> while skating', touch: 'Tap <b>JUMP</b> while skating', pad: 'Press <kbd>A</kbd> / <kbd>✕</kbd> while skating' }, done: s => s.ollied },
-  { id: 'flip', title: 'Board flip', how: { kb: 'Ollie, then <kbd>Space</kbd> again in the air (pull back for a backflip)', touch: 'Tap <b>JUMP</b>, then <b>JUMP</b> again in the air', pad: '<kbd>A</kbd>, then <kbd>A</kbd> again in the air' }, done: s => s.flipped },
-  { id: 'belly', title: 'Belly-board', how: { kb: 'Going fast, press <kbd>X</kbd> to lie flat (hard to spot). <kbd>X</kbd> again to get up', touch: 'Going fast, tap <b>BELLY</b>', pad: 'Going fast, lie flat (keyboard X)' }, done: s => s.ev.has('proneOn') },
-  { id: 'off', title: 'Strap the board on your back', how: { kb: 'Press <kbd>R</kbd> again', touch: 'Tap <b>BOARD</b> again', pad: 'Press <kbd>Y</kbd> / <kbd>△</kbd> again' }, done: s => s.mode === 'foot' && s.wasBoard },
   { id: 'climb', title: 'Climb a wall', how: { kb: 'Run at a wall and press <kbd>Space</kbd>. Keep <kbd>W</kbd> held to climb', touch: 'Run at a wall and tap <b>JUMP</b>. Keep pushing up', pad: 'Run at a wall, press <kbd>A</kbd>, keep pushing' }, done: s => s.ev.has('climb') || s.mode === 'climb' },
   { id: 'roof', title: 'Get onto a roof', how: { kb: 'Climb to the top: he pulls himself over', touch: 'Keep climbing to the top', pad: 'Keep climbing to the top' }, done: s => s.ev.has('mantle') || s.highUp },
   { id: 'catdrop', title: 'Drop like a cat', how: { kb: 'Jump off the roof. He lands on his feet (no damage)', touch: 'Walk off the roof. He lands on his feet', pad: 'Jump off the roof' }, done: s => s.ev.has('catDrop') || s.ev.has('landRoll') || !!s.landedLow },
@@ -52,9 +46,9 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
     game.hud.say('Agbero', 'Who be this one wey cover face?! Oya, come here!', 3);
   };
   const dev = (): Dev => input.usingPad ? 'pad' : touch ? 'touch' : 'kb';
-  const fresh = () => ({ ev: new Set(), cb, sensed: 0, highUp: false, wasHigh: false, onGround: true, sparDone: false, walked: 0, looked: 0, sprinted: 0, jumped: false, mode: 'foot', speed: 0, ollied: false, flipped: false, wasBoard: false, mapped: false, paused: false });
+  const fresh = () => ({ ev: new Set(), cb, sensed: 0, highUp: false, wasHigh: false, onGround: true, sparDone: false, walked: 0, looked: 0, sprinted: 0, jumped: false, mode: 'foot', speed: 0, mapped: false, paused: false });
   // on a touch screen, the first button a step names lights up (and its row of the pad comes up)
-  const PAD_KEY: Record<string, string> = { BOARD: 'board', GRAB: 'skitch', BELLY: 'prone', SENSE: 'sense', LAUNCH: 'gadget', JUMP: 'jump', POUNCE: 'flash', DODGE: 'roll', 'HIT/USE': 'act', JOB: 'patrolBoard', MAP: 'map', '❚❚': 'pause' };
+  const PAD_KEY: Record<string, string> = { 'GET OFF': 'off', GRAB: 'skitch', SENSE: 'sense', LAUNCH: 'gadget', JUMP: 'jump', POUNCE: 'flash', DODGE: 'roll', 'HIT/USE': 'act', JOB: 'patrolBoard', MAP: 'map', '❚❚': 'pause' };
   const point = (how: string) => { const m = how.match(/<b>([^<]+)<\/b>/g)?.map(b => PAD_KEY[b.slice(3, -4)]).find(Boolean); touch?.focus?.(m || null); };
   const draw = (tick = false) => {
     const st = list[i];
@@ -89,7 +83,6 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
     if (s.wasHigh && player.onGround && player.pos.y < 1) s.landedLow = true;
     if (list[i].fight && !spar.length) spawnSpar();
     if (spar.length && spar.every(t => !t.alive || t.state === 'ko' || t.removed)) s.sparDone = true;
-    if (player.mode === 'board') { s.wasBoard = true; if (!player.onGround) s.ollied = true; if (player.trick) s.flipped = true; }
     if (holdT > 0) { holdT -= dt; if (holdT <= 0) { i++; if (i >= list.length) T.stop(true); else draw(); } return; }
     if (list[i].done(s)) { holdT = 0.9; draw(true); game.audio.pickup?.(); }
   };

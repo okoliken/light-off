@@ -124,7 +124,7 @@ export class Thug {
           if (!(arrived && this.patrol.length === 1)) { face = Math.atan2(wx, wz); speed = 1.6; }
         }
         // do they notice him?
-        const sight = (game.power < 0.5 ? 9 : 16) * (p.prone ? 0.4 : 1) * (game.torchOn ? 1.6 : 1);
+        const sight = (game.power < 0.5 ? 9 : 16) * (game.torchOn ? 1.6 : 1);
         const facing = (Math.sin(this.yaw) * dx + Math.cos(this.yaw) * dz) / (dist || 1);
         if (!this.calm && reachable && dist < sight && (facing > -0.2 || dist < 4) && !col.blocked(this.pos.x, this.pos.y + 1.5, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2)) this.engage(0.35);
         if (game.player.fightingNear && dist < 22) this.engage(0.2);
@@ -253,7 +253,7 @@ export class Thug {
       }
       case 'tail': { // following him at a distance to find out where he lives
         Pose.idle(r, game.time, false);
-        const range = (game.power < 0.5 ? 26 : 55) * (p.prone ? 0.45 : 1) * (game.torchOn ? 1.4 : 1);
+        const range = (game.power < 0.5 ? 26 : 55) * (game.torchOn ? 1.4 : 1);
         const seeing = dist < range && !col.blocked(this.pos.x, this.pos.y + 1.6, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2);
         this.sees = seeing;
         if (seeing) {

@@ -2,11 +2,9 @@
 //   Robberies:       armed robbers hit a shop and flee in a car. Chase it, skitch on, smash it, take the money back.
 //   Third Mainland go-slow (patrol): the bridge jams, robbers dressed as hawkers work the stuck cars and
 //                    bolt for the railing to drop into Makoko canoes. Catch them first.
-//   Third Mainland sprint: skate the bridge from Surulere to the Adeniji Adele interchange against the clock.
 //   Rooftop runs:    a chain of glowing rings across the rooftops against the clock (pure cat parkour).
 //   Phone snatchers: someone shouts "Ole!" and a thief runs. Knock him down, take the phone back.
 //   Delivery jobs:   Mama Nkechi at Adelabu Market pays for fast food deliveries (daytime).
-//   Skate challenge: at the Area Pitch, score as many trick points as you can in 45 seconds.
 import * as THREE from 'three';
 import { textSign } from '../core/textures.ts';
 import { BRIDGE } from '../world/layout.ts';
@@ -22,19 +20,17 @@ export function createActivities(game, h) {
   const { scene, world, hud, audio, player } = game;
   const L = game.life;
   const d2 = (a, b) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2;
-  const A: any = { snatch: null, job: null, skate: null, robbery: null, run: null, course: null, nextSnatch: 50 + Math.random() * 40, nextRobbery: 150 + Math.random() * 90 };
+  const A: any = { snatch: null, job: null, robbery: null, run: null, course: null, nextSnatch: 50 + Math.random() * 40, nextRobbery: 150 + Math.random() * 90 };
   const col = world.collision;
 
-  // Mama Nkechi's food stall at the market (delivery jobs) and the pitch challenge board
+  // Mama Nkechi's food stall at the market (delivery jobs)
   const ms = world.marketSpot, stall = { x: ms.x + 9, z: ms.z - 2 };
-  const pitch = world.pitchCenter;
   const board = (x, z, text, bg, ry = 0) => {
     const t = textSign(text, bg, '#fff', 768, 128);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.5), new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.35, side: THREE.DoubleSide }));
     m.position.set(x, 2.6, z); m.rotation.y = ry; scene.add(m);
   };
   board(stall.x, stall.z, "MAMA NKECHI'S · DELIVERY", '#e65100');
-  board(pitch.x, pitch.z - 6, 'SKATE CHALLENGE · 45 SEC', '#1565c0');
 
   // ---- phone snatchers ----
   function startSnatch() {
@@ -85,19 +81,6 @@ export function createActivities(game, h) {
       audio.deliver(); j.cust.mood = 'cheer'; const c = j.cust; setTimeout(() => c.remove(scene), 5000); A.job = null; return;
     }
     if (j.time <= 0) { hud.notice('TOO LATE', `${j.name}'s food is cold. No pay this time.`, 'red'); j.cust.remove(scene); A.job = null; }
-  }
-
-  // ---- skate challenge ----
-  function updateSkate(dt) {
-    const k = A.skate; if (!k) return;
-    k.t -= dt;
-    if (k.t <= 0) {
-      const pts = game.respect - k.start, best = Math.max(A.best || 0, pts); A.best = best;
-      const pay = pts >= 1500 ? 1500 : pts >= 800 ? 700 : 0;
-      L.wallet += pay;
-      hud.notice(`SKATE CHALLENGE · ${pts} PTS`, pay ? `The pitch boys pay up: ₦${pay.toLocaleString()}. Best: ${best}` : `Not enough to win anything. Best: ${best}. Try grinds and flips.`, pay ? 'green' : 'white');
-      A.skate = null;
-    }
   }
 
   // ---- armed robbery: a getaway car ----
@@ -226,28 +209,6 @@ export function createActivities(game, h) {
       A.goslow = null; A.goslowCd = 240; setTimeout(() => { game.traffic.goSlow = null; }, 6000);
     }
   }
-  // ---- Third Mainland sprint: Surulere end to the Adeniji Adele interchange ----
-  const SPRINT = { start: { x: 0, z: BRIDGE.z0 + 10, y: 0 }, end: { x: 0, z: world.gate?.z ?? BRIDGE.z1 - 20, y: 0 }, gold: 62, par: 80 };
-  const sRing = (p) => { const m = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.14, 8, 36), ringMat); m.position.set(p.x, p.y + 2.2, p.z); scene.add(m); return m; };
-  let sStart = null, sEnd = null;
-  A.sprint = null;
-  function updateSprint(dt) {
-    if (game.mode !== 'patrol' || L.inside) return;
-    sStart ||= sRing(SPRINT.start); sEnd ||= sRing(SPRINT.end);
-    sStart.rotation.y += dt; sEnd.rotation.y += dt;
-    sStart.visible = !A.sprint; sEnd.visible = !!A.sprint;
-    const at = (p, r) => d2(p, player.pos) < r * r && player.pos.y < 3;
-    if (!A.sprint && at(SPRINT.start, 3.5)) { A.sprint = { t: 0 }; hud.notice('THIRD MAINLAND SPRINT', `To the Adeniji Adele interchange. ${SPRINT.gold}s for gold, ${SPRINT.par}s to get paid. Skitch if you dare.`, 'blue'); audio.pickup(); }
-    if (!A.sprint) return;
-    A.sprint.t += dt;
-    if (at(SPRINT.end, 4.5)) {
-      const t = A.sprint.t, pay = t <= SPRINT.gold ? 2500 : t <= SPRINT.par ? 1200 : 300, best = game.stats.bridgeBest ? Math.min(game.stats.bridgeBest, t) : t;
-      game.stats.bridgeBest = best; L.wallet += pay; game.addRespect(t <= SPRINT.gold ? 700 : 350, 'BRIDGE SPRINT');
-      hud.notice(`WELCOME TO LAGOS ISLAND · ${t.toFixed(1)}s`, `${t <= SPRINT.gold ? 'GOLD. ' : ''}₦${pay.toLocaleString()} · best ${best.toFixed(1)}s`, t <= SPRINT.par ? 'green' : 'white');
-      A.sprint = null;
-    } else if (A.sprint.t > 240) A.sprint = null;
-  }
-
   // ---- the Patron's hit squads: once he's known, a powerful man starts paying to have him removed ----
   A.hit = null; A.hitCd = 240 + Math.random() * 120;
   function startPoliceHit() { // stage 1: the Patron's police do his dirty work. No siren, no arrest: they shoot
@@ -365,21 +326,18 @@ export function createActivities(game, h) {
   A.anyActive = () => !!game.general?.case?.on || !!(A.snatch || A.robbery || A.block || A.hit || A.fake || A.goslow || game.story.side) || game.time < (game.calmUntil || 0);
   A.update = (dt) => {
     updateBlockade(dt); updateFake(dt);
-    updateHit(dt); updateSnatch(dt); updateJob(dt); updateSkate(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); updateSprint(dt); };
+    updateHit(dt); updateSnatch(dt); updateJob(dt); updateRobbery(dt); updateRun(dt); updateGoslow(dt); };
   A.option = () => {
-    if (L.inside || !['foot', 'board'].includes(player.mode)) return null;
+    if (L.inside || player.mode !== 'foot') return null;
     if (!A.job && game.mode !== 'patrol' && L.phase === 'day' && d2(stall, player.pos) < 3.2 * 3.2) return { kind: 'activity', what: 'job', text: '<span class="key">F</span>Take a delivery job from Mama Nkechi (paid, timed)' };
-    if (!A.skate && !player.noBoard && d2({ x: pitch.x, z: pitch.z - 6 }, player.pos) < 4 * 4) return { kind: 'activity', what: 'skate', text: '<span class="key">F</span>Start the skate challenge (45 seconds: tricks, grinds, flips)' };
     return null;
   };
   A.doOption = (opt) => {
     if (opt.what === 'job') { startJob(); return true; }
-    if (opt.what === 'skate') { A.skate = { t: 45, start: game.respect }; hud.notice('SKATE CHALLENGE', '45 seconds. 800 points pays, 1,500 pays well. Go!', 'blue'); audio.pickup(); return true; }
     return false;
   };
-  // what he started himself (job, challenge, run, sprint, the go-slow he walked into) vs trouble that just popped up
+  // what he started himself (job, run, the go-slow he walked into) vs trouble that just popped up
   A.activeTarget = () => {
-    if (A.sprint) return { x: SPRINT.end.x, z: SPRINT.end.z, label: 'ADENIJI ADELE' };
     if (A.goslow) { const t = A.goslow.robbers.filter(q => !q.done).sort((a, b) => d2(a.pos, player.pos) - d2(b.pos, player.pos))[0]; if (t) return { x: t.pos.x, z: t.pos.z, label: 'ROBBER', moving: true }; }
     if (A.run && A.course) { const r = A.course.rings[A.run.i]; return { x: r.x, z: r.z, label: 'RING' }; }
     if (A.job) return { x: A.job.to.x, z: A.job.to.z, label: A.job.name };
@@ -388,7 +346,6 @@ export function createActivities(game, h) {
   A.target = () => {
     if (A.fake && A.fake.fake.alive) return { x: A.fake.fake.pos.x, z: A.fake.fake.pos.z, label: 'THE COPYCAT', moving: true };
     if (A.block) { const t = A.block.cult.find(q => q.alive) || A.block.hostages.find(v => v.mood === 'captive'); if (t) return { x: t.pos.x, z: t.pos.z, label: 'BLOCKADE' }; }
-    if (A.sprint) return { x: SPRINT.end.x, z: SPRINT.end.z, label: 'ADENIJI ADELE' };
     if (A.goslow) { const t = A.goslow.robbers.filter(q => !q.done).sort((a, b) => d2(a.pos, player.pos) - d2(b.pos, player.pos))[0]; if (t) return { x: t.pos.x, z: t.pos.z, label: 'ROBBER', moving: true }; }
     if (A.run && A.course) { const r = A.course.rings[A.run.i]; return { x: r.x, z: r.z, label: 'RING', moving: false }; }
     if (A.robbery) { const r = A.robbery; if (r.stage === 'chase') return { x: r.car.pos.x, z: r.car.pos.z, label: 'ROBBERS', moving: true }; const g = r.crew.find(q => q.alive && q.item); if (g) return { x: g.pos.x, z: g.pos.z, label: 'ROBBER', moving: true }; }
@@ -398,29 +355,23 @@ export function createActivities(game, h) {
   };
   A.objective = () => {
     if (A.block && Math.hypot(A.block.c.x - player.pos.x, A.block.c.z - player.pos.z) < 60) { const n = A.block.cult.filter(t => t.alive).length, hs = A.block.hostages.filter(v => v.mood === 'captive').length; return `<b>Red Caps blockade</b> at ${A.block.area}: ${n} cultists, ${hs} people held<small>CUTLASSES AND AXES: DODGE THE RED "!" · FREE THE HOSTAGES (F)</small>`; }
-    if (A.sprint) return `Third Mainland sprint · <b>${A.sprint.t.toFixed(1)}s</b> <small>TO THE ADENIJI ADELE INTERCHANGE · GOLD ${SPRINT.gold}s · SKITCH THE TRAFFIC</small>`;
     if (A.goslow) { const left = A.goslow.robbers.filter(q => !q.done).length; return `<b>Go-slow robbers</b> on Third Mainland · <b>${left} left</b><small>THE "HAWKERS" ROB THE STUCK CARS, THEN RUN FOR THE RAILING TO DROP INTO CANOES · CATCH THEM FIRST</small>`; }
     if (A.run && A.course) return `Rooftop run: ring <b>${A.run.i} of ${A.course.rings.length - 1}</b> · <b>${Math.ceil(A.run.t)}s</b><small>LEAP (HOLD SPACE), WALL-RUN, POUNCE (V) BETWEEN ROOFS</small>`;
-    if (A.robbery?.stage === 'chase') return `<b>Stop the robbers' car</b> <small>SKATE AFTER IT · SKITCH ON (E) · F SMASHES IT (${A.robbery.car.ai.health} MORE)</small>`;
+    if (A.robbery?.stage === 'chase') return `<b>Stop the robbers' car</b> <small>HANG ON (E) WHEN IT SLOWS · F SMASHES IT (${A.robbery.car.ai.health} MORE)</small>`;
     if (A.robbery?.stage === 'fight' && A.robbery.crew.some(g => g.alive && g.item)) return '<b>Take the money back</b> from the robbers<small>THEY SHOOT: WATCH FOR THE RED LASER AND ROLL (C) · BREAK THEIR LINE OF SIGHT</small>';
-    if (A.skate) return `Skate challenge: <b>${game.respect - A.skate.start} pts</b> · ${Math.ceil(A.skate.t)}s left<small>TRICKS IN THE AIR (F) · GRINDS · FLIPS · WALL-RUNS</small>`;
-    if (A.job) return `Deliver ${A.job.food} to <b>${A.job.name}</b> · <b>${Math.ceil(A.job.time)}s</b><small>SKATE (R) OR SKITCH (E) · THE CYAN MARKER</small>`;
+    if (A.job) return `Deliver ${A.job.food} to <b>${A.job.name}</b> · <b>${Math.ceil(A.job.time)}s</b><small>RUN, OR HANG ON TO TRAFFIC (E) · THE CYAN MARKER</small>`;
     if (A.snatch && A.snatch.thief.alive && A.snatch.thief.item) return `<b>Catch the phone snatcher!</b><small>SPRINT, POUNCE (V) OR THROW SOMETHING (T) · KNOCK HIM DOWN</small>`;
     return null;
   };
   A.tracker = () => {
     if (A.job) return { title: 'Delivery job', sub: `₦${A.job.pay.toLocaleString()} · ${Math.ceil(A.job.time)}S LEFT`, steps: [{ label: `Take ${A.job.food} to ${A.job.name}`, state: 'cur' }] };
-    if (A.skate) return { title: 'Skate challenge', sub: `${Math.ceil(A.skate.t)}S LEFT`, steps: [{ label: '800 pts: ₦700', state: game.respect - A.skate.start >= 800 ? 'done' : 'cur' }, { label: '1,500 pts: ₦1,500', state: game.respect - A.skate.start >= 1500 ? 'done' : '' }] };
     return null;
   };
   A.markers = (M, MM, dstr) => {
     if (A.goslow) for (const t of A.goslow.robbers) if (!t.done && !t.removed) { M.push({ x: t.pos.x, y: t.pos.y + 2.5, z: t.pos.z, kind: 'site', label: t.state === 'idle' ? 'HAWKER?' : 'ROBBER', edge: t.state !== 'idle' }); MM.push({ x: t.pos.x, z: t.pos.z, color: '#ff3d3d' }); }
-    if (game.mode === 'patrol' && !L.inside) { const p = A.sprint ? SPRINT.end : SPRINT.start; MM.push({ x: p.x, z: p.z, color: '#69f0ae' }); if (A.sprint || d2(p, player.pos) < 80 * 80) M.push({ x: p.x, y: 5, z: p.z, kind: 'escape', label: `${A.sprint ? 'FINISH' : 'BRIDGE SPRINT'} · ${dstr(p.x, p.z)}`, edge: !!A.sprint }); }
     if (A.course) { const r0 = A.course.rings[0]; if (!A.run) { MM.push({ x: r0.x, z: r0.z, color: '#69f0ae' }); if (d2(r0, player.pos) < 60 * 60) M.push({ x: r0.x, y: r0.y + 2.6, z: r0.z, kind: 'escape', label: `ROOFTOP RUN · ${dstr(r0.x, r0.z)}`, edge: false }); } else { const r = A.course.rings[A.run.i]; M.push({ x: r.x, y: r.y + 2.6, z: r.z, kind: 'escape', label: `RING ${A.run.i} · ${dstr(r.x, r.z)}` }); MM.push({ x: r.x, z: r.z, color: '#69f0ae' }); } }
     if (A.robbery) { const r = A.robbery, v = r.stage === 'chase' ? r.car : r.crew.find(g => g.alive && g.item); if (v) { M.push({ x: v.pos.x, y: v.pos.y + 2.4, z: v.pos.z, kind: 'site', label: `ROBBERS · ${dstr(v.pos.x, v.pos.z)}` }); MM.push({ x: v.pos.x, z: v.pos.z, color: '#ff3d3d' }); } }
     if (L.phase === 'day' && game.mode !== 'patrol') { MM.push({ x: stall.x, z: stall.z, color: '#ff9800' }); if (d2(stall, player.pos) < 50 * 50) M.push({ x: stall.x, y: 3.2, z: stall.z, kind: 'errand', label: 'DELIVERY JOBS', edge: false }); }
-    MM.push({ x: pitch.x, z: pitch.z, color: '#42a5f5' });
-    if (d2(pitch, player.pos) < 60 * 60 && !A.skate && !player.noBoard) M.push({ x: pitch.x, y: 3.2, z: pitch.z - 6, kind: 'errand', label: 'SKATE CHALLENGE', edge: false });
     if (A.job) { M.push({ x: A.job.to.x, y: 2.6, z: A.job.to.z, kind: 'errand', label: `${A.job.name.toUpperCase()} · ${dstr(A.job.to.x, A.job.to.z)}` }); MM.push({ x: A.job.to.x, z: A.job.to.z, color: '#80deea' }); }
     const s = A.snatch;
     if (s && s.thief.alive && s.thief.item) { M.push({ x: s.thief.pos.x, y: s.thief.pos.y + 2.3, z: s.thief.pos.z, kind: 'site', label: `THIEF · ${dstr(s.thief.pos.x, s.thief.pos.z)}` }); MM.push({ x: s.thief.pos.x, z: s.thief.pos.z, color: '#ff3d3d' }); }
@@ -435,9 +386,7 @@ export function createActivities(game, h) {
     if (game.mode === 'patrol') {
       if (A.goslow) { const t = A.goslow.robbers.find(q => !q.done); if (t) out.push({ kind: 'crime', title: 'Go-slow robbers · Third Mainland', desc: 'Robbers dressed as hawkers are working the stuck cars. Catch them before they drop into Makoko canoes.', x: t.pos.x, z: t.pos.z, reward: 'Big respect', urgent: true }); }
       else if (L.phase !== 'day' && A.goslowCd <= 0) out.push({ kind: 'crime', title: 'Third Mainland go-slow', desc: 'Callers say the bridge is jammed and "hawkers" are robbing motorists. Get up onto the bridge.', x: 0, z: BRIDGE.deck0 - 40, reward: 'Big respect' });
-      out.push({ kind: 'run', title: 'Third Mainland sprint', desc: `Skate the bridge to the Adeniji Adele interchange on Lagos Island. Gold under ${SPRINT.gold}s.${game.stats.bridgeBest ? ` Best: ${game.stats.bridgeBest.toFixed(1)}s.` : ''}`, x: SPRINT.start.x, z: SPRINT.start.z, reward: 'Up to ₦2,500' });
     }
-    out.push({ kind: 'run', title: 'Skate challenge', desc: 'Score trick points at the Area Pitch in 45 seconds.', x: pitch.x, z: pitch.z - 6, reward: 'Up to ₦1,500' });
     if (L.phase === 'day' && game.mode !== 'patrol') out.push({ kind: 'job', title: 'Delivery job', desc: "Mama Nkechi pays for hot food, delivered fast.", x: stall.x, z: stall.z, reward: '₦1,000+' });
     return out;
   };

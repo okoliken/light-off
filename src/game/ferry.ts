@@ -70,7 +70,6 @@ export function createFerry(game) {
     game.life.wallet -= FARE; audio.pickup();
     const to = F.other(j), pts = j.id === 'main' ? ROUTE : ROUTE.slice().reverse();
     F.ride = { pts, L: pathLen(pts), s: 0, from: j, to, lineT: 2 };
-    if (player.mode === 'board') player.mode = 'foot';
     boat.visible = true; F.place();
     player.startRide(v, true);
     hud.notice('LAGFERRY', `${j.name} → ${to.name}`, 'blue', 2.5);

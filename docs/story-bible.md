@@ -17,7 +17,7 @@
   - Pickpockets, bag snatchers, armed robbers, one chance danfos.
   - People to help: return what was stolen, stop a robbery.
   - The police, who chase Street Cat on sight.
-  - Side jobs, skating, the bridge sprint, transport, the malls, Coach Ayo.
+  - Side jobs, rooftop runs, transport, the malls, Coach Ayo.
 - **Not in Patrol:** the General, his boys in black, Inspector Okafor, the Hunter, the Red Caps, impostors, hit squads.
 - No progression to worry about. Just your own play.
 

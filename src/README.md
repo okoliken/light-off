@@ -31,7 +31,7 @@ What the player is currently doing always owns the guide arrow. The priority run
 | | `vehicles.ts` | Vehicle models built from primitives (danfo, keke, okada, …) |
 | | `collision.ts` | Spatial-hash boxes, ramps, ground height, line of sight |
 | | `room.ts` | Bolaji's room, with Mama and Tobi |
-| `player/` | `player.ts` | Movement modes (foot, board, grind, skitch, climb, wall-run, combat actions, down, crawl, ride), health and injury |
+| `player/` | `player.ts` | Movement modes (foot, hanging on vehicles, bicycle and okada, wires, climb, wall-run, combat actions, down, crawl, ride), health and injury |
 | | `rig.ts` | Procedural skeleton, outfits (including the cat suit) and the pose library |
 | | `input.ts` | Keyboard, mouse and gamepad, including the Xbox/PlayStation glyph type |
 | `game/` | `story.ts` | The 10 Chapter 1 missions, day missions, recon/turn/morning flow, side beatings |

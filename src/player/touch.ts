@@ -15,10 +15,10 @@ const MAIN: Btn[] = [
 // the small buttons come in two sets of four, one row at a time, so they never pile up mid-screen
 const SETS: { name: string; btns: Btn[] }[] = [
   { name: 'MOVE', btns: [
-    { id: 'board', label: 'BOARD', key: 'board' },
+    { id: 'off', label: 'GET OFF', key: 'off' },
     { id: 'skitch', label: 'GRAB', key: 'skitch' },
-    { id: 'prone', label: 'BELLY', key: 'prone' },
     { id: 'sense', label: 'SENSE', key: 'sense' },
+    { id: 'g3', label: 'NAILS', key: 'g3' },
   ] },
   { name: 'FIGHT', btns: [
     { id: 'gadget', label: 'LAUNCH', key: 'gadget' },

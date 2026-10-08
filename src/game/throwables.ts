@@ -1,7 +1,6 @@
 // Street throws: Bolaji can't afford gadgets, so he uses what Lagos leaves lying around. Stones and bricks
 // hurt, bottles smash and stun, a pure water sachet in the face blinds for a moment, a bucket over the head
-// blinds longer, a tyre knocks people flat. With nothing in reach he can throw his skateboard (and must go
-// and pick it up). Red Cap throwers use the same projectiles against him.
+// blinds longer, a tyre knocks people flat. Red Cap throwers use the same projectiles against him.
 import * as THREE from 'three';
 
 export const KINDS = {
@@ -11,7 +10,6 @@ export const KINDS = {
   sachet: { dmg: 0, effect: 'blind', stay: false, label: 'pure water' },
   bucket: { dmg: 0, effect: 'blind', stay: true,  label: 'bucket', blind: 3.2 },
   tyre:   { dmg: 2, effect: 'down', stay: true,  label: 'tyre' },
-  board:  { dmg: 2, effect: 'down', stay: true,  label: 'skateboard' },
 };
 const G = 18;
 
@@ -53,7 +51,7 @@ export function createThrowables(scene, world) {
     nearest(p, r = 2) { let best = null, bd = r * r; for (const it of items) { if (it.held) continue; const d = (it.mesh.position.x - p.x) ** 2 + (it.mesh.position.z - p.z) ** 2; if (d < bd && Math.abs(it.mesh.position.y - p.y) < 1.4) { bd = d; best = it; } } return best; },
     pickUp(it, hand) { it.held = true; hand.add(it.mesh); it.mesh.position.set(0, -0.1, 0.05); it.mesh.rotation.set(0, 0, 0); if (it.kind === 'tyre') it.mesh.scale.setScalar(0.8); },
     drop(it, pos) { it.held = false; it.mesh.parent?.remove(it.mesh); scene.add(it.mesh); it.mesh.scale.setScalar(1); it.mesh.position.set(pos.x, col.groundHeight(pos.x, pos.z, pos.y + 1).h + 0.09, pos.z); },
-    // launch an item (or the board, or an enemy bottle) along a lob that lands at `to`
+    // launch an item (or an enemy bottle) along a lob that lands at `to`
     launch(kind, mesh, from, to, owner, speed = 22) {
       if (mesh.parent) mesh.parent.remove(mesh);
       scene.add(mesh); mesh.position.copy(from); mesh.scale.setScalar(1);
@@ -86,7 +84,7 @@ export function createThrowables(scene, world) {
           const k = KINDS[f.kind];
           if (f.owner === 'player' && k.stay) { // it lies where it fell and can be picked up again
             const p = f.mesh.position; p.y = col.groundHeight(p.x, p.z, p.y + 1).h + 0.09; f.mesh.rotation.set(f.kind === 'tyre' ? Math.PI / 2 : 0, R() * 6, 0);
-            if (f.kind === 'board') T.boardOnGround = f.mesh; else items.push({ kind: f.kind, mesh: f.mesh, held: false });
+            items.push({ kind: f.kind, mesh: f.mesh, held: false });
           } else scene.remove(f.mesh);
         }
       }

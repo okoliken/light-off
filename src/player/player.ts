@@ -1,7 +1,7 @@
-// Bolaji's movement: two modes he switches between at will, on foot (run, jump, vault, climb, roll,
-// fight) and on the board (push, carve, ollie, grind, skitch onto vehicles). Plus bail / down states.
+// Bolaji's movement on foot (run, jump, vault, climb, wall-run, roll, fight, hang off vehicles), the
+// bicycle and the okada, the NEPA wires. Plus bail / down states.
 import * as THREE from 'three';
-import { Rig, Pose, makeBoardMesh, HIP_H } from './rig.ts';
+import { Rig, Pose, HIP_H } from './rig.ts';
 import { clampToRegions } from '../world/layout.ts';
 import { STEP } from '../world/collision.ts';
 
@@ -10,28 +10,25 @@ const R_BODY = 0.34, H_BODY = 1.75;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const _c = new THREE.Vector3(), _c2 = new THREE.Vector3(), _qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
 export function createPlayer(scene, world, traffic) {
   const col = world.collision;
   const rig = new Rig();
   scene.add(rig.root);
-  const board = makeBoardMesh();
-  board.visible = false; scene.add(board);
 
   const home = world.home;
   const p: any = {
-    rig, board,
+    rig,
     pos: new THREE.Vector3(home.x, 0.15, home.z), vel: new THREE.Vector3(),
     yaw: home.yaw, heading: home.yaw, speed: 0,
     mode: 'foot', onGround: true, t: 0, anim: 0,
     hp: 100, maxHp: 100, nineLives: 1, injury: 0, hurtT: 99, invuln: 0, downs: 0, lastDownT: -99, critical: false, crawlT: 0, getupT: 0, leapCd: 0,
-    holding: null, boardLost: false,
-    riding: null, grind: null, skitch: null, climb: null,
+    holding: null,
+    riding: null, skitch: null, climb: null,
     punch: { t: 9, side: 'R', combo: 0, cd: 0, kick: false },
     lastWall: null, lastWallT: 9, vaultT: 9, rollT: 0, bailT: 0, downT: 0, staggerT: 9,
     slopeVy: 0, lastGround: 0.15, airT: 0, shake: 0, holeCd: 0,
     events: [], guard: 0, carrying: null, sense: false,
-    aiming: false, flip: null, airFlips: 0, wallrun: null, trick: null, airTricks: [], rollBuf: 9, throwT: 9, flashT: 9,
+    aiming: false, flip: null, airFlips: 0, wallrun: null, rollBuf: 9, throwT: 9, flashT: 9,
     lastMove: { x: 0, y: 0 }, wallrunCd: 0,
     act: null, eff: 1, energy: 100, fightingNear: false,
   };
@@ -41,7 +38,7 @@ export function createPlayer(scene, world, traffic) {
 
   p.respawn = (x = home.x, z = home.z, yaw = home.yaw) => {
     p.pos.set(x, 0.15, z); p.vel.set(0, 0, 0); p.yaw = p.heading = yaw; p.speed = 0;
-    p.mode = 'foot'; p.hp = Math.max(p.hp, p.cap() * 0.5); p.invuln = 1.5; p.riding = p.grind = p.skitch = p.climb = p.wallrun = p.flip = p.trick = null; p.critical = false;
+    p.mode = 'foot'; p.hp = Math.max(p.hp, p.cap() * 0.5); p.invuln = 1.5; p.riding = p.skitch = p.climb = p.wallrun = p.flip = null; p.critical = false;
     rig.root.rotation.set(0, yaw, 0);
   };
 
@@ -61,30 +58,27 @@ export function createPlayer(scene, world, traffic) {
       p.nineLives--; p.hp = 14; p.mode = 'roll'; p.rollT = 0; p.invuln = 1.6; emit('nineLives'); return true;
     }
     if (p.hp <= 0) { p.hp = 0; startDown(); return true; }
-    if (p.mode === 'board' || p.mode === 'grind' || p.mode === 'skitch') startBail(0.5);
+    if (p.mode === 'skitch') startBail(0.5); // knocked off the back of the vehicle
     return true;
   };
   function startDown() {
     // a second knockdown within a minute, or when already badly injured, is critical: he has to crawl away
     p.critical = (p.t - p.lastDownT < 60) || p.cap() < 30;
     p.lastDownT = p.t; p.downs++;
-    p.mode = 'down'; p.downT = 0; p.skitch = p.grind = p.climb = p.wallrun = p.flip = p.trick = p.act = null;
+    p.mode = 'down'; p.downT = 0; p.skitch = p.climb = p.wallrun = p.flip = p.act = null;
     if (p.holding) p.dropHeld?.();
     emit('down', { critical: p.critical });
   }
   p.getUp = (hp) => { p.mode = 'getup'; p.getupT = 0; p.hp = Math.min(p.cap(), hp); p.critical = false; emit('getup'); };
   function startBail(up = 3) {
-    // only a fall off the board sends the board flying (not a crash off the bicycle or okada)
-    const onBoard = p.mode === 'board' || p.mode === 'grind' || (p.mode === 'skitch' && !p.noBoard);
-    p.mode = 'bail'; p.bailT = 0; p.grind = p.skitch = p.trick = null; p.riding = null; p.airTricks = [];
+    p.mode = 'bail'; p.bailT = 0; p.skitch = null; p.riding = null;
     p.vel.y = Math.max(p.vel.y, up); p.onGround = false;
-    p.boardFly = onBoard ? { x: p.pos.x, y: p.pos.y + 0.1, z: p.pos.z, vx: p.vel.x * 0.6, vy: 4, vz: p.vel.z * 0.6, spin: 0 } : null;
     emit('bail');
   }
 
   p.tryPunch = () => {
     const pu = p.punch;
-    if (pu.cd > 0 || !['foot', 'board'].includes(p.mode) || p.climb) return null;
+    if (pu.cd > 0 || p.mode !== 'foot' || p.climb) return null;
     pu.combo = pu.t < 0.7 ? pu.combo + 1 : 0;
     pu.kick = pu.combo % 3 === 2;
     pu.side = pu.side === 'R' ? 'L' : 'R';
@@ -94,29 +88,6 @@ export function createPlayer(scene, world, traffic) {
     return { reach: pu.kick ? 2.0 : 1.75, dmg: 1, knock: pu.kick ? 7 : 3.5, kick: pu.kick };
   };
 
-  const TRICKS = { right: ['Kickflip', 0.42, 0, 1, 60], left: ['Heelflip', 0.42, 0, -1, 60], up: ['360 Flip', 0.55, 2, 1, 120], down: ['Shove-it', 0.36, 1, 0, 50], none: ['Kickflip', 0.42, 0, 1, 60] };
-  // body flips on the board: Space again in the air. Pull back = backflip, push forward = frontflip,
-  // left/right = 360 spin. Like a cat he finds a bit more air for it.
-  const BODY = { down: ['Backflip', 0.62, 0, -1, 150], none: ['Backflip', 0.62, 0, -1, 150], up: ['Frontflip', 0.62, 0, 1, 150], left: ['360 Spin', 0.5, -1, 0, 110], right: ['360 Spin', 0.5, 1, 0, 110] };
-  p.tryBodyFlip = () => {
-    if (p.mode !== 'board' || p.onGround || (p.trick && p.trick.t < p.trick.dur) || p.airT < 0.06 || p.prone) return false;
-    const m = p.lastMove, dir = Math.hypot(m.x, m.y) < 0.4 ? 'none' : Math.abs(m.x) > Math.abs(m.y) ? (m.x > 0 ? 'right' : 'left') : (m.y > 0 ? 'up' : 'down');
-    const [name, dur, spin, flip, pts] = BODY[dir];
-    p.vel.y = Math.max(p.vel.y, 0) + 4.2;
-    p.trick = { name, dur, spins: 0, flips: 0, body: true, bspin: spin, bflip: flip, pts, t: 0 };
-    p.airTricks.push({ name, pts });
-    emit('trick', { name });
-    return true;
-  };
-  p.tryTrick = () => {
-    if (p.mode !== 'board' || p.onGround || (p.trick && p.trick.t < p.trick.dur) || p.airT < 0.05 || p.prone) return false;
-    const m = p.lastMove, dir = Math.hypot(m.x, m.y) < 0.4 ? 'none' : Math.abs(m.x) > Math.abs(m.y) ? (m.x > 0 ? 'right' : 'left') : (m.y > 0 ? 'up' : 'down');
-    const [name, dur, spins, flips, pts] = TRICKS[dir];
-    p.trick = { name, dur, spins, flips, pts, t: 0 };
-    p.airTricks.push({ name, pts });
-    emit('trick', { name });
-    return true;
-  };
   // combat actions: lunge to the target, hit at the right frame of the animation, then recover
   const ACT = {
     jab: [0.26, 0.11], hook: [0.3, 0.13], knee: [0.32, 0.14], spin: [0.42, 0.22], flipkick: [0.55, 0.24],
@@ -137,7 +108,6 @@ export function createPlayer(scene, world, traffic) {
       if (kind === 'pounce') { act.lunge = act.hitAt; act.arc = 1.4 + d * 0.12; act.tyg = target.pos.y; }
       if (kind === 'throw') { act.tx = p.pos.x; act.tz = p.pos.z; act.lunge = 0; }
     } else { act.tx = p.pos.x; act.tz = p.pos.z; act.lunge = 0; }
-    if (p.mode === 'board') { p.boardFly = null; }
     p.mode = 'act'; p.act = act; p.vel.set(0, 0, 0);
     if (invuln) p.invuln = Math.max(p.invuln, act.dur);
     emit('act', { kind });
@@ -164,8 +134,7 @@ export function createPlayer(scene, world, traffic) {
   }
   // the cat leap: a long, high jump in the direction he's facing
   p.leap = (dir) => {
-    if (!['foot', 'board'].includes(p.mode) || !p.onGround || p.leapCd > 0 || p.energy < 8) return false;
-    if (p.mode === 'board') { p.mode = 'foot'; }
+    if (p.mode !== 'foot' || !p.onGround || p.leapCd > 0 || p.energy < 8) return false;
     const y = dir ? Math.atan2(dir[0], dir[1]) : p.yaw; p.yaw = y;
     const f = 0.8 + 0.2 * p.eff;
     p.vel.set(Math.sin(y) * 14 * f, 11 * f, Math.cos(y) * 14 * f); p.onGround = false; p.riding = null;
@@ -188,13 +157,13 @@ export function createPlayer(scene, world, traffic) {
   }
 
   // ---- shared physics: integrate, collide with the city and vehicles, find the ground ----
-  function physics(dt, { snap = 0.35, onBoard = false }: any = {}) {
+  function physics(dt, { snap = 0.35, steer = false }: any = {}) {
     // stand on a moving vehicle roof
     if (p.riding && p.onGround && p.mode !== 'skitch') {
       const v = p.riding;
       const rx = p.pos.x - v.pos.x, rz = p.pos.z - v.pos.z, a = v.yawRate * dt, c = Math.cos(a), s = Math.sin(a);
       p.pos.x = v.pos.x + rx * c + rz * s + v.vel.x * dt; p.pos.z = v.pos.z - rx * s + rz * c + v.vel.z * dt;
-      if (onBoard) p.heading += a; else p.yaw += a;
+      if (steer) p.heading += a; else p.yaw += a;
     }
     if (!p.onGround) p.vel.y -= G * dt;
     p.pos.x += p.vel.x * dt; p.pos.z += p.vel.z * dt; p.pos.y += p.vel.y * dt;
@@ -221,7 +190,7 @@ export function createPlayer(scene, world, traffic) {
     return { contacts, hit, landed: !wasGround && p.onGround };
   }
 
-  function vehicleHit(hit, onBoard) {
+  function vehicleHit(hit) {
     if (!hit || p.invuln > 0) return;
     if (hit.rel > 5.5 && hit.v.speed > 4) {
       const dmg = 14 + Math.min(20, hit.rel * 1.2);
@@ -229,7 +198,7 @@ export function createPlayer(scene, world, traffic) {
       p.hurt(dmg, p.pos.x - hit.nx, p.pos.z - hit.nz, 0);
       emit('carhit', { v: hit.v });
       if (p.mode !== 'down') startBail(5);
-    } else if (onBoard && hit.rel > 3) startBail(2);
+    }
   }
 
   // ---------------- modes ----------------
@@ -300,9 +269,7 @@ export function createPlayer(scene, world, traffic) {
     }
     if (inp.pressed.roll && !p.onGround) p.rollBuf = 0;
     if (inp.pressed.roll && p.onGround) { p.mode = 'roll'; p.rollT = 0; const d = mag > 0.1 ? Math.atan2(w.x, w.z) : p.yaw; p.yaw = d; p.vel.x = Math.sin(d) * 9.5; p.vel.z = Math.cos(d) * 9.5; p.invuln = 0.45; emit('roll'); return; }
-    if (inp.pressed.board && p.onGround && p.noBoard) emit('noBoard'); // by day the board stays hidden with the suit
-    else if (inp.pressed.board && p.onGround && !p.boardLost && !p.cuffed) { toBoard(); return; }
-    if (inp.pressed.skitch && p.onGround && (p.noBoard || !p.boardLost) && !p.cuffed) { const v = traffic.nearestSkitch(p.pos); if (v) { if (!p.noBoard) toBoard(); startSkitch(v); return; } }
+    if (inp.pressed.skitch && p.onGround && !p.cuffed) { const v = traffic.nearestSkitch(p.pos); if (v) { startSkitch(v); return; } }
 
     const ph = physics(dt, { snap: 0.4 });
     if (ph.landed) {
@@ -321,149 +288,7 @@ export function createPlayer(scene, world, traffic) {
         if (h > STEP && h < 1.5 && into < -0.5) { p.vel.y = Math.sqrt(2 * G * (h + 0.35)); p.onGround = false; p.vaultT = 0; emit('vault'); break; }
       }
     }
-    vehicleHit(ph.hit, false);
-  }
-
-  function toBoard() {
-    p.mode = 'board';
-    const hs = Math.hypot(p.vel.x, p.vel.z);
-    p.heading = hs > 1 ? Math.atan2(p.vel.x, p.vel.z) : p.yaw;
-    p.speed = Math.max(hs, 3.5);
-    emit('boardOn');
-  }
-  function toFoot() {
-    p.mode = 'foot';
-    p.yaw = p.heading;
-    const s = Math.min(p.speed, 9);
-    p.vel.x = Math.sin(p.heading) * s; p.vel.z = Math.cos(p.heading) * s;
-    emit('boardOff');
-  }
-
-  function skate(dt, inp, camYaw) {
-    const w = wishDir(inp, camYaw), mag = Math.min(1, w.length());
-    let pushing = 0;
-    // lying on the board: only once he's going fast; low, hard to spot, steer with the hands
-    if (inp.pressed.prone && p.onGround) { if (p.prone) { p.prone = false; emit('proneOff'); } else if (p.speed > 9) { p.prone = true; emit('proneOn'); } else emit('proneSlow'); }
-    if (p.prone && (p.speed < 2.2 || !p.onGround)) { p.prone = false; emit('proneOff'); }
-    if (p.prone && p.onGround) {
-      if (mag > 0.2) { const diff = wrap(Math.atan2(w.x, w.z) - p.heading); p.heading += clamp(diff, -2.6 * dt, 2.6 * dt); if (Math.cos(diff) > 0.5 && p.speed < 7) p.speed += 1.6 * dt; } // hands paddling
-      p.speed -= (0.12 + p.speed * 0.006) * dt; // less drag lying flat
-      p.speed = Math.max(0, p.speed);
-      p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed;
-    }
-    else if (p.onGround) {
-      if (mag > 0.2) {
-        const want = Math.atan2(w.x, w.z), diff = wrap(want - p.heading);
-        if (Math.abs(diff) > 2.3) p.speed -= 11 * dt; // pulling back = brake (foot drag)
-        else {
-          const rate = 3.4 - 1.7 * Math.min(1, p.speed / 16);
-          p.heading += clamp(diff, -rate * dt, rate * dt);
-          const fwd = Math.cos(diff) * mag;
-          const target = (inp.held.sprint ? 16.5 : 11.5) * (0.75 + 0.25 * p.eff);
-          if (fwd > 0.3 && p.speed < target) { p.speed += (p.speed < 6 ? 7 : inp.held.sprint ? 3.2 : 4) * dt * fwd; pushing = 1; }
-        }
-      }
-      p.speed -= (0.3 + p.speed * 0.012) * dt;
-      const cond = world.roadCond?.(p.pos.x, p.pos.z);
-      if (cond === 'flood') { p.speed -= p.speed * 1.6 * dt; if (Math.random() < dt * 6) emit('splash'); }
-      else if (cond === 'bad' && p.speed > 9) p.speed -= (p.speed - 9) * 1.2 * dt; // rough surface
-      p.speed = Math.max(0, p.speed);
-      p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed;
-      if (inp.pressed.jump) { p.vel.y = 7.6 + Math.min(1.8, p.speed * 0.1) + (inp.held.sprint ? 1.2 : 0); p.onGround = false; p.riding = null; p.airTricks = []; emit('ollie'); }
-      // potholes
-      p.holeCd -= dt;
-      if (p.speed > 4 && p.holeCd <= 0) for (const h of world.potholes) {
-        if ((p.pos.x - h.x) ** 2 + (p.pos.z - h.z) ** 2 < h.r * h.r) {
-          p.holeCd = 0.8; p.shake = 0.5; emit('pothole');
-          if (p.speed > 14) { startBail(3); return; }
-          p.speed *= 0.62; break;
-        }
-      }
-    } else {
-      // air: small rotation control, look for rails
-      if (mag > 0.2) { const want = Math.atan2(w.x, w.z); p.heading += clamp(wrap(want - p.heading), -2 * dt, 2 * dt); }
-      if (inp.pressed.jump && p.tryBodyFlip()) { /* flipping */ }
-      if (p.vel.y < 2 && tryGrind()) return;
-    }
-    if (inp.pressed.board && p.onGround) { p.prone = false; toFoot(); return; }
-    if (inp.pressed.skitch) { const v = traffic.nearestSkitch(p.pos); if (v) { startSkitch(v); return; } }
-    p.pushing = pushing;
-
-    if (p.trick) p.trick.t += dt;
-    if (p.onGround) { if (p.trick && p.trick.t >= p.trick.dur) p.trick = null; }
-    const ph = physics(dt, { snap: p.speed > 6 ? 0.25 : 0.35, onBoard: true });
-    if (ph.landed) {
-      const hs = Math.hypot(p.vel.x, p.vel.z);
-      const along = hs > 0.1 ? (p.vel.x * Math.sin(p.heading) + p.vel.z * Math.cos(p.heading)) / hs : 1;
-      if (p.trick && p.trick.t < p.trick.dur * (p.trick.body ? 0.85 : 0.7)) { emit('trickFail', { name: p.trick.name }); startBail(1); return; }
-      if (p.landVy < -16 || along < 0.3) { startBail(1); return; }
-      p.speed = hs * Math.max(0.5, along);
-      if (p.airTricks.length) { emit('trickLand', { names: p.airTricks.slice(), pts: p.airTricks.reduce((a, t) => a + t.pts, 0) + Math.round(p.airT * 40) }); p.airTricks = []; }
-      p.trick = null;
-    }
-    for (const c of ph.contacts) {
-      if (c.s.maxy - p.pos.y <= STEP) continue;
-      const into = -(Math.sin(p.heading) * c.nx + Math.cos(p.heading) * c.nz);
-      if (p.speed > 8.5 && into > 0.72) { emit('wallhit'); startBail(2); return; }
-      if (into > 0) {
-        p.speed *= 1 - into * 0.7 * Math.min(1, dt * 20);
-        // turn to slide along the wall
-        const tx = -c.nz, tz = c.nx, side = Math.sin(p.heading) * tx + Math.cos(p.heading) * tz >= 0 ? 1 : -1;
-        const along = Math.atan2(tx * side, tz * side);
-        p.heading += clamp(wrap(along - p.heading), -4 * dt, 4 * dt);
-      }
-    }
-    vehicleHit(ph.hit, true);
-  }
-
-  function tryGrind() {
-    if (p.grindCd > 0) return false;
-    for (const r of world.rails) {
-      if (r === p.lastRail && p.t - p.leftRailT < 0.9) continue;
-      const ax = r.a[0], az = r.a[2], bx = r.b[0], bz = r.b[2], y = r.a[1];
-      if (p.pos.y < y - 0.6 || p.pos.y > y + 0.95) continue;
-      const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz, L = Math.sqrt(L2);
-      let t = ((p.pos.x - ax) * dx + (p.pos.z - az) * dz) / L2;
-      if (t < 0.02 || t > 0.98) continue;
-      const cx = ax + dx * t, cz = az + dz * t;
-      if ((p.pos.x - cx) ** 2 + (p.pos.z - cz) ** 2 > 0.95 * 0.95) continue;
-      const ux = dx / L, uz = dz / L, va = p.vel.x * ux + p.vel.z * uz;
-      const dir = va >= 0 ? 1 : -1;
-      p.mode = 'grind';
-      p.grind = { r, s: t * L, L, ux, uz, y, dir, speed: Math.max(Math.abs(va), 5) };
-      p.heading = Math.atan2(ux * dir, uz * dir);
-      p.vel.y = 0; p.onGround = true; emit('grind');
-      return true;
-    }
-    return false;
-  }
-
-  function grind(dt, inp, camYaw) {
-    const g = p.grind;
-    g.s += g.dir * g.speed * dt; g.speed = Math.max(4, g.speed - 0.5 * dt);
-    p.pos.set(g.r.a[0] + g.ux * g.s, g.y, g.r.a[2] + g.uz * g.s);
-    p.speed = g.speed; p.vel.set(g.ux * g.dir * g.speed, 0, g.uz * g.dir * g.speed);
-    const off = g.s < 0 || g.s > g.L;
-    // ways off the rail: Space ollies off (steer to hop sideways), C hops off to the side, R steps off onto your feet
-    const hop = inp.pressed.jump, side = inp.pressed.roll, step = inp.pressed.board;
-    if (hop || side || step || off) {
-      const fx = g.ux * g.dir, fz = g.uz * g.dir;          // along the rail
-      let rx = -fz, rz = fx;                                 // one side of the rail
-      const m = inp.move, mag = Math.hypot(m.x, m.y);
-      let lat = 0;
-      if (mag > 0.2) { // which side is the player steering toward (camera-relative)?
-        const wx = Math.sin(camYaw) * m.y - Math.cos(camYaw) * m.x, wz = Math.cos(camYaw) * m.y + Math.sin(camYaw) * m.x;
-        lat = (wx * rx + wz * rz) / mag;
-      }
-      if (Math.abs(lat) < 0.3) lat = side || step ? 1 : 0.7; // no steering: still hop clear of the rail
-      const push = side || step ? 4.2 * Math.sign(lat || 1) : lat * 4.5;
-      p.grind = null; p.onGround = false; p.grindCd = 0.5; p.lastRail = g.r; p.leftRailT = p.t;
-      p.vel.x += rx * push; p.vel.z += rz * push;
-      p.vel.y = hop ? 6.8 : side || step ? 4.2 : 1.5;
-      p.mode = 'board';
-      if (hop) emit('ollie');
-      emit('grindEnd');
-    }
+    vehicleHit(ph.hit);
   }
 
   function startSkitch(v) {
@@ -487,10 +312,9 @@ export function createPlayer(scene, world, traffic) {
     const lost = !traffic.vehicles.includes(v) || (v.speed < 1 && s.t > 4);
     // the conductor shouts, but he can't shake you off
     if (letGo || lost) {
-      p.mode = p.noBoard ? 'foot' : 'board'; p.skitch = null; p.riding = null;
+      p.mode = 'foot'; p.skitch = null; p.riding = null;
       p.heading = v.yaw; p.yaw = v.yaw; p.speed = v.speed + (letGo ? 2.5 : 0);
       p.vel.set(Math.sin(p.heading) * p.speed, 0, Math.cos(p.heading) * p.speed);
-      if (inp.pressed.jump) { p.vel.y = 7; p.onGround = false; emit('ollie'); }
       emit('skitchEnd', { sling: letGo });
       return;
     }
@@ -498,7 +322,7 @@ export function createPlayer(scene, world, traffic) {
     const k = Math.min(1, dt * 14);
     p.pos.x += (_a.x - p.pos.x) * k; p.pos.z += (_a.z - p.pos.z) * k;
     const g = col.groundHeight(p.pos.x, p.pos.z, p.pos.y + 0.3);
-    p.pos.y = g.h + (p.noBoard ? 0.45 : 0); p.onGround = true; // on foot he hangs off the back ladder, feet up
+    p.pos.y = g.h + 0.45; p.onGround = true; // he hangs off the back ladder, feet up
     p.heading = v.yaw; p.speed = v.speed; p.vel.copy(v.vel);
   }
 
@@ -588,9 +412,7 @@ export function createPlayer(scene, world, traffic) {
     p.bailT += dt;
     if (p.onGround) { const f = Math.max(0, 1 - dt * 5); p.vel.x *= f; p.vel.z *= f; }
     physics(dt, { snap: 0.4 });
-    const b = p.boardFly;
-    if (b) { b.vy -= G * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.spin += dt * 9; if (b.y < p.lastGround) { b.y = p.lastGround; b.vy = Math.abs(b.vy) * 0.3; b.vx *= 0.6; b.vz *= 0.6; } }
-    if (p.bailT > 1.15) { p.mode = 'foot'; p.boardFly = null; p.yaw = p.heading; emit('recover'); }
+    if (p.bailT > 1.15) { p.mode = 'foot'; p.yaw = p.heading; emit('recover'); }
   }
 
   // ---------------- okada (stolen) ----------------
@@ -610,7 +432,7 @@ export function createPlayer(scene, world, traffic) {
   })();
   p.skills = {}; // taught by Coach Ayo: wire, wallrun2, leap2, roll, smoke2
   p.bike = null; // { x, z, yaw } where the bike stands when he's not on it
-  p.bikeMesh = bikeMesh; p.boardMesh = board;
+  p.bikeMesh = bikeMesh;
   // his SwiftDrop bicycle: a sturdy black roadster with a rack, given out with the job
   const cycleMesh = (() => {
     const g = new THREE.Group(), m = (c, mt = 0.4) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: mt });
@@ -640,7 +462,7 @@ export function createPlayer(scene, world, traffic) {
   function bike(dt, inp, camYaw) {
     const w = wishDir(inp, camYaw), mag = Math.min(1, w.length());
     let steer = 0;
-    if (inp.pressed.board) { getOffBike(); return; }
+    if (inp.pressed.off) { getOffBike(); return; }
     if (mag > 0.2) {
       const diff = wrap(Math.atan2(w.x, w.z) - p.heading);
       if (Math.abs(diff) > 2.4) p.speed -= 16 * dt; // pull back: brake
@@ -659,8 +481,8 @@ export function createPlayer(scene, world, traffic) {
     p.vel.x = Math.sin(p.heading) * p.speed; p.vel.z = Math.cos(p.heading) * p.speed; p.yaw = p.heading; // the route planner reads yaw
     p.lean += (clamp(-steer / Math.max(dt, 1e-3) * 0.18 * Math.min(1, p.speed / 10), -0.5, 0.5) - p.lean) * Math.min(1, dt * 6);
     const before = p.speed;
-    const { contacts, hit } = physics(dt, { onBoard: true });
-    if (hit && hit.rel > 6) { vehicleHit(hit, false); if (p.mode !== 'bike') { if (p.kind === 'bicycle') p.parkCycle(p.pos.x, p.pos.z, p.heading); else p.parkBike(p.pos.x, p.pos.z, p.heading); emit('bikeOff', { crash: true }); } return; }
+    const { contacts, hit } = physics(dt, { steer: true });
+    if (hit && hit.rel > 6) { vehicleHit(hit); if (p.mode !== 'bike') { if (p.kind === 'bicycle') p.parkCycle(p.pos.x, p.pos.z, p.heading); else p.parkBike(p.pos.x, p.pos.z, p.heading); emit('bikeOff', { crash: true }); } return; }
     if (contacts.length) {
       const c = contacts[0], into = -(Math.sin(p.heading) * c.nx + Math.cos(p.heading) * c.nz);
       if (into > 0.6 && before > 13) { getOffBike(true); return; }
@@ -707,11 +529,11 @@ export function createPlayer(scene, world, traffic) {
   // ---------------- main update ----------------
   p.update = (dt, inp, camYaw, time) => {
     p.events.length = 0;
-    p.t += dt; p.grindCd = Math.max(0, (p.grindCd || 0) - dt); p.invuln = Math.max(0, p.invuln - dt); p.hurtT += dt; p.lastWallT += dt; p.vaultT += dt; p.staggerT += dt;
+    p.t += dt; p.invuln = Math.max(0, p.invuln - dt); p.hurtT += dt; p.lastWallT += dt; p.vaultT += dt; p.staggerT += dt;
     p.punch.t += dt; p.punch.cd -= dt; p.guard = Math.max(0, p.guard - dt); p.shake = Math.max(0, p.shake - dt);
     p.rollBuf += dt; p.throwT += dt; p.flashT += dt; p.webT = (p.webT ?? 9) + dt;
     p.lastMove.x = inp.move.x; p.lastMove.y = inp.move.y;
-    p.aiming = !!inp.held.aim && !!p.holding && ['foot', 'board'].includes(p.mode);
+    p.aiming = !!inp.held.aim && !!p.holding && p.mode === 'foot';
     p.aimYaw = camYaw;
     p.leapCd -= dt;
     if (p.hurtT > 6 && p.hp < p.cap() && !['down', 'crawl'].includes(p.mode)) p.hp = Math.min(p.cap(), p.hp + dt * 2.2 * Math.max(0.6, p.eff)); // even hungry, he heals (slowly)
@@ -719,8 +541,6 @@ export function createPlayer(scene, world, traffic) {
     if (inp.pressed.skitch && !p.cuffed && ['foot', 'climb', 'wallrun'].includes(p.mode) && (!p.onGround || p.pos.y > 3)) { const h = p.wireNear(); if (h) { p.climb = null; p.wallrun = null; p.startZip(h); inp.pressed.skitch = false; } }
     switch (p.mode) {
       case 'foot': foot(dt, inp, camYaw); break;
-      case 'board': skate(dt, inp, camYaw); break;
-      case 'grind': grind(dt, inp, camYaw); break;
       case 'skitch': skitch(dt, inp, camYaw); break;
       case 'climb': climb(dt, inp); break;
       case 'wallrun': wallrun(dt, inp); break;
@@ -756,7 +576,6 @@ export function createPlayer(scene, world, traffic) {
   function pose(dt, time) {
     const hs = Math.hypot(p.vel.x, p.vel.z);
     let rate = 14, bodyYaw = p.yaw, lift = 0;
-    const onBoard = p.mode === 'board' || p.mode === 'grind' || (p.mode === 'skitch' && !p.noBoard); // by day he hangs on by hand
     switch (p.mode) {
       case 'foot':
         if (!p.onGround) {
@@ -767,25 +586,7 @@ export function createPlayer(scene, world, traffic) {
         else Pose.idle(rig, time, p.guard > 0);
         if (p.charge != null) { const k = Math.min(1, p.charge / 0.58); rig.set('hipsY', HIP_H - 0.08 - 0.32 * k); rig.set('thLX', -0.6 - 0.9 * k); rig.set('knLX', 0.9 + 1.2 * k); rig.set('thRX', -0.5 - 0.9 * k); rig.set('knRX', 0.9 + 1.2 * k); rig.set('ftLX', -0.3 * k); rig.set('ftRX', -0.3 * k); rig.set('spineX', 0.3 + 0.3 * k); rig.set('shLX', 0.5 * k); rig.set('shRX', 0.5 * k); rate = 20; }
         break;
-      case 'board': {
-        if (p.prone) { // flat on his belly on the board, hands out to steer
-          // face down, head forward, chest on the deck, hands gripping the front edges, feet up behind: ready to pop up
-          rig.reset(); rig.set('hipsY', 0.3); rig.set('hipsRX', 1.45); rig.set('neckX', -0.95); rig.set('headX', -0.35);
-          const pad = Math.sin(time * 9) * (p.speed < 7 ? 0.25 : 0);
-          rig.set('shLX', -1.25 + pad); rig.set('shRX', -1.25 - pad); rig.set('shLZ', 0.35); rig.set('shRZ', -0.35); rig.set('elLX', -1.0); rig.set('elRX', -1.0);
-          rig.set('thLX', 0.05); rig.set('thRX', 0.05); rig.set('thLZ', 0.12); rig.set('thRZ', -0.12); rig.set('knLX', 0.9); rig.set('knRX', 0.9);
-          bodyYaw = p.heading; lift = 0.115; rate = 14; break;
-        }
-        const air = !p.onGround;
-        const lean = clamp(wrap(p.heading - (p.prevHeading ?? p.heading)) / Math.max(dt, 1e-3) * 0.25, -1, 1);
-        Pose.skate(rig, time, { crouch: air ? 0.6 : 0.25 + Math.min(0.35, p.speed / 40), push: p.pushing ? 1 : 0, lean, air });
-        if (p.trick && p.trick.t < p.trick.dur) { Pose.trickAir(rig, p.trick.t / p.trick.dur); rate = 24; }
-        bodyYaw = p.heading - Math.PI / 2 + (p.pushing ? 0.55 : 0);
-        lift = 0.115;
-        break;
-      }
-      case 'grind': Pose.grind(rig, time); bodyYaw = p.heading - Math.PI / 2; lift = 0.115; break;
-      case 'skitch': if (p.noBoard) { Pose.climb(rig, 0.4); bodyYaw = p.heading; lift = 0; } else { Pose.skitch(rig, time); bodyYaw = p.heading - 0.3; lift = 0.115; } break;
+      case 'skitch': Pose.climb(rig, 0.4); bodyYaw = p.heading; break;
       case 'zip': rig.reset(); rig.set('hipsY', HIP_H); rig.set('shLX', -3.05); rig.set('shRX', -3.05); rig.set('elLX', -0.15); rig.set('elRX', -0.15); rig.set('thLX', -0.9); rig.set('thRX', -0.7); rig.set('knLX', 1.3); rig.set('knRX', 1.1); rig.set('spineX', -0.15 + Math.sin(time * 8) * 0.04); bodyYaw = p.zip ? p.zip.yaw : p.yaw; rate = 16; break;
       case 'climb': Pose.climb(rig, p.anim); bodyYaw = p.yaw; break;
       case 'wallrun': Pose.wallrun(rig, p.anim, p.wallrun?.side || 1); bodyYaw = p.yaw; rate = 18; break;
@@ -804,9 +605,9 @@ export function createPlayer(scene, world, traffic) {
       case 'crawl': Pose.crawl(rig, p.anim); rate = 10; break;
       case 'getup': Pose.getup(rig, p.getupT / 0.9); rate = 12; break;
     }
-    if (p.punch.t < 0.3 && (p.mode === 'foot' || p.mode === 'board')) { Pose.punch(rig, p.punch.side, p.punch.t / 0.28, p.punch.kick); rate = 30; }
+    if (p.punch.t < 0.3 && p.mode === 'foot') { Pose.punch(rig, p.punch.side, p.punch.t / 0.28, p.punch.kick); rate = 30; }
     if (p.staggerT < 0.55 && (p.mode === 'foot' || p.mode === 'act')) { Pose.hitReact(rig, p.staggerT / 0.55, p.hitSide ?? 0, p.hitPow ?? 0.5); rate = Math.max(rate, 22); }
-    if (p.holding && ['foot', 'board'].includes(p.mode)) { rig.set('shRX', p.aiming ? -2.6 : -2.1); rig.set('elRX', -1.3); rig.set('shRZ', -0.2); if (p.aiming) { bodyYaw = p.yaw; rig.set('chestY', -0.4); } }
+    if (p.holding && p.mode === 'foot') { rig.set('shRX', p.aiming ? -2.6 : -2.1); rig.set('elRX', -1.3); rig.set('shRZ', -0.2); if (p.aiming) { bodyYaw = p.yaw; rig.set('chestY', -0.4); } }
     if (p.hp < p.cap() * 0.6 && p.mode === 'foot' && p.onGround && hs < 0.4 && p.guard <= 0) { rig.set('spineX', 0.25); rig.set('shLX', -0.5); rig.set('elLX', -1.4); } // holding his side
     if (p.throwT < 0.35) { Pose.throw(rig, p.throwT / 0.35); rate = 30; }
     if (p.flashT < 0.5) Pose.flash(rig, p.flashT / 0.5);
@@ -815,17 +616,8 @@ export function createPlayer(scene, world, traffic) {
     if (p.cuffed && ['foot', 'roll', 'bail'].includes(p.mode)) { rig.set('shLX', 0.55); rig.set('shRX', 0.55); rig.set('shLZ', -0.3); rig.set('shRZ', 0.3); rig.set('elLX', -1.0); rig.set('elRX', -1.0); } // wrists cuffed behind his back
     rig.update(dt, rate);
     rig.root.position.set(p.pos.x, p.pos.y + lift, p.pos.z);
-    if (p.prone && p.mode === 'board') { rig.root.position.x -= Math.sin(p.heading) * 0.35; rig.root.position.z -= Math.cos(p.heading) * 0.35; } // chest over the deck
     const cur = rig.root.rotation.y;
-    rig.root.rotation.y = cur + wrap(bodyYaw - cur) * Math.min(1, dt * (onBoard ? 14 : 18));
-    const bt = p.mode === 'board' && p.trick?.body && p.trick.t < p.trick.dur ? p.trick : null;
-    if (bt) {
-      const k = Math.min(1, bt.t / bt.dur), e = k * k * (3 - 2 * k);
-      rig.root.rotation.order = 'YXZ';
-      rig.root.rotation.y = p.heading - Math.PI / 2 + bt.bspin * Math.PI * 2 * e;
-      rig.root.rotation.z = -bt.bflip * Math.PI * 2 * e;
-      _c.set(0, 0.85, 0); _c2.copy(_c).applyEuler(rig.root.rotation); rig.root.position.x += _c.x - _c2.x; rig.root.position.y += _c.y - _c2.y; rig.root.position.z += _c.z - _c2.z;
-    } else if (rig.root.rotation.z) rig.root.rotation.z = 0;
+    rig.root.rotation.y = cur + wrap(bodyYaw - cur) * Math.min(1, dt * 18);
     // flicker while invulnerable after a hit
     rig.root.visible = p.mode === 'ride' ? !!p.ride?.visible : true; // no blinking when hit: the body shows it
     const onCycle = p.mode === 'bike' && p.kind === 'bicycle', onOkada = p.mode === 'bike' && !onCycle;
@@ -833,20 +625,6 @@ export function createPlayer(scene, world, traffic) {
     else if (!p.bike) bikeMesh.visible = false;
     if (onCycle) { cycleMesh.visible = true; cycleMesh.position.set(p.pos.x, p.pos.y, p.pos.z); cycleMesh.rotation.set(0, p.heading, -(p.lean || 0), 'YXZ'); }
     else if (!p.cycle) cycleMesh.visible = false;
-    // board
-    const flying = p.mode === 'bail' && p.boardFly;
-    board.visible = onBoard || !!flying;
-    if (rig.backBoard) rig.backBoard.visible = !board.visible && !p.boardLost && !p.noBoard;
-    if (onBoard) {
-      board.position.set(p.pos.x, p.pos.y, p.pos.z);
-      let ry = 0, rz = 0;
-      if (p.trick && p.trick.t < p.trick.dur) { const k = Math.min(1, p.trick.t / p.trick.dur); ry = p.trick.spins * Math.PI * k; rz = p.trick.flips * Math.PI * 2 * k; }
-      board.rotation.set(!p.onGround && p.mode === 'board' ? -Math.max(-0.35, Math.min(0.35, p.vel.y * 0.06)) : 0, p.heading + ry, rz, 'YXZ');
-      if (bt) { board.quaternion.copy(rig.root.quaternion).multiply(_qy); board.position.copy(rig.root.position); }
-      if (rz) board.position.y += 0.18 * Math.sin(Math.min(1, p.trick.t / p.trick.dur) * Math.PI);
-    } else if (flying) {
-      const b = p.boardFly; board.position.set(b.x, b.y, b.z); board.rotation.set(b.spin, b.spin * 0.7, b.spin * 0.3);
-    }
   }
 
   void HIP_H;

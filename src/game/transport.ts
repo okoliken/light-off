@@ -87,9 +87,9 @@ export function createTransport(game) {
   // what each way of getting to `dest` costs right now (or why it's not possible)
   T.quote = (dest) => {
     const pp = player.pos, d = Math.round(Math.hypot(dest.x - pp.x, dest.z - pp.z));
-    const why = player.cuffed ? 'Nobody will carry a boy in handcuffs.' : game.heat > 0 ? 'Police are after you: no driver will stop.' : L.inside ? 'Go outside first.' : null;
+    const why = player.cuffed ? 'Nobody will carry a man in handcuffs.' : game.heat > 0 ? 'Police are after you: no driver will stop.' : L.inside ? 'Go outside first.' : null;
     const here = roadSpot(pp, 30), there = roadSpot(dest, 60);
-    const out: any = { dist: d, walk: { secs: Math.round(d / 4.5) }, skate: { secs: Math.round(d / 9) } };
+    const out: any = { dist: d, walk: { secs: Math.round(d / 4.5) } };
     for (const m of ['okada', 'keke']) out[m] = why ? { no: why } : !here ? { no: 'Get to a road first.' } : !there ? { no: 'No road goes there.' } : { fare: T.fare(here, there, m), secs: Math.round(d / (m === 'okada' ? 12 : 7.5)) };
     const bs = T.nearestStop(pp), bd = bs ? Math.round(Math.hypot(bs.x - pp.x, bs.z - pp.z)) : 0;
     // crossing to or from Lagos Island: the ferry is the smart way

@@ -1,5 +1,5 @@
 // All sound is synthesised with WebAudio: city hum, the neighbourhood's generators (louder when NEPA
-// takes light), board wheels on asphalt, grind scrape, wind, police siren, danfo horns, hits and stingers.
+// takes light), wind, police siren, danfo horns, hits and stingers.
 export function createAudio() {
   let ctx = null, master = null, L: any = {};
   const listener = { x: 0, z: 0 };
@@ -32,7 +32,6 @@ export function createAudio() {
     L.white = white;
     L.city = loop(brown, 'lowpass', 380);
     L.roll = loop(brown, 'lowpass', 220, 0.7); // wheels: low rumble, not hiss
-    L.grind = loop(white, 'bandpass', 2800, 4);
     L.wind = loop(brown, 'bandpass', 500, 0.4);
     L.rain = loop(white, 'bandpass', 1800, 0.5); // the hiss of rain on zinc roofs
     // generators: a low sawtooth chugging through an LFO-driven gain
@@ -82,14 +81,13 @@ export function createAudio() {
     if (!ctx) return;
     const p = game.player;
     listener.x = game.camera.cam.position.x; listener.z = game.camera.cam.position.z;
-    const onBoard = p.mode === 'board' && p.onGround, spd = Math.hypot(p.vel.x, p.vel.z);
+    const spd = Math.hypot(p.vel.x, p.vel.z);
     set(L.city, 0.05 + 0.1 * game.power);
     set(L.gen, 0.015 + 0.09 * (1 - game.power));
-    set(L.roll, onBoard ? Math.min(0.3, 0.06 + spd / 45) : p.mode === 'skitch' ? 0.22 : 0, 0.15);
+    set(L.roll, p.mode === 'skitch' ? 0.22 : 0, 0.15); // the vehicle he's hanging on to
     L.roll.f.frequency.setTargetAtTime(160 + Math.min(spd, 30) * 8, now(), 0.2);
     // pavement seams: a soft tick every ~1.8 m of rolling
-    if (onBoard || p.mode === 'skitch') { L.seam = (L.seam || 0) + spd / 60; if (L.seam > 1.8) { L.seam = 0; burst('lowpass', 700 + Math.random() * 200, 0.03, 0.05 + Math.min(0.05, spd / 400)); } }
-    set(L.grind, p.mode === 'grind' ? 0.22 : 0, 0.03);
+    if (p.mode === 'skitch') { L.seam = (L.seam || 0) + spd / 60; if (L.seam > 1.8) { L.seam = 0; burst('lowpass', 700 + Math.random() * 200, 0.03, 0.05 + Math.min(0.05, spd / 400)); } }
     set(L.wind, Math.min(0.14, Math.max(0, (spd - 12) / 70) + (p.onGround ? 0 : Math.min(0.06, -p.vel.y / 200))), 0.3);
     set(L.engine, p.mode === 'bike' && p.kind !== 'bicycle' ? 0.05 + Math.min(0.06, spd / 400) : 0, 0.1);
     if (p.mode === 'bike') L.engine.o.frequency.setTargetAtTime(38 + spd * 4.2, now(), 0.12);
@@ -101,7 +99,7 @@ export function createAudio() {
   A.setRain = (k) => { if (ctx && L.rain) L.rain.g.gain.setTargetAtTime(0.16 * k, ctx.currentTime, 0.4); };
   const guard = fn => (...a) => { if (ctx && A.enabled) fn(...a); };
   Object.assign(A, {
-    ollie: guard(() => { burst('highpass', 1800, 0.06, 0.5); tone('sine', 220, 90, 0.08, 0.3); }),
+    hop: guard(() => { burst('highpass', 1800, 0.06, 0.5); tone('sine', 220, 90, 0.08, 0.3); }),
     land: guard((hard = 0.5) => { tone('sine', 120, 40, 0.18, 0.3 + hard * 0.4); burst('lowpass', 500, 0.12, 0.3 * hard); }),
     step: guard(() => burst('bandpass', 1400, 0.03, 0.05, 2)),
     swing: guard(() => burst('bandpass', 900, 0.12, 0.12, 1.5)),

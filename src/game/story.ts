@@ -294,13 +294,13 @@ export function createStory(game, api) {
       scene: c => [
         'Adelabu Market, after midnight. The stalls are dark. A black car with no plate idles by the gate.',
         B('Red Cap', 'Load am quick! Chairman dey wait. Every kobo dey inside.'),
-        B('Bolaji', '(on a rooftop, strapping his board tight) Every kobo. Good.'),
+        B('Bolaji', '(on a rooftop, watching the road below) Every kobo. Good.'),
       ],
       focus: c => c.car.pos,
       steps: [
         { label: 'Get to Adelabu Market', text: () => 'Get to <b>Adelabu Market</b> before the car leaves', target: c => c.car.pos, check: c => near(c.car.pos, 30),
           done: c => { c.car.ai.parked = false; api.say('Red Cap', 'Na him! Drive! DRIVE!'); } },
-        { label: 'Chase the levy car', text: c => `<b>Chase the levy car</b>, then skitch onto it (E) and smash it (F) <b>(${Math.max(0, c.car.ai.health)} hits)</b>`, sub: c => c.lostT > 0 ? `YOU'RE LOSING IT · ${Math.ceil(12 - c.lostT)}s` : 'SKATE (R) AND PUSH (SHIFT) · SKITCH IT (E) · WHILE HOLDING ON, F SMASHES THE WINDOWS',
+        { label: 'Chase the levy car', text: c => `<b>Chase the levy car</b>, then hang on to it (E) and smash it (F) <b>(${Math.max(0, c.car.ai.health)} hits)</b>`, sub: c => c.lostT > 0 ? `YOU'RE LOSING IT · ${Math.ceil(12 - c.lostT)}s` : 'SPRINT (SHIFT) · HANG ON TO IT (E) · WHILE HOLDING ON, F SMASHES THE WINDOWS',
           target: c => c.car.pos,
           tick: (c, dt) => { c.lostT = near(c.car.pos, 140) ? 0 : c.lostT + dt; },
           fail: c => c.lostT > 12 && 'The levy car got away. The Chairman gets paid this week.',
@@ -457,7 +457,7 @@ export function createStory(game, api) {
           act: c => { const k = c.crates.find(q => !q.done && near(q, 2.2)); if (!k) return; k.done = true; game.scene.remove(k.m); game.fx.burst(k.x, 0.8, k.z, 0x8d6e63, 18, 4); game.audio.punch(); game.addRespect(150, 'CRATE WRECKED'); },
           check: c => c.crates.every(k => k.done),
           done: c => api.scene([
-            'Under the last crate, a school notebook. Names, and next to one of them, in red biro: "KOLADE. MECHANIC. FIXES STREET CAT\'S BOARD."',
+            'Under the last crate, a school notebook. Names, and next to one of them, in red biro: "KOLADE. MECHANIC. PATCHES STREET CAT\'S SUIT."',
             B('Bolaji', 'They know about Baba Kolade.'),
           ], c.stash, null, 'THE NOTEBOOK') },
         { home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home, enter: c => api.tails(c.alarm ? c.tails + 1 : c.tails) },
@@ -468,11 +468,11 @@ export function createStory(game, api) {
     {
       id: 'kolade', title: "The Chairman's Message", hint: 'Baba Kolade at the motor park',
       morning: () => [
-          'Morning. Baba Kolade\'s workshop is open like nothing happened. A new padlock on the door. A new board strap left on your step, no note.',
+          'Morning. Baba Kolade\'s workshop is open like nothing happened. A new padlock on the door. A roll of black thread left on your step, no note.',
           B('Mama', 'Kolade the mechanic sent you something. Since when are you and that old man friends?'),
       ],
       radio: 'Eyewitnesses say Red Caps drag Baba Kolade, the Ojuelegba mechanic, comot for im workshop go the motor park. Dem dey shout say na message for "Street Cat".',
-      intro: 'The radio said it: the Red Caps dragged Baba Kolade (the mechanic who helped build your board) out of his workshop to the motor park. The Chairman wants to send a message to "Street Cat".',
+      intro: 'The radio said it: the Red Caps dragged Baba Kolade (the mechanic who looks out for you) out of his workshop to the motor park. The Chairman wants to send a message to "Street Cat".',
       setup() {
         const m = api.motorpark;
         const kolade = V({ x: m.x, z: m.z + 5, yaw: Math.PI, outfit: { ...ELDER, top: '#37474f', cap: null }, mood: 'captive' }); kolade.name = 'Baba Kolade';
@@ -484,8 +484,8 @@ export function createStory(game, api) {
       },
       scene: c => [
         'Ojuelegba Motor Park. The danfos are parked for the night. Baba Kolade is on his knees in the middle of it all.',
-        B('Red Cap', 'Old man, who be Street Cat? Who fix im board?'),
-        B('Baba Kolade', 'I fix every board in Surulere. Ask them.'),
+        B('Red Cap', 'Old man, who be Street Cat? Who dey help am?'),
+        B('Baba Kolade', 'I fix every okada in Surulere. Ask them.'),
         B('Red Cap', 'Scorpion go soon come. Then you go talk.'),
       ],
       focus: c => c.m,
@@ -516,7 +516,7 @@ export function createStory(game, api) {
         {
           home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
-            B('Baba Kolade', 'Bolaji. I know it is you. I know my own board.'),
+            B('Baba Kolade', 'Bolaji. I know it is you. I know the way you walk.'),
             B('Baba Kolade', 'If the police are coming to Aguda, they are coming for your street. Your mother\'s street.'),
             B('Bolaji', 'Then I\'ll be there first.'),
           ], c.kolade.pos, () => api.tails(c.tails), 'BABA KOLADE'),
@@ -951,7 +951,7 @@ export function createStory(game, api) {
     const well = [], better = [];
     if (hits <= 2) well.push('Barely touched: ' + (hits ? `only ${hits} hit${hits > 1 ? 's' : ''} taken.` : 'not a scratch.')); else if (hits > 8) better.push(`You took ${hits} hits. Watch for the "!" and counter (C), dodge the red ones.`);
     if (moves.length) well.push('Signature moves: ' + moves.slice(0, 4).map(m => m.toLowerCase()).join(', ') + '.'); else better.push('Try a signature move: drop from a roof for a Cat Drop, pounce (V) from above, chain pounces.');
-    if (secs < 5) {} else if (fast) well.push(`Quick: done in ${fmt(secs)} (par ${fmt(par)}).`); else better.push(`Took ${fmt(secs)}. Skitch, skate or ride a danfo to get there faster.`);
+    if (secs < 5) {} else if (fast) well.push(`Quick: done in ${fmt(secs)} (par ${fmt(par)}).`); else better.push(`Took ${fmt(secs)}. Hang on to traffic or ride a danfo to get there faster.`);
     if (scouted === true) well.push('You scouted it in daylight first.'); else if (scouted === false) better.push('Next time look at the place in daylight first: the intel makes the night easier.');
     if (best >= 10) well.push(`A ${best}-hit combo.`);
     if (returned > 0) well.push(`₦${returned.toLocaleString()} back where it belongs.`);
