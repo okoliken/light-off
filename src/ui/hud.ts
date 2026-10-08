@@ -543,7 +543,7 @@ export function createHUD(root, world) {
   function menuShell({ kind, header, items, hints = true }: any) {
     menuCleanup?.();
     el.overlays.innerHTML = `<div class="overlay mm mm-${kind}"><div class="mm-shade"></div>
-      <div class="mm-left">${header}<nav class="mm-items">${items.map((it, i) => `<button class="mm-item" data-i="${i}" ${it.attr || ''}><span class="n">0${i + 1}</span><span class="l">${it.label}${it.sub ? `<small>${it.sub}</small>` : ''}</span></button>`).join('')}</nav></div>
+      <div class="mm-left">${header}<nav class="mm-items">${items.map((it, i) => `<button class="mm-item" data-i="${i}" ${it.attr || ''}><span class="n">${String(i + 1).padStart(2, '0')}</span><span class="l">${it.label}${it.sub ? `<small>${it.sub}</small>` : ''}</span></button>`).join('')}</nav></div>
       <aside class="mm-panel"><div class="mm-ph"><h2></h2><button class="mm-back">ESC · BACK</button></div><div class="mm-pb"></div></aside>
       ${hints ? `<div class="mm-hints"><span><kbd>↑</kbd><kbd>↓</kbd> Select</span><span><kbd>Enter</kbd> / <kbd class="p">${padType === 'ps' ? '✕' : 'A'}</kbd> Confirm</span><span><kbd>Esc</kbd> / <kbd class="p">${padType === 'ps' ? '○' : 'B'}</kbd> Back</span></div>` : ''}</div>`;
     const root = el.overlays.querySelector('.mm'), btns = [...root.querySelectorAll('.mm-item')], panel = root.querySelector('.mm-panel');
@@ -623,12 +623,12 @@ export function createHUD(root, world) {
     // two ways to play: Story (Bolaji's life and the hunt for the General, always continues where you left
     // off; no level select) and Patrol (endless free roam in the suit). Each keeps its own save.
     const go = (mode, fresh) => { M.destroy(); onStart({ quality: q, fresh, mode }); };
-    const confirm = (m, mode) => m.open('START OVER?', '<p class="mm-note big">Your saved ' + (mode === 'free' ? 'patrol' : 'story') + ' will be erased: money, job, mission progress, everything.</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
+    const confirm = (m, mode) => m.open('START OVER?', '<p class="mm-note big">' + (mode === 'free' ? 'Your saved patrol will be erased: money, job, everything.' : 'Your mission progress will be erased.') + '</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
       (p) => { p.querySelector('[data-yes]').onclick = () => go(mode, true); p.querySelector('[data-no]').onclick = m.close; });
-    if (o.life) items.push({ label: 'Continue', sub: `Missions · ${o.life.phase === 'night' ? 'Night' : 'Day'} ${o.life.night}${o.life.wallet != null ? ' · ₦' + o.life.wallet.toLocaleString() : ''}`, attr: 'data-start', action: () => go('story', false) });
-    items.push({ label: o.life ? 'New missions' : 'Missions', sub: 'Ten missions, in order. A rider by day, the boy in black by night. Bring down the General.', attr: o.life ? 'data-new' : 'data-start', action: (m) => o.life ? confirm(m, 'story') : go('story', true) });
-    items.push({ label: 'Patrol', sub: o.free ? `Endless free roam · Night ${o.free.night}` : 'Free roam · no story, no missions · just Lagos and the police', attr: 'data-patrol', action: (m) => {
-      m.open('PATROL', `<p class="mm-story">No story, no missions. Just Lagos and the boy in black: rooftops, the board, people who need help, and the police on your tail.</p><div class="mm-row">${o.free ? '<button class="mm-btn hot" data-nav data-pgo data-default>Continue patrol</button><button class="mm-btn" data-nav data-pnew>New patrol</button>' : '<button class="mm-btn hot" data-nav data-pnew data-default>Start patrol</button>'}</div>`,
+    if (o.life) items.push({ label: 'Continue', sub: `Missions · ${Math.min(o.life.done, 10)} of 10 complete`, attr: 'data-start', action: () => go('story', false) });
+    items.push({ label: o.life ? 'New missions' : 'Missions', sub: 'Ten missions, one after another. Each one has a job to do: fail it and you go again. Bring down the General.', attr: o.life ? 'data-new' : 'data-start', action: (m) => o.life ? confirm(m, 'story') : go('story', true) });
+    items.push({ label: 'Patrol', sub: o.free ? `Free roam · Day ${o.free.night}` : 'Free roam · no story · SwiftDrop shifts, street crime, the suit, the police', attr: 'data-patrol', action: (m) => {
+      m.open('PATROL', `<p class="mm-story">No story, no missions. Bolaji's life, your way: SwiftDrop shifts by day, the suit by night, robberies, snatchers, rooftop runs, and the police on your tail.</p><div class="mm-row">${o.free ? '<button class="mm-btn hot" data-nav data-pgo data-default>Continue patrol</button><button class="mm-btn" data-nav data-pnew>New patrol</button>' : '<button class="mm-btn hot" data-nav data-pnew data-default>Start patrol</button>'}</div>`,
         (p) => { p.querySelector('[data-pgo]')?.addEventListener('click', () => go('free', false)); p.querySelector('[data-pnew]').onclick = () => go('free', true); });
     } });
     items.push({ label: 'The story', action: (m) => m.open('THE STORY SO FAR', storyPanel()) });
@@ -637,6 +637,26 @@ export function createHUD(root, world) {
     const M = menuShell({ kind: 'title', header: logo(false), items });
   };
 
+  // Missions mode, between missions: the briefing, the result, the retry. o.list from general.list()
+  H.missions = (o) => {
+    const L = o.list, done = L.filter(m => m.done).length;
+    const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.round(t) % 60).padStart(2, '0')}`;
+    const when = (m) => m.time === 'night' ? 'Night · in the suit' : 'Day · in your SwiftDrop work clothes';
+    const play = (i) => { M.destroy(); o.onPlay(i); };
+    const brief = (m, i) => { const q = L[i]; m.open(`MISSION ${i + 1} · ${q.title.toUpperCase()}`, `<p class="mm-story">${q.brief}</p><p class="mm-note">${when(q)}</p>
+      <div class="mm-missions">${q.steps.map((st, k) => `<div class="mmr"><span class="n">${k + 1}</span><span class="t"><b>${st.label}</b>${st.limit ? `<i>⏱ ${fmt(st.limit)} on the clock</i>` : ''}</span></div>`).join('')}</div>
+      <div class="mm-row"><button class="mm-btn hot" data-nav data-go data-default>Start mission</button></div>`, (p) => { p.querySelector('[data-go]').onclick = () => play(i); }); };
+    const all = (m) => m.open('ALL MISSIONS', `<div class="mm-missions">${L.map((q, i) => `<div class="mmr ${q.done ? 'done' : q.open ? 'cur' : 'locked'}"><span class="n">${i + 1}</span><span class="t"><b>${q.open ? q.title : 'Locked'}</b><i>${q.done ? 'Completed · ' + (q.time === 'night' ? 'night' : 'day') : q.open ? when(q) : 'Finish the one before it first'}</i></span>${q.open ? `<button class="mm-btn ${q.done ? '' : 'hot'}" data-nav data-m="${i}" ${q.done ? '' : 'data-default'}>${q.done ? 'Replay' : 'Play'}</button>` : '<span class="lock">LOCKED</span>'}</div>`).join('')}</div>`,
+      (p) => p.querySelectorAll('[data-m]').forEach((b: any) => b.onclick = () => brief(m, +b.dataset.m)));
+    const items: any[] = [];
+    if (o.retry != null) items.push({ label: 'Retry', sub: 'Straight back in, from the start', attr: 'data-retry', action: () => play(o.retry) });
+    if (o.next != null && L[o.next]) items.push({ label: o.retry != null || o.replay != null ? 'Next mission' : 'Play', sub: `Mission ${o.next + 1} · ${L[o.next].title}`, attr: 'data-next', action: (m) => brief(m, o.next) });
+    if (o.replay != null) items.push({ label: 'Replay', sub: L[o.replay].title, action: () => play(o.replay) });
+    items.push({ label: 'All missions', sub: `${done} of ${L.length} complete`, action: all });
+    items.push({ label: 'Quit to title', action: () => o.onQuit() });
+    const M = menuShell({ kind: 'pause', header: `<div class="mm-logo small"><div class="mm-kicker">${o.kicker}</div><h1>${o.title}</h1>${o.text ? `<p class="mm-sum">${o.text}</p>` : ''}</div>`, items });
+    if (o.brief != null && L[o.brief]) brief(M, o.brief);
+  };
   H.pause = (onResume, missions, onJump, opts) => {
     const resume = () => { M.destroy(); onResume(); };
     const done = missions.filter(m => m.done).length;
@@ -649,6 +669,8 @@ export function createHUD(root, world) {
     };
     const items = [
       { label: 'Resume', attr: 'data-go', action: resume },
+      opts.onRestart && { label: 'Restart mission', sub: 'From the start, right now', action: () => { M.destroy(); opts.onRestart(); } },
+      opts.onMissions && { label: 'Mission list', sub: 'Leave this mission', action: () => { M.destroy(); opts.onMissions(); } },
       opts.mode !== 'patrol' && { label: 'Missions', sub: `${done} of ${missions.length} complete`, attr: 'data-ms', action: (m) => m.open('CHAPTER 1 · MISSIONS',
         `<div class="mm-missions">${missions.map((ms, i) => `<div class="mmr ${ms.done ? 'done' : ms.current ? 'cur' : 'locked'}"><span class="n">${i + 1}</span><span class="t"><b>${ms.current || ms.done ? ms.title : 'Locked'}</b><i>${ms.done ? 'Completed' : ms.current ? (ms.unlocked ? 'Current · ready tonight' : 'Current · listen to the radio for a lead') : 'Finish the current mission first'}</i></span>${ms.done ? `<button class="mm-btn" data-nav data-m="${i}">Replay</button>` : ms.current ? `<button class="mm-btn hot" data-nav data-m="${i}">Play now</button>` : '<span class="lock">LOCKED</span>'}</div>`).join('')}</div>`,
         (p) => p.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { M.destroy(); onJump(+b.dataset.m); })) },

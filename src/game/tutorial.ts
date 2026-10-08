@@ -82,7 +82,7 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
     if (inp.held.sprint && hs > 5.5) s.sprinted += dt;
     if (player.mode === 'foot' && !player.onGround) s.jumped = true;
     s.mode = player.mode; s.speed = player.speed || hs;
-    s.free = game.sub === 'free';
+    s.free = game.sub !== 'free'; // no job outside Patrol
     for (const e of player.events || []) { s.ev.add(e.e); if (e.e === 'jump' && (e.power || 0) > 0.35) s.charged = true; }
     if (game.sense) s.sensed += dt;
     s.onGround = player.onGround; if (player.pos.y > 4 && player.onGround) { s.highUp = true; s.wasHigh = true; }

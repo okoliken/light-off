@@ -91,7 +91,15 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   if (quality && quality !== settings.quality) applyQuality(quality);
   audio.start();
   hud.setHudVisible(true);
-  if (mode === 'story' || mode === 'free') { // story: Bolaji's life + the General · free: endless patrol. Each has its own save
+  if (mode === 'story') { // Missions: one after another, nothing in between. Its save is just how far you've got
+    game.mode = 'patrol'; game.sub = 'story';
+    if (lifeSaved && !fresh) game.applySave(lifeSaved); else game.clearSave('story');
+    game.pendingResume = null; game.interrupted = null;
+    const n = game.general.list().findIndex(m => !m.done);
+    showMissions({ kicker: 'MISSIONS', title: 'THE GENERAL', next: n < 0 ? null : n, brief: n < 0 ? null : n });
+    return;
+  }
+  if (mode === 'free') { // Patrol: Bolaji's life, free roam, the job, street crime. Its own save
     game.mode = 'patrol'; game.sub = mode;
     const sv = mode === 'free' ? freeSaved : lifeSaved;
     if (sv && !fresh) game.applySave(sv); else game.clearSave(mode);
@@ -100,10 +108,10 @@ hud.title(saved ? { night: saved.night, phase: saved.phase, mission: game.story.
   } else if (saved && !fresh) { game.applySave(saved); if (saved.phase === 'night') { game.startDay(); game.toNight(); } else game.startDay(); game.restoreSnap(saved.snap); }
   else { game.clearSave(); game.startDay(); }
   state = 'play'; input.lock();
-  if (!tutorial.done()) setTimeout(() => tutorial.start(), 1200); // first time: learn by doing
+  if (!tutorial.done() && game.sub === 'free') setTimeout(() => tutorial.start(), 1200); // first time: learn by doing
   if (game.pendingResume) { const id = game.pendingResume; game.pendingResume = null; setTimeout(() => game.story.resumePending(id), 800); }
   else if (game.interrupted) { hud.notice('MISSION INTERRUPTED', `"${game.interrupted}" was cut short. Start it again from your door tonight.`, 'blue'); game.interrupted = null; }
-}, { quality: settings.quality, sound: settings.sound, onSound: applySound, presets: PRESETS, life: lifeSaved ? { night: lifeSaved.night, phase: lifeSaved.phase, wallet: lifeSaved.life?.wallet } : null, free: freeSaved ? { night: freeSaved.night } : null });
+}, { quality: settings.quality, sound: settings.sound, onSound: applySound, presets: PRESETS, life: lifeSaved ? { done: lifeSaved.general?.ch || 0 } : null, free: freeSaved ? { night: freeSaved.night } : null });
 
 function showControls(first = false) { openMenu(done => hud.controlsCard(done, first)); }
 hud.onHelpBar((k) => { if (state !== 'play') return; if (k === 'pause') { document.exitPointerLock?.(); pause(); } else if (k === 'controls') showControls(); else { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); } });
@@ -112,6 +120,18 @@ const tutorial = createTutorial(hudRoot, { game, player, camera, input, touch })
 // menus opened from inside the game pause it
 function openMenu(show) { state = 'overlay'; document.exitPointerLock?.(); show(() => { state = 'play'; input.lock(); }); }
 game.onRideMenu = (stop) => openMenu(done => hud.rideMenu(stop, game.transport.options(stop), (to, mode) => { done(); game.transport.board(stop, to, mode); }, done));
+// Missions mode: the mission list, the briefing, the result and the retry (between missions, the game waits)
+const pendingCards: any[] = [];
+function showMissions(o) {
+  state = 'overlay'; document.exitPointerLock?.(); hud.setHudVisible(false);
+  hud.missions({ ...o, list: game.general.list(),
+    onPlay: (i) => { game.playMission(i); hud.setHudVisible(true); audio.start(); state = 'play'; input.lock(); },
+    onQuit: () => location.reload() });
+}
+const card = (f) => { if (state === 'play') f(); else pendingCards.push(f); };
+game.onMissionDone = (r) => card(() => showMissions({ kicker: `MISSION ${r.i + 1} COMPLETE`, title: r.title.toUpperCase(), text: `Done in ${Math.floor(r.secs / 60)}:${String(Math.round(r.secs) % 60).padStart(2, '0')}.`, next: r.next, replay: r.i }));
+game.onMissionFailed = (r) => card(() => showMissions({ kicker: `MISSION ${r.i + 1} FAILED`, title: r.title.toUpperCase(), text: r.why, retry: r.i }));
+{ const cap = game.capturedByHunter; game.capturedByHunter = () => { if (game.sub === 'story' && game.general.case.on) game.general.fail('The Hunter pinned you and carried you off.'); else cap(); }; }
 game.onMissionComplete = (r) => { if (state === 'play') openMenu(done => hud.missionReport(r, done)); else pendingReports.push(r); };
 const pendingReports: any[] = [];
 game.onArrestHint = () => openMenu(done => hud.arrestCard(done));
@@ -145,8 +165,8 @@ function endNight(ending) {
   });
 }
 game.onSleep = () => endNight(L.caught ? 'dawn' : 'sleep');
-game.onBeaten = () => endNight('beaten');
-game.onJailed = () => endNight('arrested');
+game.onBeaten = () => game.sub === 'story' ? game.general.fail('They beat you down.') : endNight('beaten');
+game.onJailed = () => game.sub === 'story' ? game.general.fail('You were arrested.') : endNight('arrested');
 game.onChapterComplete = () => { state = 'overlay'; document.exitPointerLock?.(); hud.setHudVisible(false); hud.chapter(() => { state = 'play'; hud.setHudVisible(true); input.lock(); }); };
 
 document.addEventListener('pointerlockchange', () => {
@@ -159,7 +179,9 @@ function pause(openBoard = false) {
   const S = game.story, list = S.missions.map((m, i) => ({ title: m.title, done: i < S.progress(), current: i === S.progress(), unlocked: i < S.unlocked }));
   const resume = () => { state = 'play'; hud.setHudVisible(true); input.lock(); audio.start(); };
   hud.pause(resume, list, (i) => { resume(); game.jumpToMission(i); }, { quality: settings.quality, sound: settings.sound, onSound: applySound, presets: PRESETS, onQuality: applyQuality,
-    mode: game.mode, tutorial: { active: tutorial.active, skip: () => { tutorial.stop(); resume(); }, replay: () => { resume(); tutorial.start(); }, replayNight: () => { resume(); tutorial.start('night'); } }, board: () => game.patrolBoard(), onWaypoint: (e) => { game.setWaypoint(e); resume(); }, openBoard, rank: game.rank() });
+    mode: game.mode, tutorial: { active: tutorial.active, skip: () => { tutorial.stop(); resume(); }, replay: () => { resume(); tutorial.start(); }, replayNight: () => { resume(); tutorial.start('night'); } }, board: () => game.patrolBoard(), onWaypoint: (e) => { game.setWaypoint(e); resume(); }, openBoard, rank: game.rank(),
+    onRestart: game.sub === 'story' && game.general.case.on ? () => { resume(); game.playMission(game.general.case.ch); } : null,
+    onMissions: game.sub === 'story' ? () => { game.general.abandon(); showMissions({ kicker: 'MISSIONS', title: 'THE GENERAL', next: game.general.case.ch }); } : null });
 }
 canvas.addEventListener('click', () => { if (state === 'play' && !document.pointerLockElement) input.lock(); });
 
@@ -189,6 +211,7 @@ function frame() {
   if (state === 'play' && cinema.active) state = 'scene';                // never leave a scene half-open behind a menu
   if (state === 'play' && pendingScenes.length) game.playScene(...pendingScenes.shift());
   else if (state === 'play' && pendingReports.length) game.onMissionComplete(pendingReports.shift());
+  else if (state === 'play' && pendingCards.length) pendingCards.shift()();
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
   touch?.show(state === 'play' && DEMO !== 'hunter');
@@ -198,7 +221,7 @@ function frame() {
     if (inp.pressed.pause) { document.exitPointerLock?.(); pause(); }
     if (inp.pressed.map) { tutorial.event('map'); state = 'overlay'; document.exitPointerLock?.(); hud.openMap(game, () => { input.poll(); state = 'play'; input.lock(); }); }
     if (inp.pressed.help) showControls();
-    if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub !== 'free') tutorial.event('job'), openMenu(done => hud.jobSheet({ ...game.job.sheet(), case: game.general.caseFile() }, done));
+    if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub === 'free') tutorial.event('job'), openMenu(done => hud.jobSheet({ ...game.job.sheet(), case: game.general.caseFile() }, done));
     game.update(dt, DEMO === 'hunter' ? { ...inp, move: { x: 0, y: 0 }, held: {}, pressed: {} } : inp);
     tutorial.update(dt, inp);
     if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
@@ -258,7 +281,7 @@ if (DEMO === 'hunter') {
   setTimeout(() => {
     hud.destroyMenus?.(); hudRoot.querySelectorAll('.overlay').forEach((o) => o.remove());
     audio.start(); game.save = () => {}; // a demo never touches your saves
-    game.mode = 'patrol'; game.sub = 'free'; game.startPatrol(true); game.life.suit = false; game.heat = 0;
+    game.mode = 'patrol'; game.sub = 'demo'; game.startPatrol(true); game.life.suit = false; game.heat = 0;
     hud.setHudVisible(false); state = 'play';
     game.hunter.demo();
     const cap = document.createElement('div'); cap.className = 'demo-cap';
@@ -272,7 +295,7 @@ if (DEMO === 'suit') {
   setTimeout(() => {
     hudRoot.querySelectorAll('.overlay').forEach((o) => o.remove());
     audio.start(); game.save = () => {};
-    game.catSuit = true; game.hunter.demoing = true; game.mode = 'patrol'; game.sub = 'free'; game.startPatrol(true); game.heat = 0;
+    game.catSuit = true; game.hunter.demoing = true; game.mode = 'patrol'; game.sub = 'demo'; game.startPatrol(true); game.heat = 0;
     hud.setHudVisible(false); state = 'play'; input.lock();
     const cap = document.createElement('div'); cap.className = 'demo-cap';
     cap.innerHTML = '<b style="color:#ffb000">THE CAT</b><span>The new suit. Move with WASD (or the stick) to see it run, climb and leap; leave it still and the camera circles him.</span>';

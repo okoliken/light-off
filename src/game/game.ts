@@ -503,12 +503,12 @@ export function createGame(ctx) {
     if (L.inside) return roomOption();
     if (!['foot', 'board'].includes(player.mode) || (player.mode === 'board' && !player.onGround)) return null;
     const busy = game.thugs.some(t => t.alive && (t.state === 'windup' || t.state === 'strike') && dist2(t.pos, player.pos) < 9);
-    { const tl = DAY.pois.tailor; if (tl && !(game.sub !== 'free' && game.general.case.ch === 7) && !L.suit && (L.suitHP ?? 100) < 100 && dist2(tl, player.pos) < 4 * 4) return { kind: 'tailor', text: `<span class="key">F</span>Sunny Tailoring: a new black suit, no questions asked (₦8,000 · yours is ${Math.round(L.suitHP)}%)` }; }
+    { const tl = DAY.pois.tailor; if (tl && !(game.sub === 'story' && game.general.case.ch === 7) && !L.suit && (L.suitHP ?? 100) < 100 && dist2(tl, player.pos) < 4 * 4) return { kind: 'tailor', text: `<span class="key">F</span>Sunny Tailoring: a new black suit, no questions asked (₦8,000 · yours is ${Math.round(L.suitHP)}%)` }; }
     if (game.dropped && dist2(game.dropped.mesh.position, player.pos) < 2.4 * 2.4) return { kind: 'pickup', text: `<span class="key">F</span>Pick up ${game.dropped.item.label}` };
     if (game.carrying && game.delivery && dist2(game.delivery, player.pos) < 3.6 * 3.6) return { kind: 'deliver', text: `<span class="key">F</span>Give it back to ${game.delivery.name}` };
     if (busy) return null;
     // what he's here to do comes first: the parcel, the case, Coach Ayo
-    if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo && jo.kind !== 'none') return jo; }
+    if (game.mode === 'patrol' && game.sub === 'free') { const jo = game.job.option(); if (jo && jo.kind !== 'none') return jo; }
     if (game.mode === 'patrol') { const co = game.general.option(); if (co) return co; }
     { const ca = game.coach.option(); if (ca && ca.kind !== 'none') return ca; }
     // okadas: his own (where he left it), or somebody else's
@@ -538,7 +538,7 @@ export function createGame(ctx) {
     if (shop && !player.cuffed) return { kind: 'shop', shop, text: mallOpen() ? `<span class="key">F</span>Go into <b>${shop.name}</b>` : `<b>${shop.name}</b> · closed (9 AM to 9 PM)` };
     const ro = game.police.option(); if (ro) return ro;
     const so = game.story.option?.(); if (so) return so;
-    const ao = game.activities.option(); if (ao) return ao;
+    const ao = game.sub !== 'story' && game.activities.option(); if (ao) return ao;
     if (dist2(world.homeDoor, player.pos) < 2.8 * 2.8) {
       if (L.watched()) return { kind: 'none', text: '<b>Someone is watching you.</b> Lose them before you go in.' };
       if (player.fightingNear) return { kind: 'none', text: '<b>Deal with the Red Caps first.</b> Don\'t fight at your own gate.' };
@@ -550,7 +550,7 @@ export function createGame(ctx) {
     if (!player.cuffed && !player.bike) { const ok = traffic.vehicles.find(v => v.type === 'okada' && (v.kind === 'traffic' || v.kind === 'loop') && dist2(v.pos, player.pos) < 2.6 * 2.6 && (v.speed < 2.5 || player.mode === 'board')); if (ok) return { kind: 'steal', v: ok, text: '<span class="key">F</span>Pull the okada man off and take the bike' }; }
     const v = world.vendors.find(q => dist2(q, player.pos) < 2.4 * 2.4);
     if (v) return { kind: 'food', v, text: `<span class="key">F</span>Buy ${v.food} · ₦${v.price.toLocaleString()} <small style="opacity:.7">(you have ₦${L.wallet.toLocaleString()})</small>` };
-    if (game.mode === 'patrol' && game.sub !== 'free') { const jo = game.job.option(); if (jo) return jo; }
+    if (game.mode === 'patrol' && game.sub === 'free') { const jo = game.job.option(); if (jo) return jo; }
     { const ca = game.coach.option(); if (ca) return ca; }
     const tf = world.transformers.find(t => dist2(t, player.pos) < 3 * 3);
     if (tf && game.power > 0.5 && tf.cool <= 0 && game.blackout.state === 'on') return { kind: 'fuse', tf, text: '<span class="key">F</span>Pull the transformer fuse (blackout)' };
@@ -631,7 +631,7 @@ export function createGame(ctx) {
   const dayFit = () => {
     if (game.job?.clockedIn) return OUTFITS.bolajiDay;
     if (L.wear && L.wear !== 'uniform' && OUTFITS[L.wear]) return OUTFITS[L.wear];
-    return (game.mode === 'patrol' && game.sub !== 'free' && game.job && !game.job.employed) ? OUTFITS.bolajiCivil : OUTFITS.bolajiDay;
+    return (game.mode === 'patrol' && game.sub === 'free' && game.job && !game.job.employed) ? OUTFITS.bolajiCivil : OUTFITS.bolajiDay;
   };
   const fitName = (id) => CASUAL_FITS.find(f => f[0] === id)?.[1] || 'Uniform';
   // the uniform (while he has the job), then each of his own clothes in turn
@@ -647,7 +647,7 @@ export function createGame(ctx) {
     if (!backpack) { backpack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.18), new THREE.MeshStandardMaterial({ color: '#2b2f36', roughness: 0.9 })); backpack.position.set(0, 0.0, -0.17); }
     backpack.parent?.remove(backpack);
     deliveryBox.parent?.remove(deliveryBox);
-    if (!L.suit && game.job?.hasCycle && game.sub !== 'free' && dayFit() === OUTFITS.bolajiDay) player.rig.b.chest.add(deliveryBox); // the SwiftDrop box (the suit rides inside it)
+    if (!L.suit && game.job?.hasCycle && game.sub === 'free' && dayFit() === OUTFITS.bolajiDay) player.rig.b.chest.add(deliveryBox); // the SwiftDrop box (the suit rides inside it)
     else if (L.bag && !L.suit) player.rig.b.chest.add(backpack); // the suit is on him, so the bag hangs empty out of sight
   }
   function witnesses() { // anyone within 16 m with a clear line of sight
@@ -1288,9 +1288,9 @@ export function createGame(ctx) {
     updateExposure(dt);
     updateDaySuit(dt);
     updatePick(dt, input);
-    game.activities?.update(sdt);
+    if (game.sub !== 'story') game.activities?.update(sdt);
     game.chatter.update(dt);
-    if (game.mode === 'patrol' && game.sub !== 'free') game.job.update(dt);
+    if (game.mode === 'patrol' && game.sub === 'free') game.job.update(dt);
     if (game.mode === 'patrol') game.general.update(sdt);
     game.gadgets.update(sdt);
     game.weather.update(dt, camera.cam);
@@ -1340,8 +1340,7 @@ export function createGame(ctx) {
     if (game.arrest) hud.objective(game.arrest.phase === 'held' ? '<b>Arrested.</b> Two officers are holding you<small>THE CAR IS COMING · YOU GET YOUR CHANCE IN THE CAR</small>' : '<b>In the police car.</b> Kick the door out before the station<small>MASH F / SPACE · KICK HARDEST WHEN THE CAR SLOWS</small>');
     else if (player.cuffed) hud.objective(game.heat > 0 ? `<b>Handcuffed and hunted.</b> Break their line of sight and stay hidden ${Math.max(0, 16 - game.heatTimer).toFixed(0)}s per star<small>LEGS STILL WORK: KICK (F) · COUNTER (C) · LAUNCH / SWEEP (G) · NO CLIMBING · DARKNESS HELPS</small>` : game.mode === 'patrol' ? '<b>Handcuffed.</b> Get out of sight, then <b>hold F to slip the cuffs</b><small>NOBODY CAN BE WATCHING · OR BABA KOLADE CAN CUT THEM</small>' : '<b>Handcuffed.</b> Get to <b>Baba Kolade\'s workshop</b> to cut them<small>DON\'T GET SEEN BY ANOTHER PATROL</small>');
     else if (game.mode === 'patrol' && game.general.objective()) hud.objective(game.general.objective());
-    else if (game.mode === 'patrol' && game.sub !== 'free' && game.job.objective()) hud.objective(game.job.objective());
-    else if (!L.inside && game.general.idleObjective()) hud.objective(game.general.idleObjective());
+    else if (game.mode === 'patrol' && game.sub === 'free' && game.job.objective()) hud.objective(game.job.objective());
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
     else if (game.inMall) hud.objective(`<b>${game.mallFrom?.name || 'The mall'}</b> · ${L.timeStr()}<small>WALK UP TO A COUNTER AND PRESS F TO BUY · THE GLASS DOORS TO LEAVE</small>`);
@@ -1356,14 +1355,14 @@ export function createGame(ctx) {
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
     else if (game.mode === 'patrol') hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>OPEN THE MAP (M) · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
-    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : (game.mode === 'patrol' && game.sub !== 'free' && game.job.clockedIn ? game.job.tracker() : null) || game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? null : game.general.tracker() || game.job.tracker()) : game.story.tracker()));
+    hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : (game.mode === 'patrol' && game.sub === 'free' && game.job.clockedIn ? game.job.tracker() : null) || game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? game.job.tracker() : game.general.tracker()) : game.story.tracker()));
   };
 
   // ---------- navigation ----------
   function navTarget() {
     if (player.cuffed) { const k = DAY.pois.kolade; return { x: k.x, z: k.z, color: 0xff8a80, label: 'BABA KOLADE · BOLT CUTTERS' }; } // in cuffs only one place matters
     const ct = game.mode === 'patrol' && game.general?.target(); if (ct) return { x: ct.x, z: ct.z, color: 0xffd54f, label: 'THE CASE', moving: true };
-    const jt = game.mode === 'patrol' && game.sub !== 'free' && game.job?.target(); if (jt && !game.carrying) return { x: jt.x, z: jt.z, color: 0xff9100, label: jt.label };
+    const jt = game.mode === 'patrol' && game.sub === 'free' && game.job?.target(); if (jt && !game.carrying) return { x: jt.x, z: jt.z, color: 0xff9100, label: jt.label };
     // what he's in the middle of always owns the arrow: the story mission, then whatever he's carrying back
     const sm = game.story.active && game.story.target(); if (sm) return { x: sm.x, z: sm.z, color: 0xffd54f, label: 'STORY', moving: true };
     if (game.dropped) { const m = game.dropped.mesh.position; return { x: m.x, z: m.z, color: 0xf2b705, label: 'PICK IT UP' }; }
@@ -1432,11 +1431,11 @@ export function createGame(ctx) {
     const dstr = (x, z) => Math.round(Math.hypot(x - player.pos.x, z - player.pos.z)) + 'm';
     DAY.markers(M, MM, dstr);
     game.police.markers(M, MM, dstr);
-    if (game.mode === 'patrol' && game.sub !== 'free') game.job.markers(M, MM, dstr);
+    if (game.mode === 'patrol' && game.sub === 'free') game.job.markers(M, MM, dstr);
     if (game.mode === 'patrol') game.general.markers(M, MM, dstr);
     { const rc = game.story.reconTarget(); if (rc) { M.push({ x: rc.x, y: 3, z: rc.z, kind: 'story', label: `LOOK · ${rc.label.toUpperCase()} · ${dstr(rc.x, rc.z)}` }); MM.push({ x: rc.x, z: rc.z, color: '#ffd54f' }); } }
     { const ds = game.story.dayStart(); if (ds) { const d = game.story.dayAvailable(); M.push({ x: ds.x, y: 3, z: ds.z, kind: 'story', label: `DAYTIME · ${d.title.toUpperCase()} · ${dstr(ds.x, ds.z)}` }); MM.push({ x: ds.x, z: ds.z, color: '#ffd54f' }); } }
-    game.activities?.markers(M, MM, dstr);
+    if (game.sub !== 'story') game.activities?.markers(M, MM, dstr);
     for (const b of TR.stops) { if (Math.hypot(b.x - player.pos.x, b.z - player.pos.z) < 40) M.push({ x: b.x, y: 3.2, z: b.z, kind: 'bus', label: 'BUS STOP', edge: false }); MM.push({ x: b.x, z: b.z, color: '#fbc02d' }); }
     // danger sense: always on for anyone about to hit him
     for (const t of game.thugs) if (t.alive && t.state === 'windup') M.push({ x: t.pos.x, y: t.pos.y + 2.35, z: t.pos.z, kind: t.unblockable ? 'dangerRed' : 'danger', label: t.unblockable ? 'DODGE' : 'C', edge: false });
@@ -1533,11 +1532,26 @@ export function createGame(ctx) {
   game.startPatrol = (fresh = true) => {
     L.phase = 'day'; L.clock = 7.5 * 60; setOccupants(false);
     L.suit = false; L.bag = true; player.setOutfit(dayFit()); reattachBag(); updateBackpack();
-    if (game.sub === 'free') { L.phase = 'night'; L.clock = 22.5 * 60; L.suit = true; L.bag = false; player.setOutfit(suitFit()); reattachBag(); updateBackpack(); }
+    if (game.sub === 'demo') { L.phase = 'night'; L.clock = 22.5 * 60; L.suit = true; L.bag = false; player.setOutfit(suitFit()); reattachBag(); updateBackpack(); }
     game.leaveHome(false);
-    if (fresh && game.sub === 'free') hud.notice('PATROL', 'Endless free roam in the suit. No job, no story: just Lagos at night.', 'blue', 4);
-    else if (fresh) { hud.notice('DAY 1', 'Your first week as a SwiftDrop rider. Clock in at the office in Ojuelegba before noon.', 'white', 5); setTimeout(() => game.job.routeNext?.(), 600); }
+    if (fresh && game.sub === 'free') { hud.notice('DAY 1', 'Your first week as a SwiftDrop rider. Clock in at the office in Ojuelegba before noon.', 'white', 5); setTimeout(() => game.job.routeNext?.(), 600); }
     game.save();
+  };
+  game.playMission = (i) => {
+    const m = game.general.missions[i]; if (!m) return;
+    loseItem(); player.dropHeld(); if (player.mode === 'ride') player.endRide(player.pos.x, player.pos.z);
+    for (const t of game.thugs) if (t.state === 'tail') t.remove();
+    for (const v of traffic.police()) { v.police.mode = 'patrol'; v.police.siren = false; v.police.route = []; }
+    game.arrest = null; document.body.classList.remove('arrested'); player.cuffed = false; game.heat = 0; game.heatTimer = 0; game.catchMeter = 0; game.hudMeter = null; game.catchLabel = null; game.respawnT = 0; game.waypoint = null;
+    player.mode = 'foot'; player.injury = 0; player.hp = player.cap(); L.hunger = 100; L.energy = 100;
+    const night = m.time === 'night';
+    L.phase = night ? 'night' : 'day'; L.clock = night ? 22.5 * 60 : 9 * 60; L.caught = false;
+    L.suit = night; L.bag = !night; L.wear = 'uniform'; player.setOutfit(night ? suitFit() : OUTFITS.bolajiDay); reattachBag(); updateBackpack();
+    L.inside = false; setOccupants(false);
+    const p = m.start(), yaw = p.nx != null ? Math.atan2(-p.nx, -p.nz) : 0;
+    player.respawn(p.x + (p.nx || 0) * 3, p.z + (p.nz || 0) * 3, yaw); camera.snapBehind(yaw);
+    env.setDaylight(L.daylight()); applyLights(true);
+    game.general.play(i);
   };
   game.wakeUp = () => { L.inside = true; L.phase = 'day'; L.clock = 7 * 60; L.suit = false; player.setOutfit(dayFit()); reattachBag(); updateBackpack(); setOccupants(false); game.leaveHome(false); game.save(); };
   // everything happening right now that he could go and deal with, nearest first

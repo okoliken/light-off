@@ -301,7 +301,7 @@ export function createJob(game) {
   const updateRiders = (dt) => {
     const day = L.phase === 'day' && L.clock > 7 * 60 && L.clock < 19.5 * 60, night = L.clock >= SHIFTS.night.open && L.clock < SHIFTS.night.end;
     for (const [k, r] of riders.entries()) {
-      const on = game.sub !== 'free' && (day || (night && k < 2)); // two of them take night shifts too
+      const on = game.sub === 'free' && (day || (night && k < 2)); // two of them take night shifts too
       r.g.visible = on; if (!on) continue;
       if (Math.hypot(r.tx - r.x, r.tz - r.z) < 0.5) { // next junction: along one road, then the other (Lagos grid, no shortcuts)
         if (Math.random() < 0.5) r.tx = roadLine(I0 + Math.floor(Math.random() * (I1 - I0 + 1))); else r.tz = roadLine(Math.floor(Math.random() * (N + 1)));

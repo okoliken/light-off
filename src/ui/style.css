@@ -691,3 +691,4 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 .boot-bar { width: min(320px, 80vw); height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .boot-bar i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width 0.4s; }
 .boot-msg { font-size: 12px; letter-spacing: 0.3em; font-weight: 800; color: var(--dim); text-transform: uppercase; }
+.mm-logo .mm-sum { margin: 14px 0 0; max-width: 460px; font-size: 15px; line-height: 1.5; color: #e3ded2; }
