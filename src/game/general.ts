@@ -216,12 +216,39 @@ export function createGeneral(game) {
   const stadium = () => world.stadiumGate || world.stadium;
   const tailor = () => game.day?.pois?.tailor;
   const none = { boys: [], guns: [] };
+  const gate1 = () => { const m = world.marketSpot; return { x: m.x + m.nx * 6, z: m.z + m.nz * 6 }; };
+  const keep = (e: any, name?) => { if (name) e.name = name; (C.data.extra ||= []).push(e); return e; }; // removed when the mission ends
   const gone = (list) => (list || []).every(g => !g.alive || g.removed);
   const MISSIONS: any[] = [
-    { title: 'Men in Black', time: 'night', start: () => world.marketSpot,
-      brief: 'The General\'s boys are burning Adelabu Market. Iya Basira is screaming down the phone.',
+    { title: 'Men in Black', time: 'night', start: () => (C.m1Start ||= world.spots.filter(q => { const d = dist(q, world.marketSpot); return d > 170 && d < 240; }).sort((a, b) => dist(a, world.marketSpot) - dist(b, world.marketSpot))[0] || world.marketSpot),
+      brief: 'The General\'s boys are burning Adelabu Market. Iya Basira is screaming down the phone: they\'ve tied the traders to their own stalls.',
       steps: [
-        { label: 'Fight off the General\'s boys before the market burns', limit: 150, late: 'Adelabu Market burned. The General\'s boys held it till the stalls were ash.', where: () => world.marketSpot, enter: () => { C.data.g = gang(world.marketSpot.x, world.marketSpot.z, 4, 1); wake(C.data.g); game.api.scatter?.(world.marketSpot.x, world.marketSpot.z, 4); hud.say('Boy in black', 'Who be you? Una see am? Na one of us?!', 3); }, done: () => C.data.g && alive(C.data.g) === 0 },
+        { label: 'Get to Adelabu Market', limit: 90, late: 'Too late. By the time you got there, Adelabu Market was ash.', where: () => gate1(),
+          enter: () => game.radio?.say('Caller from Adelabu: "Fire! Men in black don tie the traders for inside! Police no dey come!"', true),
+          done: () => near(player.pos, gate1(), 14) },
+        { label: 'Break through the boys at the gate', where: () => gate1(),
+          enter: () => { const g = gate1(); C.data.g = gang(g.x, g.z, 3, 0); wake(C.data.g); hud.say('Boy in black', 'Who be you? Una see am? Na one of us?!', 3); },
+          done: () => alive(C.data.g) === 0 },
+        { label: 'Free the traders tied to the stalls', limit: 150, late: 'The fire reached the stalls before you could get everyone out.', where: () => C.data.tied?.find(c => c.mood === 'captive')?.pos || world.marketSpot,
+          enter: () => {
+            const ms = world.marketSpot, stalls = world.stalls.filter(q => dist(q, ms) < 34 && dist(q, ms) > 6).sort(() => Math.random() - 0.5).slice(0, 3);
+            C.data.tied = stalls.map((q, k) => keep(api.victim({ x: q.x, z: q.z + 1.3, yaw: Math.PI, mood: 'captive' }), ['Iya Basira', 'Mama Kemi', 'Alhaji Sani'][k]));
+            C.data.watch = stalls.slice(0, 2).map(q => { const t = keep(boy(q.x + 2.5, q.z + 2, 0)); t.patrol = [[q.x - 6, q.z + 2.5], [q.x + 6, q.z + 2.5]]; return t; });
+            hud.say('Iya Basira', 'Over here! Untie us before the fire comes!', 3.5);
+          },
+          tick: () => { for (const t of C.data.watch) if (t.alive && t.calm && dist(t.pos, player.pos) < 7) { t.calm = false; t.engage(0.3); } },
+          done: () => C.data.tied.every(c => c.mood !== 'captive'),
+          count: () => `${C.data.tied?.filter(c => c.mood !== 'captive').length || 0}/3` },
+        { label: 'Their backup is here: fight them off', where: () => C.data.g2 ? { x: C.data.g2.x, z: C.data.g2.z } : null,
+          enter: () => { const ms = world.marketSpot, q = world.spots.filter(s2 => { const d = dist(s2, ms); return d > 25 && d < 45; })[0] || gate1(); C.data.g2 = gang(q.x, q.z, 4, 1); wake(C.data.g2); for (const t of C.data.watch) if (t.alive) { t.calm = false; t.engage(0.2); } hud.say('Squad leader', 'Na only one man?! Finish am!', 3); },
+          done: () => alive(C.data.g2) === 0 && C.data.watch.every(t => !t.alive) },
+        { label: 'The squad leader is running: catch him', where: () => C.data.boss?.alive ? C.data.boss.pos : null,
+          enter: () => { const ms = world.marketSpot, away = world.spots.filter(q => dist(q, ms) > 150 && dist(q, ms) < 200)[0] || { x: ms.x + 160, z: ms.z };
+            const b = keep(boy(ms.x + 4, ms.z - 6, 0, 'machete')); b.name = 'Squad leader'; b.hp = b.maxHp = 6; b.calm = true; b.state = 'run'; b.t = 0; b.runSpeed = 6.6; b.runTo = { x: away.x, z: away.z }; C.data.boss = b;
+            hud.say('Squad leader', 'Commot! The General go hear this one!', 3); },
+          tick: () => { if (C.data.boss?.escaped) fail('The squad leader got away, and the phone with him.'); },
+          done: () => C.data.boss && !C.data.boss.alive && !C.data.boss.escaped },
+        { label: 'Take his phone (F)', where: () => C.data.boss?.pos, use: 'phone', done: () => C.data.used === 'phone' },
         { label: 'The police think you\'re one of them: lose them', where: () => null, enter: () => { api.addHeat(2, 'Police: "One of the men in black! Na him dey lead them!"'); lead('phone'); }, done: () => game.heat === 0 },
       ] },
     { title: 'The Address', time: 'day', start: office,
@@ -308,7 +335,7 @@ export function createGeneral(game) {
   G.missions = MISSIONS;
   LEADS.tunde = 'Tunde, a SwiftDrop rider, overheard the kidnappers: the shipment lands this week, and a "specialist" is coming for Street Cat.';
   LEADS.okphone = 'Okafor\'s phone: calls with the General, and the gate code for his compound on Broad Street.';
-  const USE: any = { ledger: 'Take the ledger from the desk', photos: 'Photograph the rifle crates', handover: 'Give Commissioner Adaeze the ledger, the photos and the phones', tunde: 'Untie Tunde', panther: 'Take what Sunny made', okphone: 'Take Okafor\'s phone' };
+  const USE: any = { ledger: 'Take the ledger from the desk', photos: 'Photograph the rifle crates', handover: 'Give Commissioner Adaeze the ledger, the photos and the phones', tunde: 'Untie Tunde', panther: 'Take what Sunny made', okphone: 'Take Okafor\'s phone', phone: 'Take the squad leader\'s phone' };
   const step = () => CH[C.ch]?.steps[C.st];
   G.caseFile = () => ({ chapter: CH[C.ch] ? `Mission ${C.ch + 1} of ${CH.length}: ${CH[C.ch].title}` : 'All ten missions complete', leads: C.leads.map(id => LEADS[id]).filter(Boolean) });
 
@@ -320,6 +347,7 @@ export function createGeneral(game) {
     for (const t of [D.gen, D.ok]) if (t && !t.removed && !t.gone) (t.remove ? t.remove(scene) : null);
     if (D.car) { const car = D.car; setTimeout(() => game.traffic.remove(car), 15000); }
     if (D.hs && game.hunter?.active) game.hunter.remove();
+    for (const e of D.extra || []) if (!e.removed && !e.gone) e.remove?.(scene);
   }
   function begin() {
     const m = CH[C.ch]; if (!m || C.on) return;
@@ -378,7 +406,7 @@ export function createGeneral(game) {
   };
   // during a mission: the step, and its clock if it has one
   const clock = (t) => { const k = Math.max(0, Math.ceil(t)); return `${Math.floor(k / 60)}:${String(k % 60).padStart(2, '0')}`; };
-  G.objective = () => { if (!story() || !C.on) return null; const m = CH[C.ch], s = step(); return s ? `${s.label}${s.limit ? ` <b class="t${C.left < 30 ? ' hot' : ''}">${clock(C.left)}</b>` : ''}` : null; };
+  G.objective = () => { if (!story() || !C.on) return null; const m = CH[C.ch], s = step(); return s ? `${s.label}${s.count ? ` <b>${s.count()}</b>` : ''}${s.limit ? ` <b class="t${C.left < 30 ? ' hot' : ''}">${clock(C.left)}</b>` : ''}` : null; };
   G.tracker = () => {
     if (!story() || !C.on) return null;
     const m = CH[C.ch]; if (!m) return null;

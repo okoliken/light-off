@@ -773,3 +773,6 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
   .mode2 { padding: 8px 12px; gap: 3px; } .mode2 small { font-size: 9px; } .mode2 b { font-size: 20px; } .mode2 p { font-size: 11.5px; line-height: 1.45; }
 }
 @media (max-height: 500px) { .mm-panel .mm-story { font-size: 13px; line-height: 1.5; } }
+/* the radio sits under the health bar, clear of the corner card */
+#hud .radiobox { left: 20px; top: 132px; bottom: auto; max-width: 340px; }
+@media (max-height: 500px) { #hud .radiobox { top: 92px; max-width: 260px; } }
