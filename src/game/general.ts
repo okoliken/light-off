@@ -223,6 +223,8 @@ export function createGeneral(game) {
   const moment = (kicker, title) => game.moment?.(kicker, title);
   // a lookout notices him when he's close and in front of him (from behind, he can be taken quietly)
   const spots = (t, r) => { const dx = player.pos.x - t.pos.x, dz = player.pos.z - t.pos.z, d = Math.hypot(dx, dz); return d < r && (Math.sin(t.yaw) * dx + Math.cos(t.yaw) * dz) / (d || 1) > 0.2; };
+  const runner = (x, z, variant = 'agbero2', from = player.pos) => { const away = world.spots.filter(q => dist(q, from) > 130 && dist(q, from) < 180)[0] || { x: x + 140, z }; const t = keep(api.thug({ x, z, yaw: 0, variant, role: 'guard' })); t.calm = true; t.hp = t.maxHp = 3; t.state = 'run'; t.t = 0; t.runSpeed = 6.4; t.runTo = { x: away.x, z: away.z }; return t; };
+  const transformerNear = (q) => world.transformers.slice().sort((a, b) => dist(a, q) - dist(b, q))[0];
   const keep = (e: any, name?) => { if (name) e.name = name; (C.data.extra ||= []).push(e); return e; }; // removed when the mission ends
   const gone = (list) => (list || []).every(g => !g.alive || g.removed);
   const MISSIONS: any[] = [
@@ -262,7 +264,13 @@ export function createGeneral(game) {
       steps: [
         { label: 'Collect the sealed crate from the dispatcher (F)', where: () => game.job.office, use: 'crate',
           enter: () => hud.say('SwiftDrop dispatcher', 'Special one today: sealed crate, G.S. Holdings, Ladipo. Don\'t drop am, don\'t open am.', 4), done: () => C.data.used === 'crate' },
-        { label: 'Deliver it to G.S. Holdings in Ladipo', limit: 300, late: 'Too late. Dispatch gave the crate to another rider, and the address went with it.', where: () => ladipo(), done: () => near(player.pos, ladipo(), 14) },
+        { label: 'Take the crate towards Ladipo', where: () => ladipo(), enter: () => { C.data.half = dist(player.pos, ladipo()) * 0.55; }, done: () => dist(player.pos, ladipo()) < C.data.half },
+        { label: 'A boy snatched the crate: catch him', where: () => C.data.thief?.alive ? C.data.thief.pos : null,
+          enter: () => { const q = player.pos; C.data.thief = runner(q.x + 2, q.z + 2, 'agbero2'); C.data.thief.name = 'Crate thief'; moment('SNATCHED', 'Catch him'); hud.say('Crate thief', 'Thank you o, rider!', 2.5); },
+          tick: () => { if (C.data.thief?.escaped) fail('He got away with the crate. G.S. Holdings never got it, and neither did you.'); },
+          done: () => C.data.thief && !C.data.thief.alive && !C.data.thief.escaped },
+        { label: 'Pick the crate up (F)', where: () => C.data.thief?.pos, use: 'crate', enter: () => { C.data.used = null; }, done: () => C.data.used === 'crate' },
+        { label: 'Deliver it to G.S. Holdings in Ladipo', limit: 240, late: 'Too late. Dispatch gave the job to another rider, and the address went with it.', where: () => ladipo(), done: () => near(player.pos, ladipo(), 14) },
         { label: 'Hand the crate over at the gate (F)', where: () => ladipo(), use: 'handover2',
           enter: () => { const q = ladipo(); C.data.door = [-1, 1].map(k => keep(boy(q.x - q.nx * 2 - q.nz * 2 * k, q.z - q.nz * 2 + q.nx * 2 * k, Math.atan2(q.nx, q.nz))));
             talk([{ who: 'Man in black', text: 'Rider. Wetin you carry?' }, { who: 'Bolaji', text: 'Delivery for G.S. Holdings.' }, { who: 'Man in black', text: 'Drop am for ground. No look inside. Go.' }], q); },
@@ -273,16 +281,23 @@ export function createGeneral(game) {
         { label: 'They saw you looking: get out of Ladipo', where: () => game.job.office,
           enter: () => { lead('receipt'); hud.toast('Through the door: crates of rifles, men in black counting money. One of them is staring straight at you.', 'blue'); moment('THEY SAW YOU', 'Get out of Ladipo'); for (const t of C.data.door) { t.calm = false; t.engage(0.2); } },
           done: () => dist(player.pos, ladipo()) > 110 || C.data.door.every(t => !t.alive) },
+        { label: 'One of them is following you: lose him before SwiftDrop', where: () => C.data.tail?.alive ? C.data.tail.pos : null,
+          enter: () => { const t = keep(boy(player.pos.x - 25, player.pos.z - 10, 0, 'knife')); t.calm = true; t.state = 'tail'; C.data.tail = t; moment('FOLLOWED', 'Lose him'); },
+          tick: (dt) => { const t = C.data.tail; if (t?.alive) { t.state = 'tail'; const a = Math.atan2(player.pos.x - t.pos.x, player.pos.z - t.pos.z), d = dist(t.pos, player.pos); if (d > 14) { t.pos.x += Math.sin(a) * 5.2 * dt; t.pos.z += Math.cos(a) * 5.2 * dt; } } },
+          done: () => !C.data.tail?.alive || dist(C.data.tail.pos, player.pos) > 70 },
         { label: 'Report back at SwiftDrop like nothing happened', where: () => game.job.office, done: () => near(player.pos, game.job.office, 8) },
       ] },
     { title: 'The Warehouse', time: 'night', start: () => (C.s3 ||= startNear(ladipo)),
       brief: 'Back to Ladipo, in black this time. If the General pays people, somebody writes it down.',
       steps: [
         { label: 'Get to the warehouse in Ladipo', where: () => ladipo(), done: () => near(player.pos, ladipo(), 30) },
+        { label: 'Kill the lights: pull the fuse on the transformer by the warehouse (F)', where: () => transformerNear(ladipo()),
+          enter: () => talk([{ who: 'Bolaji', text: '(across the street, in the dark) Two on the door. If one of them shouts, the whole warehouse comes out. First, the lights.' }], ladipo()),
+          done: () => game.power < 0.5 },
         { label: 'Take out the two lookouts before they raise the alarm', where: () => C.data.look?.find(t => t.alive)?.pos || ladipo(),
           enter: () => { const q = ladipo(); C.data.alarm = false;
             C.data.look = [-1, 1].map(k => { const t = keep(boy(q.x - q.nz * 9 * k + q.nx * 3, q.z + q.nx * 9 * k + q.nz * 3, 0)); t.patrol = [[t.pos.x, t.pos.z], [q.x + q.nx * 3, q.z + q.nz * 3]]; return t; });
-            talk([{ who: 'Bolaji', text: '(across the street, in the dark) Two on the door. If one of them shouts, the whole warehouse comes out.' }], q); },
+            hud.say('Boy in black', 'NEPA again! Who get torch?', 3); },
           tick: () => { for (const t of C.data.look) if (t.alive && t.calm && spots(t, 6)) { t.calm = false; t.engage(0.1); }
             if (!C.data.alarm && C.data.look.some(t => t.alive && !t.calm)) { C.data.alarm = true; moment('ALARM', 'The whole warehouse is coming'); } },
           done: () => C.data.look.every(t => !t.alive) },
@@ -292,6 +307,7 @@ export function createGeneral(game) {
           enter: () => { lead('ledger'); moment('LOCKED IN', 'Fight your way out'); const q = ladipo(); C.data.g2 = gang(q.x + q.nx * 9, q.z + q.nz * 9, 4, 1); wake(C.data.g2); },
           done: () => alive(C.data.g2) === 0 || dist(player.pos, ladipo()) > 60 },
         { label: 'Get away from the police', where: () => null, enter: () => api.addHeat(2, 'Sirens everywhere. The warehouse was paying them to watch it.'), done: () => game.heat === 0 },
+        { label: 'Hide the ledger at home', where: () => world.homeDoor, done: () => near(player.pos, world.homeDoor, 6) },
       ] },
     // the marker is round the corner from the checkpoint: walking up to the police in the suit starts a chase
     { title: 'Okafor', time: 'night', start: () => (C.s4 ||= startNear(cpSpot, 120, 200)),
@@ -317,6 +333,8 @@ export function createGeneral(game) {
         { label: 'A boy in black spotted you: deal with them', where: () => meet(), enter: () => { lead('meeting'); moment('SPOTTED', 'Deal with them'); const m = meet(); C.data.g2 = gang(m.x - 4, m.z + 6, 3, 0); wake(C.data.g2); wake(C.data.g); hud.say('Boy in black', 'Na the cat! Hold am!', 3); },
           done: () => alive(C.data.g2) === 0 && alive(C.data.g) === 0 },
         { label: 'Slip away before Okafor\'s men come', where: () => null, enter: () => { C.data.t = 0; }, tick: (dt) => { C.data.t += dt; }, done: () => C.data.t > 4 && dist(player.pos, meet()) > 50 },
+        { label: 'They\'re going after a rider: get to SwiftDrop and warn Tunde', limit: 150, late: 'By the time you got there, Tunde had gone home. Tomorrow, they come for him.', where: () => game.job.office,
+          done: () => near(player.pos, game.job.office, 10), enter: () => hud.say('Bolaji', '(to himself) The rider who saw the crates. Tunde.', 3) },
       ] },
     { title: 'One Chance', time: 'day', start: office,
       brief: 'Tunde, a SwiftDrop rider who saw the crates at Ladipo, is calling you. He thinks someone is following him.',
@@ -335,6 +353,7 @@ export function createGeneral(game) {
           wake(C.data.g); hud.popup('THE CREW JUMPS OUT'); }, // they stand and fight (a crew that ran off left the mission stuck)
           done: () => alive(C.data.g || none) === 0 },
         { label: 'Untie Tunde (F)', where: () => C.data.tunde?.pos, use: 'tunde', enter: () => { const car = C.data.car; const v = keep(api.victim({ x: car.pos.x - car.rt.x * 2.4, z: car.pos.z - car.rt.z * 2.4, yaw: 0, mood: 'cower' })); v.name = 'Tunde'; C.data.tunde = v; }, done: () => C.data.used === 'tunde' },
+        { label: 'Search the danfo for what they took from him (F)', where: () => C.data.car?.pos, use: 'danfo', done: () => C.data.used === 'danfo', enter: () => { C.data.used = null; hud.say('Tunde', 'My phone dey inside! I record them for Ladipo!', 3); } },
         { label: 'Their friends are coming for Tunde: hold them off', limit: 90, late: 'They dragged Tunde back into a car while you were busy.', where: () => C.data.tunde?.pos,
           enter: () => { lead('tunde'); hud.say('Tunde', 'They talk am for inside: the shipment land this week. And one "specialist" dey come for Street Cat. Behind you!', 5); moment('BACKUP', 'Protect Tunde'); const t = C.data.tunde.pos; C.data.g2 = gang(t.x + 10, t.z + 6, 3, 0); wake(C.data.g2); },
           done: () => alive(C.data.g2) === 0 },
@@ -354,6 +373,10 @@ export function createGeneral(game) {
         { label: 'Photograph the crate stacks (F)', limit: 60, late: 'The last truck pulled out with the crates.', where: () => { const j = jetty(), k = C.data.shots || 0; return k >= 3 ? null : { x: j.x + [-4, 3, 8][k], z: j.z - [8, 10, 4][k] }; }, use: 'photos',
           enter: () => { C.data.shots = 0; }, tick: () => { if (C.data.used === 'photos') { C.data.used = null; C.data.shots++; audio.pickup?.(); } },
           count: () => `${C.data.shots || 0}/3`, done: () => C.data.shots >= 3 },
+        { label: 'The truck is leaving with the crates: stop it (hang on with E, smash with F)', where: () => C.data.truck?.pos,
+          enter: () => { const j = jetty(); const car = game.traffic.spawnGetaway(j.x + 12, j.z - 14, 0, 'tanker'); car.ai.topSpeed = 10; car.ai.health = 5; car.ai.maxHealth = 5; C.data.truck = car; C.data.car = car; C.data.lost = 0; moment('THE TRUCK', 'Stop it'); },
+          tick: (dt) => { const car = C.data.truck; if (!car) return; C.data.lost = dist(car.pos, player.pos) < 150 ? 0 : C.data.lost + dt; if (C.data.lost > 14) fail('The truck got off the island with the rifles.'); },
+          done: () => C.data.truck?.ai.stopped },
         { label: 'The General\'s friends in the police are coming: lose them', where: () => null, enter: () => { lead('photos'); moment('SIRENS', 'Lose the police'); api.addHeat(3, 'Police everywhere. The General\'s friends want those photos back.'); }, done: () => game.heat === 0 },
       ] },
     { title: 'The Hunter', time: 'night', start: () => (C.s7 ||= startNear(stadium, 220, 300)),
@@ -398,6 +421,9 @@ export function createGeneral(game) {
           tick: () => { if (C.data.w?.escaped) fail('He got away. Somebody now knows who visits Sunny.'); },
           done: () => C.data.w && !C.data.w.alive && !C.data.w.escaped },
         { label: 'Collect it from Sunny (F)', where: tailor, use: 'panther', enter: () => hud.say('Sunny (tailor)', 'I see wetin happen to the last one. This one... na different thing.', 4), done: () => C.data.used === 'panther' },
+        { label: 'Boys in black are at Sunny\'s door: protect him', limit: 90, late: 'They wrecked the shop and took Sunny away.', where: tailor,
+          enter: () => { const t0 = tailor(); C.data.g = gang(t0.x + 6, t0.z + 4, 4, 0); wake(C.data.g); moment('THE WATCHER TALKED', 'Protect Sunny'); hud.say('Sunny (tailor)', 'Bolaji! Behind you!', 3); },
+          done: () => alive(C.data.g) === 0 },
         { label: 'Take it home before anybody sees the bag', where: () => world.homeDoor, done: () => near(player.pos, world.homeDoor, 6) },
       ],
       finish: () => { game.catSuit = true; L.suitHP = 100; game.refreshFit?.(); hud.notice('THE PANTHER SUIT', 'Matte black, a helmet with eye slits, silver trim, claws.', 'green', 5); } },
@@ -415,6 +441,7 @@ export function createGeneral(game) {
           done: () => C.data.ok && !C.data.ok.alive && !C.data.ok.escaped },
         { label: 'Take Okafor\'s phone before his backup arrives (F)', limit: 30, late: 'His backup arrived and took the phone. Whatever was on it is gone.', where: () => C.data.ok?.pos, use: 'okphone', done: () => C.data.used === 'okphone' },
         { label: 'Lose the police', where: () => null, enter: () => { lead('okphone'); api.addHeat(2, 'Every radio in Surulere: "Officer down under Ojuelegba!"'); }, done: () => game.heat === 0 },
+        { label: 'Get the phone home without being seen', where: () => world.homeDoor, done: () => near(player.pos, world.homeDoor, 6) && game.heat === 0 },
       ] },
     { title: 'The General', time: 'night', start: () => ({ x: -60, z: -1328, nx: 1, nz: 0 }),
       brief: 'His compound on Broad Street. Colonel Gbenga Sowande, retired. Trained to kill. He knows you\'re coming.',
@@ -422,16 +449,20 @@ export function createGeneral(game) {
         { label: 'Get to the General\'s compound on Broad Street', where: () => compound, done: () => near(player.pos, compound, 30) },
         { label: 'Get through the gate', where: () => compound, enter: () => { C.data.g = gang(compound.x - 6, compound.z, 4, 0); wake(C.data.g); talk([{ who: 'Boy in black', text: 'General say make nobody pass this gate tonight.' }, { who: 'Bolaji', text: 'Then tell him I\'m here.' }], compound); }, done: () => alive(C.data.g) === 0 },
         { label: 'Clear the compound before he escapes', limit: 180, late: 'The General got to his car and was gone. He\'ll be in Abuja by morning.', where: () => compound, enter: () => { moment('THE COMPOUND', 'He\'s getting away'); C.data.g2 = gang(compound.x + 2, compound.z, 4, 2); wake(C.data.g2); }, done: () => alive(C.data.g2) === 0 },
-        { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const g = api.thug({ x: compound.x + 4, z: compound.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say one man in a cat suit go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
+        { label: 'He\'s in his car: stop it (hang on with E, smash with F)', where: () => C.data.car?.pos,
+          enter: () => { const car = game.traffic.spawnGetaway(compound.x + 8, compound.z + 6, 0, 'getaway'); car.ai.topSpeed = 13; car.ai.health = 5; car.ai.maxHealth = 5; C.data.car = car; C.data.lost = 0; moment('HE\'S RUNNING', 'Stop the car'); hud.say('The General', 'Drive! DRIVE!', 2.5); },
+          tick: (dt) => { const car = C.data.car; if (!car) return; C.data.lost = dist(car.pos, player.pos) < 150 ? 0 : C.data.lost + dt; if (C.data.lost > 14) fail('The General\'s car got away. He\'ll be in Abuja by morning.'); },
+          done: () => C.data.car?.ai.stopped },
+        { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const c0 = C.data.car?.pos || compound; const g = api.thug({ x: c0.x + 3, z: c0.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say one man in a cat suit go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
         { label: 'Get the evidence to Commissioner Adaeze at City Hall (F)', where: () => hall, use: 'handover', enter: () => { moment('HIS POLICE', 'Get the evidence to City Hall'); api.addHeat(2, 'The General\'s friends in the police want that evidence.'); }, done: () => C.data.used === 'handover' },
       ],
-      finish: () => ending() },
+      finish: () => { talk([{ who: 'Commissioner Adaeze', text: 'The ledger. The photos. Okafor\'s phone. This is enough to take him.' }, { who: 'Bolaji', text: 'Then take him.' }, { who: 'Commissioner Adaeze', text: 'Who are you?' }, { who: 'Bolaji', text: 'Nobody. Just Lagos.' }], hall); ending(); } },
   ];
   const CH = MISSIONS;
   G.missions = MISSIONS;
   LEADS.tunde = 'Tunde, a SwiftDrop rider, overheard the kidnappers: the shipment lands this week, and a "specialist" is coming for Street Cat.';
   LEADS.okphone = 'Okafor\'s phone: calls with the General, and the gate code for his compound on Broad Street.';
-  const USE: any = { ledger: 'Take the ledger from the desk', photos: 'Photograph the rifle crates', handover: 'Give Commissioner Adaeze the ledger, the photos and the phones', tunde: 'Untie Tunde', panther: 'Take what Sunny made', okphone: 'Take Okafor\'s phone', phone: 'Take the squad leader\'s phone', crate: 'Take the sealed crate', handover2: 'Hand over the crate' };
+  const USE: any = { ledger: 'Take the ledger from the desk', photos: 'Photograph the rifle crates', handover: 'Give Commissioner Adaeze the ledger, the photos and the phones', tunde: 'Untie Tunde', panther: 'Take what Sunny made', okphone: 'Take Okafor\'s phone', phone: 'Take the squad leader\'s phone', crate: 'Take the sealed crate', handover2: 'Hand over the crate', danfo: 'Search the danfo' };
   const step = () => CH[C.ch]?.steps[C.st];
   G.caseFile = () => ({ chapter: CH[C.ch] ? `Mission ${C.ch + 1} of ${CH.length}: ${CH[C.ch].title}` : 'All ten missions complete', leads: C.leads.map(id => LEADS[id]).filter(Boolean) });
 
