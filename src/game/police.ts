@@ -4,6 +4,7 @@
 // the police brings heat. Officers at a post chase him when there is heat, then walk back to the post.
 import * as THREE from 'three';
 import { Gunman } from './enemies.ts';
+import { OUTFITS } from '../player/rig.ts';
 import { Civilian } from './npcs.ts';
 import { textSign } from '../core/textures.ts';
 import { HALF, CELL, ROAD, WALK } from '../world/layout.ts';
@@ -60,13 +61,13 @@ export function createCheckpoints(game) {
     // two officers stand in the road, the collector on the driver's side
     for (const s of [-1, 1]) {
       const px = d.x + sx * s * 2.2, pz = d.z + sz * s * 2.2, yaw = Math.atan2(ax * -s, az * -s);
-      const o = new Gunman(scene, world, { x: px, z: pz, y: 0, yaw, role: 'police', post: { x: px, z: pz, yaw, cp } });
+      const o = new Gunman(scene, world, { x: px, z: pz, y: 0, yaw, role: 'police', post: { x: px, z: pz, yaw, cp }, outfit: OUTFITS.policeBlue });
       o.collector = s < 0; o.cp = cp; cp.officers.push(o); game.gunmen.push(o);
     }
     const extra = 2 + (Math.random() < 0.5 ? 1 : 0);
     for (let k = 0; k < extra; k++) {
       const px = d.x + tx + ax * (k - 1) * 1.5 + sx * 0.9, pz = d.z + tz + az * (k - 1) * 1.5 + sz * 0.9, yaw = Math.atan2(-sx, -sz) + (Math.random() - 0.5) * 1.2;
-      const o = new Gunman(scene, world, { x: px, z: pz, y: 0, yaw, role: 'police', post: { x: px, z: pz, yaw, cp } });
+      const o = new Gunman(scene, world, { x: px, z: pz, y: 0, yaw, role: 'police', post: { x: px, z: pz, yaw, cp }, outfit: OUTFITS.policeBlue });
       o.cp = cp; cp.officers.push(o); game.gunmen.push(o);
     }
     traffic.blockers.push(cp);
@@ -127,7 +128,7 @@ export function createCheckpoints(game) {
       const b = new Civilian(scene, world, { x: bx, z: bz, yaw: Math.atan2(nx, nz), outfit: { skin: ['#4a2e1f', '#5b3a26', '#3e2418'][k], top: f[0], bottom: f[1], sock: '#212121', sole: f[2], cap: null, sheen: '#556070' } });
       b.name = 'Young man'; b.mood = 'scared'; game.civilians.push(b); boys.push(b);
       const ox = sp.x + nx * 0.9 + rx * (k - 1) * 1.5, oz = sp.z + nz * 0.9 + rz * (k - 1) * 1.5, yaw = Math.atan2(-nx, -nz);
-      const o = new Gunman(scene, world, { x: ox, z: oz, y: 0, yaw, role: 'police', post: { x: ox, z: oz, yaw, cp: { stopped: null } } });
+      const o = new Gunman(scene, world, { x: ox, z: oz, y: 0, yaw, role: 'police', post: { x: ox, z: oz, yaw, cp: { stopped: null } }, outfit: OUTFITS.police });
       o.collector = false; o.raidCop = true; game.gunmen.push(o); cops.push(o);
     }
     K.raid = { x: sp.x, z: sp.z, t: 0, parts, boys, cops, area: world.areaAt(sp.x, sp.z), lineT: 2, told: false };

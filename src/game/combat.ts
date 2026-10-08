@@ -77,22 +77,23 @@ export function createCombat(game) {
     player.startAct('flurry', t, () => {
       if (!t.alive) return;
       const ko = t.takeHit(t.big ? 4 : 99, player.pos.x, player.pos.z, t.big ? 'heavy' : 'takedown'); if (ko) game.onKnockout?.(t);
-      for (const o of game.thugs) if (o !== t && o.alive && !o.grounded && dist(o, player) < 3.2) o.stun?.(0.9);
+      for (const o of [...game.thugs, ...game.gunmen]) if (o !== t && o.alive && !o.grounded && dist(o, player) < 3.2) o.stun?.(0.9);
       audio.punch(); camera.shake = 0.7; game.hitStop = 0.14; fx.burst(t.pos.x, t.pos.y + 1.3, t.pos.z, 0xffffff, 18, 5);
       game.addRespect(n * 25, `ALLEY CAT FLURRY x${n}`); C.combo = 0; C.chain = 0;
     }, { invuln: true, reach: 0.8 });
     return true;
   };
   // surrounded: three or more of them close enough for the Cat Sweep
-  C.sweepReady = () => C.sweepCd <= 0 && game.thugs.filter(t => t.alive && !t.grounded && !t.airborne && t.engaged && dist(t, player) < 3.8).length >= 3;
+  const officers = () => game.gunmen.filter(g => g.alive && g.role === 'police' && !g.foe && ['chase', 'stunned', 'recover', 'aim'].includes(g.state));
+  C.sweepReady = () => C.sweepCd <= 0 && [...game.thugs.filter(t => t.alive && !t.grounded && !t.airborne && t.engaged), ...officers()].filter(t => dist(t, player) < 3.8).length >= 3;
   C.sweep = () => {
     if (!['foot', 'board'].includes(player.mode) || !C.sweepReady()) return false; // a leg sweep: cuffs don't matter
     C.sweepCd = 8;
     if (player.mode === 'board') player.mode = 'foot';
     player.startAct('sweep', null, () => {
       let n = 0;
-      for (const t of game.thugs) {
-        if (!t.alive || t.grounded || t.airborne || dist(t, player) > 4.2) continue;
+      for (const t of [...game.thugs, ...game.gunmen]) {
+        if (!t.alive || t.grounded || t.airborne || dist(t, player) > 4.2 || t.foe) continue;
         n++;
         if (t.big) { t.stun(1.1); t.lastBlocked = false; }
         else { const ko = t.takeHit(1, player.pos.x, player.pos.z, 'heavy'); if (ko) game.onKnockout?.(t); }
@@ -232,7 +233,7 @@ export function createCombat(game) {
       if (dist(best, player) > 2.6 || !best.alive) return;
       if (fromRoof && unawareFoe && best.takeHit) { best.takeHit(99, player.pos.x, player.pos.z, 'takedown'); game.onKnockout?.(best); landed(best, 3, 'heavy', true); game.hitStop = 0.18; game.addRespect(250, 'ROOFTOP AMBUSH'); }
       else { const ko = hitFoe(best, 2, 'heavy'); landed(best, 2, 'heavy', ko); game.addRespect(chaining ? 120 : 60, chaining ? 'CAT CHAIN' : 'POUNCE'); }
-      for (const o of game.thugs) if (o !== best && o.alive && !o.grounded && dist(o, player) < 2.2) o.stun?.(0.6);
+      for (const o of [...game.thugs, ...game.gunmen]) if (o !== best && o.alive && !o.grounded && dist(o, player) < 2.2) o.stun?.(0.6);
       C.chainUntil = game.time + 1.6; game.expose?.(14);
       if (foes().some(o => o !== best && !o.grounded && dist(o, player) > 3 && dist(o, player) < 16)) hud.popup('<b>V</b> AGAIN · CAT CHAIN');
     }, { invuln: true, reach: 1.0 });

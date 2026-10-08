@@ -2,7 +2,7 @@
 // from the getaway car. Every shot is telegraphed: they stop, raise the gun, a red laser tracks him for
 // about a second, then they fire. Roll, break line of sight or get far away to make them miss.
 import * as THREE from 'three';
-import { Rig, Pose, OUTFITS, POLICE_FITS } from '../player/rig.ts';
+import { Rig, Pose, OUTFITS } from '../player/rig.ts';
 
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -12,7 +12,7 @@ export class Gunman {
   [key: string]: any; // TODO(ts): declare fields
   constructor(scene, world, { x, z, y = 0.15, yaw = 0, role = 'police', car = null, post = null, outfit = null }: any) {
     this.scene = scene; this.world = world; this.role = role; this.car = car; this.post = post;
-    this.rig = new Rig(outfit || (role === 'police' ? OUTFITS[POLICE_FITS[Math.floor(Math.random() * POLICE_FITS.length)]] : OUTFITS.thief));
+    this.rig = new Rig(outfit || (role === 'police' ? OUTFITS.police : OUTFITS.thief)); // one uniform per job: the deployer picks it
     scene.add(this.rig.root);
     this.pos = new THREE.Vector3(x, y, z); this.vel = new THREE.Vector3(); this.yaw = yaw;
     this.maxHp = role === 'police' ? 3 : 2; this.hp = this.maxHp;
@@ -22,6 +22,24 @@ export class Gunman {
     this.muzzleW = new THREE.Vector3();
   }
   get alive() { return this.state !== 'down' && !this.removed; }
+  get airborne() { return this.state === 'air'; }
+  get grounded() { return this.state === 'floored'; }
+  // every one of his moves works on them as it does on the gangs: launched, juggled, slammed, swept, knocked down, taken out
+  takeHit(dmg, fx, fz, kind = 'light') {
+    if (!this.alive) return false;
+    const dx = this.pos.x - fx, dz = this.pos.z - fz, d = Math.hypot(dx, dz) || 1;
+    this.hitSide = Pose.hitSide(this.pos.x, this.pos.z, this.yaw, fx, fz); this.hitPow = Math.min(1, dmg / 2);
+    if (kind === 'takedown') { this.hp = 0; this.state = 'down'; this.t = 0; return true; }
+    if (kind === 'launch') { this.hp -= dmg; this.state = 'air'; this.t = 0; this.vel.set(dx / d * 0.8, 10.5, dz / d * 0.8); return false; }
+    if (kind === 'air' && this.state === 'air') { this.hp -= dmg; this.vel.set(dx / d * 0.6, 4.2, dz / d * 0.6); return false; }
+    if (kind === 'slam') { this.hp -= dmg; this.state = 'air'; this.t = 0; this.vel.set(dx / d * 2, -16, dz / d * 2); return false; }
+    if (kind === 'heavy' || kind === 'counter' || kind === 'sweep') {
+      this.hp -= dmg; this.vel.set(dx / d * 6, 0, dz / d * 6);
+      if (this.hp <= 0) { this.state = 'down'; this.t = 0; return true; }
+      this.state = 'floored'; this.t = 0; return false;
+    }
+    return this.hit(dmg, fx, fz, 2);
+  }
   hit(dmg, fx, fz, knock) {
     if (!this.alive) return false;
     this.hp -= dmg; this.hitSide = Pose.hitSide(this.pos.x, this.pos.z, this.yaw, fx, fz); this.hitPow = Math.min(1, dmg / 2);
@@ -46,7 +64,7 @@ export class Gunman {
     this.t += dt; this.shootCd -= dt; this.bark -= dt;
     const dx = p.pos.x - this.pos.x, dz = p.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
     const reachable = foe ? true : p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
-    const canShoot = !!foe || this.role === 'thief' || this.role === 'hitman' || game.heat >= 2;
+    const canShoot = !!foe || this.role === 'thief' || this.role === 'hitman' || game.heat >= 3; // the police only draw at three stars
     let face = this.yaw, speed = 0, out = null;
     const eye = () => !col.blocked(this.pos.x, this.pos.y + 1.5, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2);
 
@@ -60,7 +78,7 @@ export class Gunman {
         const v = P.cp.stopped;
         if (v && this.collector) { face = Math.atan2(v.pos.x - this.pos.x, v.pos.z - this.pos.z); r.set('shRX', -1.4); r.set('elRX', -0.2); r.set('shRZ', -0.2); }
         else { face = P.yaw; if (Math.sin(game.time * 1.3 + this.anim) > 0.6) { r.set('shLX', -1.6); r.set('shLZ', 0.5); r.set('elLX', -0.3 + Math.sin(game.time * 9) * 0.3); } }
-        if (game.heat > 0 && dist < 45) { this.state = 'chase'; break; }
+        if (game.heat > 0 && dist < 12 && !game.arrest) { this.state = 'chase'; break; } // only when he's right there: they don't leave their post
         break;
       }
       case 'chase': {
@@ -76,10 +94,17 @@ export class Gunman {
         }
         if (!foe && game.heat <= 0 && this.role === 'police' && !this.duty) { this.state = 'return'; break; }
         if (!foe && this.duty) { Pose.idle(r, game.time, false); break; } // on duty, nobody left to fight: stand down
-        if (!foe && this.post && dist > 60) { this.state = 'return'; break; }
+        if (!foe && this.post && (dist > 20 || Math.hypot(this.post.x - this.pos.x, this.post.z - this.pos.z) > 25)) { this.state = 'return'; break; } // a short leash
         if (canShoot && this.shootCd <= 0 && dist > (foe ? 1.5 : 5) && dist < 32 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; if (this.bark <= 0) { this.bark = 5; game.say(this, pick(this.role === 'police' ? ['Stop or I shoot!', 'Freeze there!', 'Hands up!'] : ['Back off!', 'You wan die?!', 'Commot for road!']), this.role === 'police' ? 'Police' : 'Robber'); } break; }
         if (!foe && dist < 1.3 && reachable && this.role === 'police') { out = { grab: true }; Pose.idle(r, game.time, false); r.set('shLX', -1.3); r.set('shRX', -1.3); r.set('elLX', -0.3); r.set('elRX', -0.3); break; }
         speed = reachable ? 7.6 : 0; // faster than his jog, slower than his sprint: he gets away on his feet, not by strolling
+        if (!foe && this.role === 'police') {
+          // out of sight: to where they last saw him, then look around (they don't just know where he is)
+          const ls = game.policeLastSeen;
+          if (!game.policeSees && ls) { const lx = ls.x - this.pos.x, lz = ls.z - this.pos.z, ld = Math.hypot(lx, lz); face = ld > 2 ? Math.atan2(lx, lz) : face + Math.sin(game.time * 0.8 + this.anim) * 0.05; speed = ld > 2 ? 6.2 : 0; if (speed === 0) { Pose.idle(r, game.time, false); r.set('headY', Math.sin(game.time * 1.3 + this.anim) * 0.8); } break; }
+          // one goes in for the grab; the others hold a few metres off, ready
+          if (game.policeGrabber && game.policeGrabber !== this && dist < 5) { speed = dist < 3.5 ? -2 : 0; if (speed === 0) { Pose.idle(r, game.time, true); } if (speed < 0) { face = toP + Math.PI; speed = 2; } break; }
+        }
         if (foe && dist < 13 && eye()) { speed = 0; Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('elRX', -0.4); } // a firefight: hold the ground and shoot
         if (!reachable && dist < 6) { face = toP + Math.PI; speed = 2; } // back off the wall so they can see up
         if (!reachable) { Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('headX', -0.5); } // shouting up at the roof
@@ -89,7 +114,7 @@ export class Gunman {
         const away = toP + Math.PI;
         this.fleeYaw += wrap(away - this.fleeYaw) * Math.min(1, dt * 1.5);
         face = this.fleeYaw; speed = 6.5;
-        if (this.shootCd <= 0 && dist < 22 && dist > 4 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; }
+        if (canShoot && this.shootCd <= 0 && dist < 22 && dist > 4 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; }
         break;
       }
       case 'aim': {
@@ -120,11 +145,23 @@ export class Gunman {
       }
       case 'down': {
         Pose.down(r);
-        if (this.role === 'police' && this.t > 16) { this.hp = this.maxHp; this.state = game.heat > 0 || this.duty ? 'chase' : 'return'; }
+        if (this.duty && this.t > 16) { this.hp = this.maxHp; this.state = 'chase'; } // out cold: an officer he knocks out stays down
+        break;
+      }
+      case 'floored': { // knocked down, getting back up
+        Pose.down(r); const f = Math.max(0, 1 - dt * 5); this.vel.x *= f; this.vel.z *= f;
+        if (this.t > 2.2) { this.state = this.role === 'thief' ? 'flee' : 'chase'; this.t = 0; }
+        break;
+      }
+      case 'air': { // launched: up, over, and down hard
+        Pose.down(r); this.vel.y -= 22 * dt; this.pos.y += this.vel.y * dt; this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt;
+        const g2 = col.groundHeight(this.pos.x, this.pos.z, this.pos.y + 0.3).h;
+        if (this.pos.y <= g2 && this.vel.y < 0) { this.pos.y = g2; this.vel.set(0, 0, 0); if (this.hp <= 0) { this.state = 'down'; this.t = 0; } else { this.state = 'floored'; this.t = 0; } }
+        r.update(dt, 14); r.root.position.copy(this.pos); r.root.rotation.y = this.yaw; return null;
         break;
       }
       case 'return': {
-        if (this.post) { if (game.heat > 0 && dist < 45 && !game.arrest) { this.state = 'chase'; break; } this.state = 'post'; break; }
+        if (this.post) { if (game.heat > 0 && dist < 12 && !game.arrest) { this.state = 'chase'; break; } this.state = 'post'; break; }
         if (!this.car) { this.remove(); return null; }
         const cx = this.car.pos.x - this.pos.x, cz = this.car.pos.z - this.pos.z, cd = Math.hypot(cx, cz);
         face = Math.atan2(cx, cz); speed = 3.2;

@@ -678,6 +678,8 @@ export function createGame(ctx) {
       else hud.notice('SUIT IN RAGS', 'The mask is ripped off: people can see your face. You need a new suit (Sunny Tailoring).', 'red', 4); }
   }
   game.wearSuit = wearSuit;
+  const _fr = new THREE.Frustum(), _pm = new THREE.Matrix4(), _vp = new THREE.Vector3();
+  game.isVisible = (x, z) => { const cam = camera.cam; _pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); _fr.setFromProjectionMatrix(_pm); _vp.set(x, 1.5, z); return _fr.containsPoint(_vp) && !col.blocked(cam.position.x, cam.position.y, cam.position.z, x, 1.5, z, 1.5); };
   // every hit that lands, whoever it's from: a beat of stillness, dust off him, and wear on the suit
   { const hurt = player.hurt; player.hurt = (dmg, fx0, fz0, knock) => { const hit = hurt(dmg, fx0, fz0, knock); if (hit) { game.hitStop = Math.max(game.hitStop || 0, dmg >= 15 ? 0.09 : 0.04); fx.dust(player.pos.x, player.pos.y + 1.1, player.pos.z, 3); if (L.suit) wearSuit(dmg * (game.lastHitKatana ? 0.7 : 0.3)); } return hit; }; }
 
@@ -921,31 +923,42 @@ export function createGame(ctx) {
     const seen = pol.some(v => v.police.sees) || offSee;
     if (seen && game.heat === 0 && game.carrying?.site) addHeat(1, 'Police spotted you with the levy bag. (The agberos pay them their cut.)');
     game.grudgeCd = (game.grudgeCd || 0) - dt;
-    // the suit is a criminal's outfit to them: any sighting is a chase, no warning, no pity
-    if (seen && game.heat === 0 && L.suit && !game.arrest && game.grudgeCd <= 0) { game.grudgeCd = 6; addHeat(1, 'Police: "' + ['Na the boy in black! Carry am!', 'See am! Masked boy! Stop there!', 'Na him! Oga say make we no let am escape!', 'Thief! Stop! Or I shoot!'][Math.floor(R() * 4)] + '"'); }
+    game.policeSees = seen; if (seen) (game.policeLastSeen ||= new THREE.Vector3()).copy(player.pos);
+    // in the suit, being seen isn't a crime: doing something is (a fight in view, theft, hitting an officer: those raise heat where they happen)
     if (game.heat >= 2) game.wasHot = true;
     if (game.heat === 0 && game.wasHot) { // he shook off a serious chase: the man paying the police is losing patience
       game.wasHot = false; const F = game.story.flags; F.policeFails = (F.policeFails || 0) + 1;
     }
     if (game.heat > 0) {
-      if (seen) { game.heatTimer = 0; if (!game.arrest) game.seenTime += dt; if (game.seenTime > 16 && game.heat < 3) { game.seenTime = 0; addHeat(1, 'More units joining the chase!'); } }
-      else { game.heatTimer += dt; game.seenTime = Math.max(0, game.seenTime - dt); if (game.heatTimer > (player.cuffed ? 16 : 10)) { game.heatTimer = 0; game.heat--; hud.toast(game.heat ? 'They\'re losing you…' : '<b>You lost the police.</b>', game.heat ? 'blue' : 'green'); } }
+      if (seen) { game.heatTimer = 0; if (!game.arrest) game.seenTime += dt; if (game.seenTime > 25 && game.heat < 3) { game.seenTime = 0; addHeat(1, game.heat === 2 ? 'MOPOL are being called in.' : 'More units joining the chase!'); } }
+      else { game.heatTimer += dt; game.seenTime = Math.max(0, game.seenTime - dt); if (game.heatTimer > (player.cuffed ? 12 : 7)) { game.heatTimer = 0; game.heat--; hud.toast(game.heat ? 'They\'re losing you…' : '<b>You lost the police.</b>', game.heat ? 'blue' : 'green'); } }
     }
     for (const v of pol) { if (v.police.mode === 'transport') continue; const chasing = game.heat > 0; v.police.mode = chasing ? 'chase' : 'patrol'; v.police.siren = chasing; }
     for (const v of pol) {
       const P = v.police, d = Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z);
-      if (!P.crew && game.heat > 0 && d < 26 && (onFoot() || player.pos.y > 2.5 || v.speed < 2) && player.mode !== 'down') {
+      const onFootNow = game.gunmen.filter(g => g.alive && g.car && !g.mopol).length, cap = game.heat >= 3 ? 4 : 2; // breathing space: only a few on foot at once
+      if (P.mopol && !P.crew && game.heat >= 3 && d < 50 && v.speed < 6) { // MOPOL: they take a position round the van and hold it, guns ready
         P.parked = true; P.crew = [];
-        for (const side of [-1, 1]) { const g = new Gunman(scene, world, { x: v.pos.x + v.rt.x * side * 1.6, z: v.pos.z + v.rt.z * side * 1.6, y: v.pos.y, yaw: v.yaw, role: 'police', car: v }); P.crew.push(g); game.gunmen.push(g); }
+        for (let k = 0; k < 4; k++) { const a = v.yaw + Math.PI / 2 + k * Math.PI / 2, x = v.pos.x + Math.sin(a) * 2.6, z = v.pos.z + Math.cos(a) * 2.6; const g = new Gunman(scene, world, { x, z, y: v.pos.y, yaw: Math.atan2(player.pos.x - x, player.pos.z - z), role: 'police', car: v, post: { x, z, yaw: Math.atan2(player.pos.x - x, player.pos.z - z), cp: { stopped: null } }, outfit: OUTFITS.mopol }); g.mopol = true; P.crew.push(g); game.gunmen.push(g); }
+        game.say(P.crew[0], 'MOPOL! Nobody move!', 'MOPOL');
+      }
+      if (!P.mopol && !P.crew && game.heat > 0 && d < 26 && onFootNow + 2 <= cap && (onFoot() || player.pos.y > 2.5 || v.speed < 2) && player.mode !== 'down') {
+        P.parked = true; P.crew = [];
+        for (const side of [-1, 1]) { const g = new Gunman(scene, world, { x: v.pos.x + v.rt.x * side * 1.6, z: v.pos.z + v.rt.z * side * 1.6, y: v.pos.y, yaw: v.yaw, role: 'police', car: v, outfit: OUTFITS.police }); P.crew.push(g); game.gunmen.push(g); }
         game.say(P.crew[0], ['Get out! Catch am!', 'Oya come down from there!', 'You no fit run!'][Math.floor(R() * 3)], 'Police');
       }
+      if (P.mopol && P.crew && game.heat < 3) { for (const g of P.crew) if (!game.isVisible(g.pos.x, g.pos.z)) g.remove(); } // stood down
       if (P.crew && P.crew.every(g => g.removed)) { P.crew = null; P.parked = false; }
     }
     game.policeAlertT = Math.max(0, (game.policeAlertT || 0) - dt);
-    const want = game.heat === 0 ? (game.policeAlertT > 0 ? 3 : 1) : Math.min(player.cuffed ? 5 : 4, game.heat + (player.cuffed ? 2 : 1)); // an escaped prisoner: every unit out // an alert (a crashed levy car...) puts more cars on the street
+    const want = game.heat === 0 ? (game.policeAlertT > 0 ? 3 : 1) : Math.min(3, game.heat + (player.cuffed ? 1 : 0)); // one car per star; the third is the MOPOL van
     game.spawnCd -= dt;
-    if (pol.length < want && game.spawnCd <= 0) { const v = traffic.spawnPolice(player.pos.x, player.pos.z); v.police.target.copy(player.pos); game.spawnCd = 5; }
+    if (pol.length < want && game.spawnCd <= 0) {
+      const v = traffic.spawnPolice(player.pos.x, player.pos.z, game.isVisible);
+      if (v) { v.police.target.copy(game.policeLastSeen || player.pos); if (game.heat >= 3 && !pol.some(q => q.police.mopol)) v.police.mopol = true; game.spawnCd = 20; } else game.spawnCd = 2;
+    }
     if (pol.length > want) for (const v of pol) { if (v.police.mode === 'transport') continue; if (!v.police.crew && !v.police.sees && Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) > 95) { traffic.remove(v); break; } }
+    { let gb = null, gd = Infinity; for (const g of game.gunmen) if (g.alive && g.role === 'police' && !g.foe && g.state === 'chase') { const d = dist2(g.pos, player.pos); if (d < gd) { gd = d; gb = g; } } game.policeGrabber = gb; }
     let grabbing = false;
     const ps = Math.hypot(player.vel.x, player.vel.z);
     void ps;

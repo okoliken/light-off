@@ -176,16 +176,18 @@ export function createTraffic(scene, world) {
       return hit;
     },
     police() { return vehicles.filter(v => v.kind === 'police'); },
-    spawnPolice(px, pz) {
-      // a road node 70-120 m away, ideally out of sight
+    spawnPolice(px, pz, visible: ((x: number, z: number) => boolean) | null = null) {
+      // a road node 70-120 m away, out of sight (with `visible`, never one he could see: nobody appears out of nowhere)
       let best = null, bestScore = -1e9;
       for (let i = I0; i <= I1; i++) for (let j = 0; j <= N; j++) {
         const x = roadLine(i), z = roadLine(j), d = Math.hypot(x - px, z - pz);
         if (d < 60 || d > 150) continue;
         const hidden = col.blocked(x, 1.5, z, px, 1.5, pz, 2);
+        if (visible && (!hidden || visible(x, z))) continue;
         const score = (hidden ? 50 : 0) - Math.abs(d - 90) + R() * 10;
         if (score > bestScore) { bestScore = score; best = [x, z]; }
       }
+      if (!best && visible) return null; // nowhere out of sight right now: try again later
       if (!best) best = [roadLine(0), roadLine(0)];
       const v = makeVehicle('police', 'police');
       v.pos.set(best[0], 0, best[1]); v.yaw = Math.atan2(px - best[0], pz - best[1]);
@@ -234,7 +236,7 @@ export function createTraffic(scene, world) {
     return route[0] || [v.pos.x + Math.sin(v.yaw) * 10, v.pos.z + Math.cos(v.yaw) * 10];
   }
   // steer toward (tx,tz) at up to `target` m/s, swerving around traffic and sliding off buildings
-  function freeDrive(v, dt, tx, tz, target, { accel = 6, swerve = true }: any = {}) {
+  function freeDrive(v, dt, tx, tz, target, { accel = 6, swerve = true, unstick = true }: any = {}) {
     let want = Math.atan2(tx - v.pos.x, tz - v.pos.z);
     if (swerve) for (const o of vehicles) {
       if (o === v) continue;
@@ -256,38 +258,69 @@ export function createTraffic(scene, world) {
       if (contacts.length) { v.pos.x += _p.x - ox; v.pos.z += _p.z - oz; bumped = true; }
     }
     if (bumped) { v.speed *= 0.9; v.stuck += dt; } else v.stuck = Math.max(0, v.stuck - dt);
-    if (v.stuck > 1.5) { v.yaw += Math.PI * 0.5; v.stuck = 0; } // unstick
+    if (unstick && v.stuck > 1.5) { v.yaw += Math.PI * 0.5; v.stuck = 0; } // unstick
     const g = col.groundHeight(v.pos.x, v.pos.z, v.pos.y + 0.6, 0.5);
     v.pos.y += (g.h - v.pos.y) * Math.min(1, dt * 10);
+  }
+  // a route over the road centrelines, moved into the right-hand lane, corners taken on the inside of the junction
+  function laneRoute(pts) {
+    const out: number[][] = [], rt = (d) => [-d[1], d[0]];
+    for (let k = 0; k < pts.length; k++) {
+      const a = pts[k - 1], b = pts[k], c = pts[k + 1];
+      const din = a ? norm(b[0] - a[0], b[1] - a[1]) : c ? norm(c[0] - b[0], c[1] - b[1]) : [0, 1];
+      const dout = c ? norm(c[0] - b[0], c[1] - b[1]) : din;
+      const r1 = rt(din), r2 = rt(dout), turn = Math.abs(din[0] * dout[1] - din[1] * dout[0]) > 0.5;
+      out.push(turn ? [b[0] + (r1[0] + r2[0]) * LANE, b[1] + (r1[1] + r2[1]) * LANE] : [b[0] + r1[0] * LANE, b[1] + r1[1] * LANE]);
+    }
+    return out;
+  }
+  const norm = (x, z) => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
+  // the spot on the road nearest to where he is: the car pulls up there (the officers get out and run the rest)
+  function kerbNear(px, pz) {
+    const i = Math.max(I0, Math.min(I1, Math.round((px + HALF) / CELL))), j = Math.max(0, Math.min(N, Math.round((pz + HALF) / CELL)));
+    const rx = roadLine(i), rz = roadLine(j);
+    return Math.abs(px - rx) < Math.abs(pz - rz) ? [rx, pz] : [px, rz];
   }
   function drivePolice(v, dt, game) {
     const P = v.police, pp = game.player.pos;
     const chasing = P.mode === 'chase';
     if (P.mode === 'transport') { // prisoner in the back: drive to the station
-      P.routeT -= dt; if (P.routeT <= 0 || !P.route.length) { P.routeT = 3; P.route = routeTo(v, P.dest.x, P.dest.z); }
-      const [tx, tz] = nextWaypoint(v, P.route); freeDrive(v, dt, tx, tz, 12); return;
+      P.routeT -= dt; if (P.routeT <= 0 || !P.route.length) { P.routeT = 3; P.route = laneRoute(routeTo(v, P.dest.x, P.dest.z)); }
+      const [tx, tz] = nextWaypoint(v, P.route); freeDrive(v, dt, tx, tz, 12, { unstick: false }); return;
     }
     if (P.parked) { v.speed = Math.max(0, v.speed - 12 * dt); v.yawRate = 0; v.pos.x += Math.sin(v.yaw) * v.speed * dt; v.pos.z += Math.cos(v.yaw) * v.speed * dt; return; }
-    const dist = Math.hypot(pp.x - v.pos.x, pp.z - v.pos.z);
-    P.routeT -= dt;
-    let tx, tz;
-    if (chasing) {
-      if (P.sees && dist < 34) { P.route = []; tx = pp.x; tz = pp.z; }
-      else if (P.routeT <= 0 || !P.route.length) { P.routeT = 1.2; P.route = routeTo(v, P.target.x, P.target.z); }
-    } else if (P.routeT <= 0 || !P.route.length) {
-      P.routeT = 12; P.route = routeTo(v, roadLine(I0 + Math.floor(R() * (I1 - I0 + 1))), roadLine(Math.floor(R() * (N + 1))));
+    // blocked: back out, turning away, then try again (no spinning on the spot)
+    if (P.reverseT > 0) {
+      P.reverseT -= dt; v.speed = Math.max(-4, v.speed - 10 * dt); v.yaw += P.revSteer * dt * 0.9; v.yawRate = P.revSteer * 0.9;
+      v.pos.x += Math.sin(v.yaw) * v.speed * dt; v.pos.z += Math.cos(v.yaw) * v.speed * dt;
+      const g = col.groundHeight(v.pos.x, v.pos.z, v.pos.y + 0.6, 0.5); v.pos.y += (g.h - v.pos.y) * Math.min(1, dt * 10);
+      if (P.reverseT <= 0) { v.speed = 0; P.route = []; P.routeT = 0; }
+      return;
     }
-    if (tx === undefined) [tx, tz] = nextWaypoint(v, P.route);
-    let target = chasing ? (game.heat >= 3 ? 19 : 16.5) : 9;
-    if (chasing && P.sees && dist < 12) target = Math.min(target, 2.5 + dist * 0.75); // shadow the player instead of ramming
-    if (!chasing && Math.hypot(tx - v.pos.x, tz - v.pos.z) < 6 && P.route.length <= 1) target = 0;
-    freeDrive(v, dt, tx, tz, target);
-    // stuck against a building or kerb for 3 s: back onto the nearest junction, facing the target
-    P.slowT = v.speed < 1.2 && target > 3 ? (P.slowT || 0) + dt : 0;
-    if (P.slowT > 3) {
+    P.routeT -= dt;
+    if (chasing) { // always on the roads: to the kerb nearest where they think he is
+      if (P.routeT <= 0 || !P.route.length) { P.routeT = 1.5; const t = P.sees ? pp : P.target, g2 = northOf(t.z) ? [t.x, t.z] : kerbNear(t.x, t.z); P.route = laneRoute(routeTo(v, g2[0], g2[1])); }
+    } else if (P.routeT <= 0 || !P.route.length) {
+      P.routeT = 12; P.route = laneRoute(routeTo(v, roadLine(I0 + Math.floor(R() * (I1 - I0 + 1))), roadLine(Math.floor(R() * (N + 1)))));
+    }
+    const [tx, tz] = nextWaypoint(v, P.route);
+    let target = chasing ? (game.heat >= 3 ? 18 : 14.5) : 9;
+    // slow for the corner ahead: the sharper the turn and the closer it is, the slower
+    const wp = P.route[0], nx2 = P.route[1];
+    if (wp && nx2) {
+      const d1 = norm(wp[0] - v.pos.x, wp[1] - v.pos.z), d2 = norm(nx2[0] - wp[0], nx2[1] - wp[1]), turn = Math.acos(Math.max(-1, Math.min(1, d1[0] * d2[0] + d1[1] * d2[1])));
+      if (turn > 0.35) target = Math.min(target, 5.5 + Math.hypot(wp[0] - v.pos.x, wp[1] - v.pos.z) * 0.5);
+    }
+    if (P.route.length <= 1 && wp) target = Math.min(target, Math.hypot(wp[0] - v.pos.x, wp[1] - v.pos.z) * 0.9); // pull up at the end
+    freeDrive(v, dt, tx, tz, target, { unstick: false });
+    // pushing against something: reverse out. Still stuck after that, and nobody watching: put it back on a junction
+    if (v.stuck > 0.9 && target > 3) { P.reverseT = 1.1; P.revSteer = R() < 0.5 ? 1 : -1; v.stuck = 0; P.tries = (P.tries || 0) + 1; }
+    P.slowT = v.speed < 1 && target > 3 ? (P.slowT || 0) + dt : 0;
+    if ((P.tries || 0) >= 3 || P.slowT > 5) {
       const [i, j] = nearestNode(v.pos.x, v.pos.z), nx = roadLine(i) + LANE, nz = roadLine(j);
-      if (Math.hypot(nx - pp.x, nz - pp.z) > 12) { v.pos.set(nx, 0, nz); v.yaw = Math.atan2(tx - nx, tz - nz); v.speed = 4; }
-      P.slowT = 0; P.route = []; P.routeT = 0;
+      const unseen = Math.hypot(v.pos.x - pp.x, v.pos.z - pp.z) > 45 && !game.isVisible?.(v.pos.x, v.pos.z) && !game.isVisible?.(nx, nz);
+      if (unseen) { v.pos.set(nx, 0, nz); v.yaw = Math.atan2(tx - nx, tz - nz); v.speed = 3; }
+      P.tries = 0; P.slowT = 0; P.route = []; P.routeT = 0;
     }
   }
   function driveGetaway(v, dt, game) {
