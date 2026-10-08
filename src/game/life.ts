@@ -33,7 +33,7 @@ export function createLife(game) {
     L.hunger = Math.max(0, L.hunger - dt * (0.045 + (spd > 7 ? 0.03 : 0) + (fighting ? 0.05 : 0)));
     L.energy = Math.max(0, L.energy - dt * (0.03 + (spd > 7 && p.mode === 'foot' ? 0.06 : 0) + (fighting ? 0.09 : 0) + (p.mode === 'climb' || p.mode === 'wallrun' ? 0.08 : 0)));
     p.eff = L.eff(); p.energy = L.energy;
-    if (L.hunger <= 0 && p.hp > 20 && Math.random() < dt * 0.05) { p.hp -= 3; game.hud.toast('You\'re starving. <b>Eat something.</b>', 'red'); }
+    if (L.hunger <= 0 && p.hp > 20 && Math.random() < dt * 0.05) { p.hp -= 3; } // the STARVING tag under health says it
     if (L.phase === 'night' && game.mode !== 'patrol' && !L.dawnWarned && L.clock > 28 * 60 + 45) { L.dawnWarned = true; game.hud.notice('4:45 AM', 'Mama wakes at 5:30 for the market. Get home.', 'white', 3); }
     if (L.phase === 'night' && !L.caught && L.clock >= NIGHT_END) { L.caught = true; game.onDawn?.(); }
   };

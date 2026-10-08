@@ -692,3 +692,69 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 .boot-bar i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width 0.4s; }
 .boot-msg { font-size: 12px; letter-spacing: 0.3em; font-weight: 800; color: var(--dim); text-transform: uppercase; }
 .mm-logo .mm-sum { margin: 14px 0 0; max-width: 460px; font-size: 15px; line-height: 1.5; color: #e3ded2; }
+
+/* ---- HUD v2: one place for each message, most things only when they matter ---- */
+#hud .brand, #hud .respect, #hud .suitline, #hud .needs, #hud .health .hv, #hud .heat .lbl, #hud .power:not(.off), #hud .clock .cn, #hud .clock .cw, #hud .tracker, #hud .notices { display: none !important; }
+#hud .health .hbar { height: 5px; width: 170px; }
+#hud .heat.off { display: none; }
+#hud .naira { opacity: 0; transition: opacity 0.3s; } #hud .naira.show { opacity: 1; }
+#hud .needtags { display: flex; gap: 6px; min-height: 0; }
+#hud .needtags span { font: 800 10px Inter, sans-serif; letter-spacing: 0.14em; color: #ffab40; background: rgba(8,10,16,0.6); padding: 3px 7px; }
+#hud .clock { top: 226px; } #hud .clock .ct { font: 700 13px "JetBrains Mono", ui-monospace, Menlo, monospace; color: rgba(255,255,255,0.8); text-shadow: 0 1px 3px #000; }
+#hud .power.off { top: 246px; }
+/* the objective: one line and its clock */
+#hud .objective { background: rgba(8,10,16,0.55); border: 0; border-left: 3px solid var(--yellow); padding: 8px 16px; font-size: 15px; font-weight: 600; white-space: nowrap; max-width: calc(100vw - 520px); overflow: hidden; text-overflow: ellipsis; }
+#hud .objective small { display: none; }
+#hud .objective .t { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; color: var(--yellow); margin-left: 10px; }
+#hud .objective .t.hot { color: var(--red); }
+/* alerts: one at a time */
+#hud .toasts { top: 42%; max-width: 330px; }
+#hud .toast { background: rgba(8,10,16,0.62); font-size: 13px; transition: opacity 0.25s; } #hud .toast.out { opacity: 0; }
+/* the corner card: a mission starting, the Hunter arriving, short news */
+#hud .mcard { position: absolute; left: 24px; bottom: 120px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transform: translateY(8px); transition: opacity 0.35s, transform 0.35s; pointer-events: none; max-width: 420px; }
+#hud .mcard.show { opacity: 1; transform: none; }
+#hud .mcard small { font: 800 12px Inter, sans-serif; letter-spacing: 0.3em; text-transform: uppercase; color: var(--yellow); text-shadow: 0 1px 3px #000; }
+#hud .mcard strong { font-family: Anton, Impact, sans-serif; font-weight: 400; font-size: 44px; line-height: 1; color: #fff; text-shadow: 0 3px 0 #000; }
+#hud .mcard.long strong { font: 600 15px/1.45 Inter, sans-serif; text-shadow: 0 1px 4px #000; }
+#hud .mcard.red small { color: var(--red); } #hud .mcard.green small { color: #9ccc65; } #hud .mcard.blue small { color: #81d4fa; }
+#hud .banner { top: 30%; } #hud .banner p { font-size: 15px; }
+/* speech: just the words */
+#hud .say { bottom: 64px; font-size: 17px; font-weight: 600; }
+/* bottom left: speed only when riding, move keys only in a fight, Street Sense only when it's working */
+#hud .modebox .mode { display: none; } #hud.riding .modebox .mode { display: block; }
+#hud .modebox .gadgets, #hud .modebox .gkit { display: none; } #hud.in-fight .modebox .gadgets, #hud.in-fight .modebox .gkit { display: flex; }
+#hud .modebox > div:last-child { display: none; } #hud.sensing .modebox > div:last-child { display: block; }
+#hud .gadgets span { background: rgba(8,10,16,0.55); border-color: transparent; }
+#hud .help { transition: opacity 0.6s; } #hud.help-faded .help { opacity: 0; pointer-events: none; }
+/* markers: pin (where to go), caret (after you), brackets (lock-on) */
+#hud .marker { font: 700 11px "JetBrains Mono", ui-monospace, Menlo, monospace; letter-spacing: 0.02em; --c: var(--yellow); color: var(--c); }
+#hud .marker .pin { border: 0; box-shadow: none; animation: none; background: var(--c); }
+#hud .marker.p .pin { width: 16px; height: 16px; margin: 0 auto 3px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); filter: drop-shadow(0 0 6px var(--c)); position: relative; }
+#hud .marker.p .pin::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #0b0d12; }
+#hud .marker.p::after { content: ''; display: block; width: 3px; height: 34px; margin: 2px auto 0; background: linear-gradient(var(--c), transparent); opacity: 0.45; }
+#hud .marker.site, #hud .marker.levy, #hud .marker.thief, #hud .marker.car { --c: #ff4b3e; }
+#hud .marker.escape { --c: #69f0ae; } #hud .marker.captive { --c: #40c4ff; } #hud .marker.home { --c: #f1ede4; }
+#hud .marker.c .pin { width: 12px; height: 8px; margin: 0 auto 2px; transform: none; border-radius: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+#hud .marker.enemy, #hud .marker.tail, #hud .marker.dangerRed { --c: #ff4b3e; } #hud .marker.cop { --c: #64b5f6; } #hud .marker.danger { --c: #ffd54f; }
+#hud .marker.danger .pin, #hud .marker.dangerRed .pin { width: 20px; height: 13px; filter: drop-shadow(0 0 6px var(--c)); }
+#hud .marker.danger .t, #hud .marker.dangerRed .t { font: 900 13px Inter, sans-serif; color: var(--c); }
+#hud .marker.edge { opacity: 0.9; }
+#hud .marker.p.edge::after { display: none; }
+#hud .marker.p.edge .pin { border-radius: 0; width: 14px; height: 16px; clip-path: polygon(0 0, 100% 50%, 0 100%); transform: rotate(var(--a, 0rad)); filter: none; }
+#hud .marker.p.edge .pin::after { display: none; }
+#hud .marker.l { font-size: 10px; }
+@media (max-height: 500px) {
+  #hud .mcard { bottom: 70px; left: 14px; } #hud .mcard strong { font-size: 28px; }
+  #hud .objective { font-size: 12px; padding: 5px 10px; max-width: calc(100vw - 300px); }
+  #hud .clock { display: none; }
+  #hud .say { bottom: 44px; font-size: 14px; }
+  #hud .toasts { max-width: 260px; } #hud .toast { font-size: 11px; }
+}
+#hud .popup { font-size: 17px; opacity: 0.9; }
+.mm-missions.brief { margin-top: 18px; }
+@media (max-height: 500px) { .mm-missions.brief .mmr { padding: 6px 10px; } .mm-missions.brief .mmr .t b { font-size: 15px; } .mm-missions.brief .mmr .n { font-size: 20px; } }
+@media (max-height: 500px) {
+  #hud .objective { transform: translateX(-50%); white-space: normal; max-width: calc(100vw - 340px); line-height: 1.35; text-align: center; }
+  #hud .mcard { top: 30px; bottom: auto; }
+  #hud.in-fight .modebox .gadgets, #hud.in-fight .modebox .gkit { display: none; } /* the touch buttons say it */
+}

@@ -210,7 +210,7 @@ export function createDay(game) {
   D.update = (dt) => {
     if (L.inside) return;
     const p = player.pos;
-    for (const q of Object.values(P)) if (!q.found && near(q, p, 16)) { q.found = true; hud.popup(`DISCOVERED · <b>${q.name.toUpperCase()}</b>`); game.addRespect(40); audio.tick?.(); }
+    for (const q of Object.values(P)) if (!q.found && near(q, p, 16)) { q.found = true; if (game.sub !== 'story') hud.popup(`DISCOVERED · <b>${q.name.toUpperCase()}</b>`); game.addRespect(40); audio.tick?.(); }
     if (L.phase !== 'day') return;
     for (const s of sources) {
       if (s.kind === 'paper') continue;

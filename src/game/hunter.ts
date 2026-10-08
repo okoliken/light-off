@@ -131,7 +131,7 @@ export function createHunter(game) {
     body.mode = 'foot'; body.vel.set(0, 0, 0); body.rig.root.visible = true;
     Object.assign(H, { active: true, hp: H.maxHp, state: 'hunt', t: 0, removed: false, sword: false, swordT: 0, drewT: 0 }); fightT = 0; lastSeen = { x: player.pos.x, y: player.pos.y, z: player.pos.z }; unseenT = 0; searchT = 0; pinT = 0;
     if (!game.thugs.includes(H)) game.thugs.push(H);
-    hud.banner('THE HUNTER', H.met ? 'He\'s back. And he\'s learning the streets.' : 'The government brought someone in from Japan for the boy in black. He moves like you. He has a sword. Lose him: he doesn\'t know Lagos.', 'red', 4.5);
+    hud.card('He\'s here', 'The Hunter');
     H.met = true; audio.alert();
   };
   const leave = (why) => {

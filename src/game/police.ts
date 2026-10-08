@@ -158,7 +158,7 @@ export function createCheckpoints(game) {
     K.raidMarker(M, MM, dstr);
     for (const cp of cps) {
       MM.push({ x: cp.x, z: cp.z, color: '#1e88e5' });
-      if (Math.hypot(cp.x - player.pos.x, cp.z - player.pos.z) < 70) M.push({ x: cp.x, y: 3.2, z: cp.z, kind: 'cop', label: `CHECKPOINT${cp.cash && game.life.phase !== 'day' ? ' · ₦' + cp.cash.toLocaleString() + ' ROGER' : ''} · ${dstr(cp.x, cp.z)}`, edge: false });
+      if (Math.hypot(cp.x - player.pos.x, cp.z - player.pos.z) < 70) M.push({ x: cp.x, y: 3.2, z: cp.z, kind: 'checkpoint', label: `CHECKPOINT${cp.cash && game.life.phase !== 'day' ? ' · ₦' + cp.cash.toLocaleString() + ' ROGER' : ''} · ${dstr(cp.x, cp.z)}`, edge: false });
     }
   };
   // slowly re-fill during the day and night (the post never really closes)

@@ -324,13 +324,13 @@ export function createGeneral(game) {
   function begin() {
     const m = CH[C.ch]; if (!m || C.on) return;
     C.on = true; C.st = 0; C.entered = false; C.data = {}; C.t0 = game.time;
-    hud.banner(`MISSION ${C.ch + 1} · ${m.title.toUpperCase()}`, m.brief, m.time === 'night' ? 'red' : 'blue', 5);
+    hud.card(`Mission ${C.ch + 1}`, m.title);
     audio.alert?.(); game.save();
   }
   function complete() {
     const m = CH[C.ch];
     m.finish?.(); cleanupMission();
-    hud.banner(`MISSION ${C.ch + 1} COMPLETE`, `${m.title}. The mission is over.`, 'green', 4.5); game.addRespect(1500, m.title.toUpperCase());
+    hud.banner('MISSION COMPLETE', '', 'green', 2.4); game.addRespect(1500, m.title.toUpperCase());
     const i = C.ch, secs = game.time - (C.t0 || game.time);
     C.top = Math.max(C.top || 0, i + 1);
     C.on = false; C.st = 0; C.data = {};
@@ -378,7 +378,7 @@ export function createGeneral(game) {
   };
   // during a mission: the step, and its clock if it has one
   const clock = (t) => { const k = Math.max(0, Math.ceil(t)); return `${Math.floor(k / 60)}:${String(k % 60).padStart(2, '0')}`; };
-  G.objective = () => { if (!story() || !C.on) return null; const m = CH[C.ch], s = step(); return s ? `<b>Mission ${C.ch + 1} · ${m.title}</b> · ${s.label}${s.limit ? ` <b>${clock(C.left)}</b>` : ''}<small>MISSION ${C.ch + 1} OF ${CH.length}</small>` : null; };
+  G.objective = () => { if (!story() || !C.on) return null; const m = CH[C.ch], s = step(); return s ? `${s.label}${s.limit ? ` <b class="t${C.left < 30 ? ' hot' : ''}">${clock(C.left)}</b>` : ''}` : null; };
   G.tracker = () => {
     if (!story() || !C.on) return null;
     const m = CH[C.ch]; if (!m) return null;

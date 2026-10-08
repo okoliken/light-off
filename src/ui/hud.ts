@@ -35,6 +35,7 @@ export function createHUD(root, world) {
       <div class="wanted" style="display:none"><span class="lbl">RED CAPS</span><i></i><i></i><i></i></div>
       <div class="respect"><span class="lbl">REP</span> <b class="rv">0</b></div>
       <div class="suitline hidden"><span class="lbl">SUIT</span><div class="meter suitm"><b></b></div></div>
+      <div class="needtags"></div>
       <div class="needs">
         <div><span class="lbl">HUNGER</span><div class="meter hunger"><b></b></div></div>
         <div><span class="lbl">ENERGY</span><div class="meter energy"><b></b></div></div>
@@ -72,6 +73,7 @@ export function createHUD(root, world) {
     <div class="help"><button data-hb="pause">❚❚ Pause <kbd>Esc</kbd></button><button data-hb="controls">Controls <kbd>H</kbd></button><button data-hb="map">Map <kbd>M</kbd></button></div>
     <div class="aimdot"></div>
     <div class="bannerwrap"></div>
+    <div class="mcard"><small></small><strong></strong></div>
     <div class="overlays"></div>`;
   const $ = s => root.querySelector(s);
   const el = {
@@ -152,25 +154,40 @@ export function createHUD(root, world) {
     if (bl && bl.textContent !== S.badLabel) bl.textContent = S.badLabel;
     el.strug.classList.toggle('danger', (S.bad || 0) > 0.6);
   };
-  let toastN = 0, sayT = 0, bannerT = 0, bigMap = false;
+  let sayT = 0, bannerT = 0, bigMap = false, lastWallet = null, cashT = 0, fightT = 0, playT = 0;
 
-  H.toast = (text, kind = '') => {
-    const d = document.createElement('div'); d.className = 'toast ' + kind; d.innerHTML = glyph(text); el.toasts.appendChild(d);
-    const id = ++toastN; void id;
-    setTimeout(() => d.remove(), 4200);
-    while (el.toasts.children.length > 2) el.toasts.firstChild.remove(); // never a wall of text
+  // alerts: one at a time on the left, the rest wait their turn (a newer copy of the same text replaces it)
+  const toastQ: any[] = []; let toastOn = false;
+  const nextToast = () => {
+    const q = toastQ.shift(); if (!q) { toastOn = false; return; }
+    toastOn = true;
+    const d = document.createElement('div'); d.className = 'toast ' + q.kind; d.innerHTML = glyph(q.text); el.toasts.replaceChildren(d);
+    const plain = d.textContent || '', dur = Math.min(5200, 2600 + plain.length * 22);
+    setTimeout(() => { d.classList.add('out'); setTimeout(() => { d.remove(); nextToast(); }, 250); }, dur);
   };
+  H.toast = (text, kind = '') => {
+    if (toastQ.some(q => q.text === text)) return;
+    toastQ.push({ text, kind }); while (toastQ.length > 3) toastQ.shift(); // old news drops off
+    if (!toastOn) nextToast();
+  };
+  // the middle of the screen is for the big moments only; anything else is a corner card
+  const BIG = /COMPLETE|FAILED|BEATEN|CAPTURED|BUSTED|ARRESTED/i;
   H.banner = (title, sub = '', kind = '', dur = 2.6) => {
+    if (!BIG.test(title)) { H.card(title, sub, kind); return; }
     el.banner.innerHTML = `<div class="banner ${kind}"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>`;
-    bannerT = dur;
+    bannerT = Math.min(dur, 3.5);
+  };
+  let cardT = 0;
+  H.card = (kicker, title, kind = '') => {
+    const c = root.querySelector('.mcard');
+    // a long line is a sentence, not a title: it goes small under the kicker
+    const long = title && title.replace(/<[^>]+>/g, '').length > 34;
+    c.className = 'mcard show ' + kind + (long ? ' long' : '');
+    c.querySelector('small').innerHTML = kicker; c.querySelector('strong').innerHTML = title || '';
+    cardT = long ? 3.6 : 2.4;
   };
   H.say = (who, text, dur = 2.8) => { el.say.innerHTML = who ? `<b>${who}:</b> ${text}` : text; el.say.classList.remove('hidden'); sayT = dur; };
-  H.notice = (title, text = '', kind = '') => {
-    const box = root.querySelector('.notices'); if (!box) return;
-    const d = document.createElement('div'); d.className = 'notice ' + kind; d.innerHTML = glyph(`<b>${title}</b>${text ? ' · ' + text : ''}`); box.appendChild(d);
-    setTimeout(() => d.classList.add('out'), 3200); setTimeout(() => d.remove(), 3800);
-    while (box.children.length > 1) box.firstChild.remove();
-  };
+  H.notice = (title, text = '', kind = '') => H.toast(`<b>${title}</b>${text ? ' ' + text : ''}`, kind === 'white' ? '' : kind);
   H.popup = (html) => {
     const d = document.createElement('div'); d.className = 'popup'; d.innerHTML = html; el.popups.appendChild(d);
     setTimeout(() => d.remove(), 1500);
@@ -181,7 +198,7 @@ export function createHUD(root, world) {
   H.tracker = (info) => {
     const html = info ? `<div class="tt">${info.title}</div>${info.sub ? `<div class="ts">${info.sub}</div>` : ''}<ul>${info.steps.map(st => `<li class="${st.state}">${st.label}</li>`).join('')}</ul>` : '';
     if (html === trackerHTML) return;
-    trackerHTML = html; el.tracker.innerHTML = html; el.tracker.classList.toggle('hidden', !info);
+    trackerHTML = html; el.tracker.innerHTML = html; el.tracker.classList.add('hidden');
   };
   // cutscenes: letterbox bars slide in, subtitles type themselves (driven by game/cinema.js)
   let cineWho = null;
@@ -209,14 +226,18 @@ export function createHUD(root, world) {
   // ---- markers ----
   const markerPool: any[] = [];
   const _v = new THREE.Vector3();
+  // one family of shapes: a pin for where to go, a caret over whoever is after him, brackets for the lock-on.
+  // Places (bus stops, food, news) live on the minimap only.
+  const M_HIDDEN = { bus: 1, food: 1, news: 1, checkpoint: 1 }, M_CARET = { enemy: 1, cop: 1, tail: 1, danger: 1, dangerRed: 1 };
   function drawMarkers(list, cam, w, h) {
     while (markerPool.length < list.length) { const d = document.createElement('div'); d.className = 'marker'; d.innerHTML = '<div class="pin"></div><div class="t"></div>'; el.markers.appendChild(d); markerPool.push(d); }
     cam.updateMatrixWorld();
     const L = 70, Rr = w - 70, T = 140, B = h - 150, cx = w / 2, cy = h / 2;
     const used: any[] = [];
     markerPool.forEach((d, i) => {
-      const m = list[i];
-      if (!m) { d.style.display = 'none'; return; }
+      const m = list[i], base = m?.kind.split(' ')[0];
+      if (!m || M_HIDDEN[base]) { d.style.display = 'none'; return; }
+      const fam = base === 'lock' ? 'l' : M_CARET[base] ? 'c' : 'p';
       _v.set(m.x, m.y, m.z).applyMatrix4(cam.matrixWorldInverse); // camera space: -z is forward
       const inFront = _v.z < -0.5;
       let sx, sy, edge = false;
@@ -229,16 +250,20 @@ export function createHUD(root, world) {
         const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
         const k = Math.min(dx ? ((dx > 0 ? Rr : L) - cx) / dx : Infinity, dy ? ((dy > 0 ? B : T) - cy) / dy : Infinity);
         sx = cx + dx * k; sy = cy + dy * k; edge = true;
+        d.style.setProperty('--a', Math.atan2(dy, dx) + 'rad');
         if (sx > w - 250 && sy < 260) sy = 260;
         if (sx < 280 && sy > h - 170) sx = 280;
       }
       // keep labels from piling up
       let label = m.label || '';
-      if (edge) { const dm = label.match(/\d+m/); label = dm ? dm[0] : ''; }
+      const dm = label.match(/(\d+)\s?m\b/);
+      if (fam === 'p' && dm && +dm[1] < 4 && !edge) { d.style.display = 'none'; return; } // he's there: the F prompt takes over
+      if (fam === 'p') label = dm ? dm[1] + ' m' : !edge && label.length <= 20 && !label.includes('·') ? label : '';
+      else if (fam === 'l') { const parts = label.split('·').map(q => q.trim()); label = parts[2] || ''; }
       for (const [ux, uy] of used) if (Math.abs(ux - sx) < 70 && Math.abs(uy - sy) < 26) { label = ''; break; }
       used.push([sx, sy]);
       d.style.display = '';
-      d.className = 'marker ' + m.kind + (edge ? ' edge' : '');
+      d.className = 'marker ' + m.kind + ' ' + fam + (edge ? ' edge' : '');
       d.style.left = sx + 'px'; d.style.top = sy + 'px';
       d.querySelector('.t').textContent = label;
     });
@@ -435,6 +460,19 @@ export function createHUD(root, world) {
     el.hbar.style.width = Math.max(0, p.hp) + '%'; el.hcap.style.width = (100 - p.cap()) + '%';
     el.hbar.className = p.hp < 15 ? 'crit' : p.hp < 35 ? 'hurt' : '';
     el.hv.textContent = Math.ceil(Math.max(0, p.hp));
+    const hi0 = game.hudInfo();
+    root.querySelector('.heat').classList.toggle('off', !(game.heat > 0));
+    if (hi0.wallet !== lastWallet) { if (lastWallet != null) cashT = 3; lastWallet = hi0.wallet; } // cash shows when it changes
+    cashT -= dt; el.naira.classList.toggle('show', cashT > 0 && game.sub === 'free');
+    { const tags = [hi0.hunger <= 0 ? 'STARVING' : hi0.hunger < 25 ? 'HUNGRY' : '', hi0.energy < 25 ? 'TIRED' : ''].filter(Boolean).map(t => `<span>${t}</span>`).join(''), nt = root.querySelector('.needtags'); if (nt.innerHTML !== tags) nt.innerHTML = tags; }
+    { const near = (q, r) => (q.pos.x - p.pos.x) ** 2 + (q.pos.z - p.pos.z) ** 2 < r * r;
+      const fighting = p.mode === 'act' || game.thugs.some(t => t.alive && t.engaged && !t.calm && near(t, 20)) || game.gunmen.some(g => g.alive && !g.arrestee && ['chase', 'aim'].includes(g.state) && near(g, 25));
+      fightT = fighting ? 4 : fightT - dt; }
+    root.classList.toggle('in-fight', fightT > 0); // the move keys only in a fight
+    root.classList.toggle('riding', ['board', 'grind', 'skitch', 'bike', 'ride', 'zip', 'crawl', 'down'].includes(p.mode) || !!p.cuffed || !!game.arrest);
+    root.classList.toggle('sensing', !!game.sense || game.senseMeter < 99);
+    playT += dt; root.classList.toggle('help-faded', playT > 60);
+    if (cardT > 0) { cardT -= dt; if (cardT <= 0) root.querySelector('.mcard').classList.remove('show'); }
     { const sl: any = root.querySelector('.suitline'), on = !!game.life?.suit; sl.classList.toggle('hidden', !on); if (on) { const v = game.life.suitHP ?? 100, b = sl.querySelector('b'); b.style.width = v + '%'; b.style.background = v > 60 ? '#9e9e9e' : v > 25 ? '#ffab40' : '#ff5252'; } }
     el.stars.forEach((s, i) => s.classList.toggle('on', game.heat > i));
     el.naira.innerHTML = game.mode === 'patrol' ? `₦${game.life.wallet.toLocaleString()}<span>CASH</span>` : `₦${game.stats.returned.toLocaleString()}<span>RETURNED</span>`;
@@ -644,8 +682,8 @@ export function createHUD(root, world) {
     const when = (m) => m.time === 'night' ? 'Night · in the suit' : 'Day · in your SwiftDrop work clothes';
     const play = (i) => { M.destroy(); o.onPlay(i); };
     const brief = (m, i) => { const q = L[i]; m.open(`MISSION ${i + 1} · ${q.title.toUpperCase()}`, `<p class="mm-story">${q.brief}</p><p class="mm-note">${when(q)}</p>
-      <div class="mm-missions">${q.steps.map((st, k) => `<div class="mmr"><span class="n">${k + 1}</span><span class="t"><b>${st.label}</b>${st.limit ? `<i>⏱ ${fmt(st.limit)} on the clock</i>` : ''}</span></div>`).join('')}</div>
-      <div class="mm-row"><button class="mm-btn hot" data-nav data-go data-default>Start mission</button></div>`, (p) => { p.querySelector('[data-go]').onclick = () => play(i); }); };
+      <div class="mm-row"><button class="mm-btn hot" data-nav data-go data-default>Start mission</button></div>
+      <div class="mm-missions brief">${q.steps.map((st, k) => `<div class="mmr"><span class="n">${k + 1}</span><span class="t"><b>${st.label}</b>${st.limit ? `<i>⏱ ${fmt(st.limit)} on the clock</i>` : ''}</span></div>`).join('')}</div>`, (p) => { p.querySelector('[data-go]').onclick = () => play(i); }); };
     const all = (m) => m.open('ALL MISSIONS', `<div class="mm-missions">${L.map((q, i) => `<div class="mmr ${q.done ? 'done' : q.open ? 'cur' : 'locked'}"><span class="n">${i + 1}</span><span class="t"><b>${q.open ? q.title : 'Locked'}</b><i>${q.done ? 'Completed · ' + (q.time === 'night' ? 'night' : 'day') : q.open ? when(q) : 'Finish the one before it first'}</i></span>${q.open ? `<button class="mm-btn ${q.done ? '' : 'hot'}" data-nav data-m="${i}" ${q.done ? '' : 'data-default'}>${q.done ? 'Replay' : 'Play'}</button>` : '<span class="lock">LOCKED</span>'}</div>`).join('')}</div>`,
       (p) => p.querySelectorAll('[data-m]').forEach((b: any) => b.onclick = () => brief(m, +b.dataset.m)));
     const items: any[] = [];
@@ -867,7 +905,7 @@ export function createHUD(root, world) {
   };
   H.loading = (on) => { if (on) el.overlays.innerHTML = '<div class="loading">BUILDING SURULERE…</div>'; else el.overlays.innerHTML = ''; };
   H.hasOverlay = () => !!el.overlays.innerHTML;
-  H.setHudVisible = (v) => { for (const k of ['.status', '.objective', '.minimap', '.power', '.modebox', '.help', '.toasts', '.markers', '.bannerwrap', '.say', '.prompt', '.catch', '.popups', '.notices', '.crosshair', '.clock', '.followed', '.combo', '.areaname', '.roommeters', '.tracker', '.eyes', '.radiobox', '.radiolight']) { const n = root.querySelector(k); if (n) n.style.visibility = v ? '' : 'hidden'; } };
+  H.setHudVisible = (v) => { for (const k of ['.status', '.objective', '.minimap', '.power', '.modebox', '.help', '.toasts', '.markers', '.bannerwrap', '.say', '.prompt', '.catch', '.popups', '.notices', '.crosshair', '.clock', '.followed', '.combo', '.areaname', '.roommeters', '.tracker', '.eyes', '.radiobox', '.radiolight', '.mcard']) { const n = root.querySelector(k); if (n) n.style.visibility = v ? '' : 'hidden'; } };
   return H;
 }
 const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;

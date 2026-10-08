@@ -1117,7 +1117,7 @@ export function createGame(ctx) {
     SS.t = 2.4; SS.cd = 22; SS.hold = 6; game.escapeT = 0;
     audio.sense(true); setTimeout(() => audio.sense(false), 2400);
     hud.popup(`STREET SENSE · <b>${reason}</b>`);
-    if (!game.senseTaught) { game.senseTaught = true; hud.toast('<b>Street Sense</b> kicks in by itself when danger starts: time slows and a green trail shows you where to go.', 'blue'); }
+    if (!game.senseTaught && game.sub !== 'story') { game.senseTaught = true; hud.toast('<b>Street Sense</b> kicks in by itself when danger starts: time slows and a green trail shows you where to go.', 'blue'); }
   }
   function updateStreetSense(dt) {
     SS.cd = Math.max(0, SS.cd - dt); SS.t = Math.max(0, SS.t - dt); SS.hold = Math.max(0, SS.hold - dt);
@@ -1317,7 +1317,8 @@ export function createGame(ctx) {
     game.stats.bestCombo = Math.max(game.stats.bestCombo, combat.best);
     if (!L.inside) game.outT = (game.outT || 0) + dt;
     game.autoT = (game.autoT || 0) + dt; if (game.autoT > 20 && !game.arrest && player.mode !== 'ride') { game.autoT = 0; game.save(); }
-    if (game.mode === 'patrol') { // the two lives keep their own tips and their own clocks
+    if (game.sub === 'story') { /* Missions: no tips, the briefing and the move keys cover it */ }
+    else if (game.mode === 'patrol') { // the two lives keep their own tips and their own clocks
       const night = L.suit, TT = night ? NIGHT_TIPS : DAY_TIPS, k = night ? 'tipN' : 'tipD', tk = night ? 'outN' : 'outD';
       if (!L.inside) game[tk] = (game[tk] || 0) + dt;
       game[k] ||= 0; if (!L.inside && !game.tutorialOn && game[k] < TT.length && game[tk] > TT[game[k]][0]) hud.toast(TT[game[k]++][1], 'blue');
@@ -1344,7 +1345,7 @@ export function createGame(ctx) {
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()} · THE GREEN MARKER</small>`);
     else if (ao) hud.objective(ao);
     else if (game.inMall) hud.objective(`<b>${game.mallFrom?.name || 'The mall'}</b> · ${L.timeStr()}<small>WALK UP TO A COUNTER AND PRESS F TO BUY · THE GLASS DOORS TO LEAVE</small>`);
-    else if (game.mode === 'patrol' && !L.inside) hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>OPEN THE MAP (M) · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
+    else if (game.mode === 'patrol' && !L.inside) hud.objective(game.waypoint ? `Go to <b>${game.waypoint.label}</b>` : null);
     else if (so && game.story.active?.m.day) hud.objective(so);
     else if (!L.inside && game.story.reconObjective()) hud.objective(game.story.reconObjective());
     else if (L.phase === 'day' && !L.inside && L.clock >= 20 * 60) hud.objective('It\'s dark. <b>Go home</b>: Mama is back and dinner is waiting<small>NIGHT STARTS WHEN YOU\'RE HOME</small>');
@@ -1353,7 +1354,7 @@ export function createGame(ctx) {
     else if (so) hud.objective(so);
     else if (game.carrying && game.delivery && !game.story.active) hud.objective(`Return <b>${game.carrying.label}</b> to <b>${game.delivery.name}</b><small>${(game.delivery.why || '').toUpperCase()}</small>`);
     else if (game.story.side && !game.story.side.cleared) hud.objective(`Stop the Red Caps beating <b>${game.story.side.victim.name}</b><small>SIDE EVENT · FOLLOW THE ARROW</small>`);
-    else if (game.mode === 'patrol') hud.objective(`<b>${game.areaName || 'Lagos'}</b> · ${L.timeStr()}<small>OPEN THE MAP (M) · PICK A PLACE AND HOW TO GET THERE${game.waypoint ? ' · ' + game.waypoint.label.toUpperCase() : ''}</small>`);
+    else if (game.mode === 'patrol') hud.objective(game.waypoint ? `Go to <b>${game.waypoint.label}</b>` : null);
     else { const left = game.sites.filter(s => s.state === 'active').length; hud.objective(left ? `Patrol Surulere · <b>${left}</b> Red Cap levy point${left > 1 ? 's' : ''} active<small>OR GO HOME (WHITE) TO START THE NEXT STORY MISSION</small>` : 'Patrol Surulere<small>GO HOME TO REST OR START THE NEXT STORY MISSION</small>'); }
     hud.tracker(player.cuffed || game.arrest ? { title: 'In handcuffs', sub: game.arrest ? 'IN THE BACK OF A POLICE CAR' : `${game.heat} STAR${game.heat === 1 ? '' : 'S'} · ${Math.round(Math.hypot(DAY.pois.kolade.x - player.pos.x, DAY.pois.kolade.z - player.pos.z))} M TO KOLADE`, steps: [{ label: 'Kick the door out', state: game.arrest ? 'cur' : 'done' }, { label: 'Lose the police', state: game.arrest ? '' : game.heat > 0 ? 'cur' : 'done' }, { label: 'Get to Baba Kolade\'s workshop', state: !game.arrest && game.heat === 0 ? 'cur' : '' }] } : (game.mode === 'patrol' && game.sub === 'free' && game.job.clockedIn ? game.job.tracker() : null) || game.activities?.tracker() || (game.mode === 'patrol' ? (game.sub === 'free' ? game.job.tracker() : game.general.tracker()) : game.story.tracker()));
   };
@@ -1440,6 +1441,8 @@ export function createGame(ctx) {
     // danger sense: always on for anyone about to hit him
     for (const t of game.thugs) if (t.alive && t.state === 'windup') M.push({ x: t.pos.x, y: t.pos.y + 2.35, z: t.pos.z, kind: t.unblockable ? 'dangerRed' : 'danger', label: t.unblockable ? 'DODGE' : 'C', edge: false });
     for (const g of game.gunmen) if (g.alive && g.state === 'aim') M.push({ x: g.pos.x, y: g.pos.y + 2.3, z: g.pos.z, kind: 'dangerRed', label: 'GUN', edge: false });
+    for (const t of game.thugs) if (t.alive && t.engaged && t.state !== 'windup' && !t.calm && dist2(t.pos, player.pos) < 35 * 35) M.push({ x: t.pos.x, y: t.pos.y + 2.2, z: t.pos.z, kind: 'enemy', label: '', edge: false });
+    for (const g of game.gunmen) if (g.alive && !g.foe && !g.arrestee && g.state !== 'aim' && ['chase', 'flee'].includes(g.state) && g.role !== 'police' && dist2(g.pos, player.pos) < 40 * 40) M.push({ x: g.pos.x, y: g.pos.y + 2.2, z: g.pos.z, kind: 'enemy', label: '', edge: false });
     game.lockOn?.marker(M);
     const st = game.story.target();
     if (st) { M.push({ x: st.x, y: 2.6, z: st.z, kind: 'story', label: `${game.story.active?.m.title.toUpperCase() || 'STORY'} · ${dstr(st.x, st.z)}` }); MM.push({ x: st.x, z: st.z, color: '#ffd54f' }); }
