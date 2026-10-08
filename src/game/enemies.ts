@@ -104,8 +104,12 @@ export class Gunman {
           // out of sight: to where they last saw him, then look around (they don't just know where he is)
           const ls = game.policeLastSeen;
           if (!game.policeSees && ls) { const lx = ls.x - this.pos.x, lz = ls.z - this.pos.z, ld = Math.hypot(lx, lz); face = ld > 2 ? Math.atan2(lx, lz) : face + Math.sin(game.time * 0.8 + this.anim) * 0.05; speed = ld > 2 ? 6.2 : 0; if (speed === 0) { Pose.idle(r, game.time, false); r.set('headY', Math.sin(game.time * 1.3 + this.anim) * 0.8); } break; }
-          // one goes in for the grab; the others hold a few metres off, ready
-          if (game.policeGrabber && game.policeGrabber !== this && dist < 5) { speed = dist < 3.5 ? -2 : 0; if (speed === 0) { Pose.idle(r, game.time, true); } if (speed < 0) { face = toP + Math.PI; speed = 2; } break; }
+          // the nearest goes for the grab; the others close in and use the baton
+          if (game.policeGrabber !== this && dist < 1.9 && reachable && !game.arrest) {
+            this.batonCd = (this.batonCd || 0) - dt;
+            if (this.batonCd <= 0) { this.state = 'baton'; this.t = 0; this.batonCd = 1.4 + Math.random() * 0.6; break; }
+            speed = dist < 1.3 ? 0 : 3; Pose.idle(r, game.time, true); break;
+          }
         }
         if (foe && dist < 13 && eye()) { speed = 0; Pose.idle(r, game.time, false); r.set('shRX', -1.2); r.set('elRX', -0.4); } // a firefight: hold the ground and shoot
         if (!reachable && dist < 6) { face = toP + Math.PI; speed = 2; } // back off the wall so they can see up
@@ -117,6 +121,13 @@ export class Gunman {
         this.fleeYaw += wrap(away - this.fleeYaw) * Math.min(1, dt * 1.5);
         face = this.fleeYaw; speed = 6.5;
         if (canShoot && this.shootCd <= 0 && dist < 22 && dist > 4 && eye()) { this.state = 'aim'; this.t = 0; this.aimT = 0; this.losT = 0; }
+        break;
+      }
+      case 'baton': { // a wind-up he can see coming (dodge it), then the strike
+        face = toP; Pose.idle(r, game.time, true);
+        const k = Math.min(1, this.t / 0.45); r.set('shRX', -2.6 * k); r.set('elRX', -0.9 * k);
+        if (this.t >= 0.45 && !this.struck) { this.struck = true; if (dist < 2.1 && reachable) out = { baton: true }; r.set('shRX', 0.4); }
+        if (this.t > 0.8) { this.struck = false; this.state = 'chase'; this.t = 0; }
         break;
       }
       case 'aim': {

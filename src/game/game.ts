@@ -913,6 +913,7 @@ export function createGame(ctx) {
     game.policeSees = seen; if (seen) (game.policeLastSeen ||= new THREE.Vector3()).copy(player.pos);
     // in the suit, being seen isn't a crime: doing something is (a fight in view, theft, hitting an officer: those raise heat where they happen)
     if (game.heat >= 2) game.wasHot = true;
+    if (game.heat === 0) game.officersDown = 0;
     if (game.heat === 0 && game.wasHot) { // he shook off a serious chase: the man paying the police is losing patience
       game.wasHot = false; const F = game.story.flags; F.policeFails = (F.policeFails || 0) + 1;
     }
@@ -949,15 +950,8 @@ export function createGame(ctx) {
     let grabbing = false;
     const ps = Math.hypot(player.vel.x, player.vel.z);
     void ps;
-    // a trained fighter: while he still has his strength, a grab just gets the officer shoved off. Police
-    // have to hurt him first (shoot, beat him down); only then can they get the cuffs on.
-    if (game.officerGrab && !game.arrest) {
-      const strong = player.hp > player.cap() * 0.2 && player.mode !== 'crawl'; // a knockdown alone is not enough: only badly hurt (under 20%) or critical
-      if (strong) {
-        const o = game.gunmen.filter(g => g.alive && g.role === 'police' && Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) < 1.8)[0];
-        if (o && (game.shoveCd || 0) <= game.time) { game.shoveCd = game.time + 0.8; o.stun?.(1.4); const dx = o.pos.x - player.pos.x, dz = o.pos.z - player.pos.z, d = Math.hypot(dx, dz) || 1; o.pos.x += dx / d * 1.6; o.pos.z += dz / d * 1.6; camera.shake = 0.25; audio.punch(); hud.popup(player.cuffed ? 'HEADBUTT · <b>NOT TODAY</b>' : 'SHOVED OFF'); }
-      } else grabbing = true;
-    }
+    // an officer with hold of him: run (he can't keep up with a sprint) or hit him, or the cuffs go on
+    if (game.officerGrab && !game.arrest) grabbing = true;
     if (!game.arrest && game.heat > 0 && player.mode === 'crawl' && game.gunmen.some(g => g.alive && g.role === 'police' && Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) < 2.2)) grabbing = true; // beaten down with an officer on top of him
     game.officerGrab = false;
     game.catchMeter = Math.max(0, game.catchMeter + (grabbing ? dt * (player.mode === 'crawl' ? 0.5 : 0.35) : -dt * 0.9));
@@ -1244,6 +1238,13 @@ export function createGame(ctx) {
       if (r?.melee?.takeHit) { const f = r.melee; f.koCounted = true; f.takeHit(3, g.pos.x, g.pos.z, 'heavy'); if (f.hp > 0) f.koCounted = false; audio.punch(); }
       else if (r?.shoot && !game.arrest) resolveShot(g.muzzle().clone());
       if (r?.grab) game.officerGrab = true;
+      if (r?.baton && !game.arrest && player.mode !== 'roll') { player.hurt(6, g.pos.x, g.pos.z, 2.5); audio.punch(); camera.shake = 0.2; }
+      // knocking officers down makes it serious: the first raises the chase, the second puts guns on him
+      if (g.role === 'police' && !g.foe && !g.arrestee && game.heat > 0) {
+        const hurt = ['floored', 'down', 'air'].includes(g.state);
+        if (hurt && !g.downCounted) { g.downCounted = true; game.officersDown = (game.officersDown || 0) + 1; if (game.heat < 3) addHeat(game.officersDown >= 2 ? 3 - game.heat : Math.max(0, 2 - game.heat), game.officersDown >= 2 ? 'Officers down. Units are cleared to fire.' : 'Officer down!', true); }
+        else if (!hurt && g.state === 'chase') g.downCounted = false;
+      }
     }
     for (let i = game.gunmen.length - 1; i >= 0; i--) if (game.gunmen[i].removed) game.gunmen.splice(i, 1);
 
@@ -1421,6 +1422,7 @@ export function createGame(ctx) {
     // danger sense: always on for anyone about to hit him
     for (const t of game.thugs) if (t.alive && t.state === 'windup') M.push({ x: t.pos.x, y: t.pos.y + 2.35, z: t.pos.z, kind: t.unblockable ? 'dangerRed' : 'danger', label: t.unblockable ? 'DODGE' : 'C', edge: false });
     for (const g of game.gunmen) if (g.alive && g.state === 'aim') M.push({ x: g.pos.x, y: g.pos.y + 2.3, z: g.pos.z, kind: 'dangerRed', label: 'GUN', edge: false });
+    for (const g of game.gunmen) if (g.alive && g.state === 'baton') M.push({ x: g.pos.x, y: g.pos.y + 2.3, z: g.pos.z, kind: 'danger', label: 'C', edge: false });
     for (const t of game.thugs) if (t.alive && t.engaged && t.state !== 'windup' && !t.calm && dist2(t.pos, player.pos) < 35 * 35) M.push({ x: t.pos.x, y: t.pos.y + 2.2, z: t.pos.z, kind: 'enemy', label: '', edge: false });
     for (const g of game.gunmen) if (g.alive && !g.foe && !g.arrestee && g.state !== 'aim' && ['chase', 'flee'].includes(g.state) && g.role !== 'police' && dist2(g.pos, player.pos) < 40 * 40) M.push({ x: g.pos.x, y: g.pos.y + 2.2, z: g.pos.z, kind: 'enemy', label: '', edge: false });
     game.lockOn?.marker(M);
