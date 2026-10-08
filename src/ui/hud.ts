@@ -220,7 +220,7 @@ export function createHUD(root, world) {
   let radioT = 0, radioFull = '', radioShown = 0;
   H.radio = (station, text) => { el.radio.classList.remove('hidden'); el.radioSt.textContent = 'RADIO · ' + station; radioFull = text; radioShown = 0; el.radioTx.textContent = ''; radioT = 5 + text.length * 0.045; };
   let areaT = 0;
-  H.area = (name) => { el.area.textContent = name; el.area.classList.add('show'); areaT = 2.6; };
+  H.area = (name) => { if (cardT > 0) return; H.card('Entering', name); }; // the corner card, unless a mission card is up
   H.objective = (html) => { el.objective.innerHTML = glyph(html) || ''; el.objective.classList.toggle('hidden', !html); };
 
   // ---- markers ----
