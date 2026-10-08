@@ -218,6 +218,8 @@ export function createGame(ctx) {
     scene: (lines, focus, onDone, title) => { if (lines?.length && game.playScene) game.playScene(lines, focus, onDone, title); else onDone?.(); },
   };
   game.api = api;
+  // a mission beat: the world slows for a breath, the camera kicks, a red card says what just changed
+  game.moment = (kicker, title) => { game.slowT = 0.9; camera.shake = Math.max(camera.shake || 0, 0.5); audio.alert(); hud.card(kicker, title, 'red'); };
   game.story = createStory(game, api);
 
   game.day = createDay(game);
@@ -1155,7 +1157,8 @@ export function createGame(ctx) {
     game.time += dt; game.stats.time += dt;
     game.struggle = null; // the struggle card (hud): whatever needs the player's hands this frame sets it below
     updateStreetSense(dt);
-    game.timeScale += ((game.sense ? 0.45 : TR.hurry(input) ? 3 : 1) - game.timeScale) * Math.min(1, dt * 8);
+    game.slowT = Math.max(0, (game.slowT || 0) - dt);
+    game.timeScale += ((game.slowT > 0 ? 0.3 : game.sense ? 0.45 : TR.hurry(input) ? 3 : 1) - game.timeScale) * Math.min(1, dt * (game.slowT > 0 ? 14 : 8));
     env.grade.uniforms.sense.value += ((game.sense ? 1 : 0) - env.grade.uniforms.sense.value) * Math.min(1, dt * 6);
     const lowHp = player.hp < 35 ? 0.35 : player.hp < 15 ? 0.55 : 0;
     env.grade.uniforms.hurt.value = Math.max(lowHp, env.grade.uniforms.hurt.value - dt * 1.5);
