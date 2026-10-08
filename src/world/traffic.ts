@@ -299,7 +299,7 @@ export function createTraffic(scene, world) {
     }
     P.routeT -= dt;
     if (chasing) { // always on the roads: to the kerb nearest where they think he is
-      if (P.routeT <= 0 || !P.route.length) { P.routeT = 1.5; const t = P.sees ? pp : P.target, g2 = northOf(t.z) ? [t.x, t.z] : kerbNear(t.x, t.z); P.route = laneRoute(routeTo(v, g2[0], g2[1])); }
+      if (P.routeT <= 0 || !P.route.length) { P.routeT = 1.5; const t = P.sees ? pp : game.policeLastSeen || P.target, g2 = northOf(t.z) ? [t.x, t.z] : kerbNear(t.x, t.z); P.route = laneRoute(routeTo(v, g2[0], g2[1])); }
     } else if (P.routeT <= 0 || !P.route.length) {
       P.routeT = 12; P.route = laneRoute(routeTo(v, roadLine(I0 + Math.floor(R() * (I1 - I0 + 1))), roadLine(Math.floor(R() * (N + 1)))));
     }

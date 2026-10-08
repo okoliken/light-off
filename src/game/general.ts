@@ -278,6 +278,7 @@ export function createGeneral(game) {
       brief: 'The General\'s friends in government brought someone in from Japan for the boy in black. He moves like you. He has a sword. He\'s waiting at the stadium.',
       steps: [
         { label: 'The Hunter: beat him, or lose him (he doesn\'t know Lagos)', where: () => game.hunter?.active ? game.hunter.pos : null, enter: () => { const q = stadium(); game.hunter.start(q.x + 8, q.z); C.data.hs = true; }, done: () => C.data.hs && !game.hunter.active },
+        { label: 'Lose the police, if they came', where: () => null, done: () => game.heat === 0 },
       ],
       finish: () => { setTimeout(() => hud.toast('You got away. His blade didn\'t even mark the suit.', 'green'), 4500); } },
     { title: 'A New Skin', time: 'day', start: tailor,

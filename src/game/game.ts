@@ -86,7 +86,7 @@ export function createGame(ctx) {
   // ---------- helpers ----------
   const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2;
   // in the new game the police leave the SwiftDrop rider alone; only the suit (or a real crime: force) gets chased
-  const addHeat = (n, why, force = false) => { if (game.mode === 'patrol' && !game.life.suit && !force) return; const old = game.heat; game.heat = Math.min(3, Math.max(game.heat, 0) + n); game.heatTimer = 0; if (game.heat > old) { audio.alert(); if (why) hud.toast(why, 'red'); } };
+  const addHeat = (n, why, force = false) => { if (game.mode === 'patrol' && !game.life.suit && !force) return; const old = game.heat; game.heat = Math.min(3, Math.max(game.heat, 0) + n); game.heatTimer = 0; if (game.heat > old) { (game.policeLastSeen ||= new THREE.Vector3()).copy(player.pos); audio.alert(); if (why) hud.toast(why, 'red'); } }; // whoever called it in said where
   game.addHeat = (n, why, force = false) => addHeat(n, why, force);
   // ---------- daylight: people can see his face ----------
   // In his own clothes by day, fighting and cat moves in front of people fill EYES ON YOU.
@@ -958,7 +958,7 @@ export function createGame(ctx) {
       if (v) { v.police.target.copy(game.policeLastSeen || player.pos); if (game.heat >= 3 && !pol.some(q => q.police.mopol)) v.police.mopol = true; game.spawnCd = 20; } else game.spawnCd = 2;
     }
     if (pol.length > want) for (const v of pol) { if (v.police.mode === 'transport') continue; if (!v.police.crew && !v.police.sees && Math.hypot(v.pos.x - player.pos.x, v.pos.z - player.pos.z) > 95) { traffic.remove(v); break; } }
-    { let gb = null, gd = Infinity; for (const g of game.gunmen) if (g.alive && g.role === 'police' && !g.foe && g.state === 'chase') { const d = dist2(g.pos, player.pos); if (d < gd) { gd = d; gb = g; } } game.policeGrabber = gb; }
+    { let gb = null, gd = Infinity; for (const g of game.gunmen) if (g.alive && g.role === 'police' && !g.foe && !g.arrestee && g.state === 'chase') { const d = dist2(g.pos, player.pos); if (d < gd) { gd = d; gb = g; } } game.policeGrabber = gb; }
     let grabbing = false;
     const ps = Math.hypot(player.vel.x, player.vel.z);
     void ps;

@@ -112,6 +112,16 @@ export function createHunter(game) {
     drive(dt, { x: route[0][0], z: route[0][1], y: body.pos.y }, run);
   }
 
+  // an officer gets a hand on him: a flip out of it, or the officer goes down
+  let resistCd = 0, fightT = 0;
+  H.resist = (g) => {
+    if (resistCd > 0 || ['down', 'pin'].includes(H.state)) return;
+    resistCd = 1.2;
+    const toG = Math.atan2(g.pos.x - H.pos.x, g.pos.z - H.pos.z);
+    if (Math.random() < 0.5) gymnast(toG); else { body.yaw = toG; g.takeHit(1, H.pos.x, H.pos.z, 'heavy'); fx?.dust(g.pos.x, g.pos.y + 0.2, g.pos.z, 6); audio.clank?.(g.pos); }
+    if (Math.random() < 0.35) hud.say('The Hunter', pick(['Stay out of this.', 'Not you. Him.', 'Go home, officer.']), 2);
+  };
+
   // ---- arriving and leaving ----
   H.start = (fromX?, fromZ?) => {
     if (H.active) return;
@@ -119,9 +129,8 @@ export function createHunter(game) {
     const s = fromX != null ? { x: fromX, z: fromZ, nx: 0, nz: 0 } : spots[Math.floor(Math.random() * spots.length)] || { x: player.pos.x + 50, z: player.pos.z, nx: 0, nz: 0 };
     body.respawn?.(s.x + s.nx * 2, s.z + s.nz * 2, 0); body.pos.set(s.x + s.nx * 2, col.groundHeight(s.x, s.z, 40).h, s.z + s.nz * 2);
     body.mode = 'foot'; body.vel.set(0, 0, 0); body.rig.root.visible = true;
-    Object.assign(H, { active: true, hp: H.maxHp, state: 'hunt', t: 0, removed: false, sword: false, swordT: 0, drewT: 0 }); lastSeen = { x: player.pos.x, y: player.pos.y, z: player.pos.z }; unseenT = 0; searchT = 0; pinT = 0;
+    Object.assign(H, { active: true, hp: H.maxHp, state: 'hunt', t: 0, removed: false, sword: false, swordT: 0, drewT: 0 }); fightT = 0; lastSeen = { x: player.pos.x, y: player.pos.y, z: player.pos.z }; unseenT = 0; searchT = 0; pinT = 0;
     if (!game.thugs.includes(H)) game.thugs.push(H);
-    game.radio?.say('Police radio: "The specialist is on the ground. All units: stay out of his way."', true);
     hud.banner('THE HUNTER', H.met ? 'He\'s back. And he\'s learning the streets.' : 'The government brought someone in from Japan for the boy in black. He moves like you. He has a sword. Lose him: he doesn\'t know Lagos.', 'red', 4.5);
     H.met = true; audio.alert();
   };
@@ -164,8 +173,19 @@ export function createHunter(game) {
     const range = game.power > 0.5 ? 60 : 32;
     const sees = L.suit && !L.inside && !player.ride && d < range && !col.blocked(H.pos.x, H.pos.y + 1.6, H.pos.z, P.x, P.y + 1.2, P.z, 1.2);
     if (sees) { lastSeen = { ...P }; unseenT = 0; } else unseenT += dt;
-    // armed robbers and the General's gunmen take him for a threat and open fire (he turns the bullets); the police leave him be, and he them
+    // armed robbers and the General's gunmen take him for a threat and open fire (he turns the bullets)
     for (const g of game.gunmen) if (g.alive && !g.foe && g.role !== 'police' && Math.hypot(g.pos.x - H.pos.x, g.pos.z - H.pos.z) < 20) g.foe = H;
+    // a sword fight in the street gets the police called, and they try to bring in both of them
+    resistCd -= dt;
+    const fighting = ['duel', 'windup', 'strike', 'stagger'].includes(H.state) && d < 10;
+    if (fighting) fightT += dt;
+    if (fighting && game.heat > 0) { game.heatTimer = 0; game.policeLastSeen?.copy(player.pos); } // the callers keep calling while it goes on
+    if (fightT > 10 && game.heat === 0 && !game.arrest) { fightT = 0; game.addHeat?.(1, 'Somebody called the police: two men fighting in the street, one with a sword.', true); game.radio?.say('Police radio: "Fight in progress, one armed with a sword. Arrest both of them."', true); }
+    if (game.heat > 0) { // half of the officers on foot go for him, the rest for Bolaji
+      const cops = game.gunmen.filter(g => g.alive && g.role === 'police' && !g.foe && g.state === 'chase');
+      let mine = cops.filter(g => g.arrestee === H).length;
+      for (const g of cops) if (!g.arrestee && mine < Math.floor(cops.length / 2) && Math.hypot(g.pos.x - H.pos.x, g.pos.z - H.pos.z) < Math.hypot(g.pos.x - player.pos.x, g.pos.z - player.pos.z) + 3) { g.arrestee = H; mine++; }
+    }
     if (player.mode === 'zip' || player.mode === 'skitch' || player.mode === 'bike' || player.mode === 'ride') unseenT += dt * 2; // the shortcuts he doesn't know
 
     switch (H.state) {

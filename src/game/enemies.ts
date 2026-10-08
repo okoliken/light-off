@@ -60,7 +60,8 @@ export class Gunman {
     if (this.removed) return null;
     // a foe: police and soldiers fighting the General's boys (and the boys fighting back) aim at each other, not at him
     const foe = this.foe && this.foe.alive && !this.foe.removed ? this.foe : null;
-    const p = foe || game.player, col = this.world.collision, r = this.rig;
+    if (this.arrestee && (!this.arrestee.active || game.heat <= 0)) this.arrestee = null; // someone else to bring in (the Hunter): chased, never shot
+    const p = foe || this.arrestee || game.player, col = this.world.collision, r = this.rig;
     this.t += dt; this.shootCd -= dt; this.bark -= dt;
     const dx = p.pos.x - this.pos.x, dz = p.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
     const reachable = foe ? true : p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
@@ -84,6 +85,7 @@ export class Gunman {
       case 'chase': {
         if (!foe && game.arrest && this.role !== 'thief') { this.state = 'return'; break; } // he's already in the car
         face = toP;
+        if (this.arrestee) { if (dist < 1.4) this.arrestee.resist?.(this); else speed = 7.6; break; }
         if (foe && this.duty) { // police and soldiers against the General's boys: keep the distance, keep shooting
           this.meleeCd = (this.meleeCd || 0) - dt;
           if (this.soldier && dist < 2 && this.meleeCd <= 0) { this.meleeCd = 1; out = { melee: foe }; Pose.idle(r, game.time, false); Pose.punch(r, 'R', 1); break; } // rifle butt
