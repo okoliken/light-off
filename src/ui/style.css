@@ -683,3 +683,11 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 
 .demo-cap { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; text-align: center; background: rgba(8,10,16,0.82); border: 1px solid rgba(255,26,26,0.5); padding: 8px 16px; pointer-events: none; }
 .demo-cap b { display: block; font: 400 22px Anton, Impact, sans-serif; color: #ff3b30; letter-spacing: 0.06em; } .demo-cap span { font: 600 12px Inter, sans-serif; color: #ddd; }
+
+/* loading screen, shown from the first paint until the city has drawn once */
+#boot { position: fixed; inset: 0; z-index: 1000; background: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 0 16px; transition: opacity 0.5s; }
+#boot.gone { opacity: 0; pointer-events: none; }
+#boot .mm-logo { text-align: center; }
+.boot-bar { width: min(320px, 80vw); height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.boot-bar i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width 0.4s; }
+.boot-msg { font-size: 12px; letter-spacing: 0.3em; font-weight: 800; color: var(--dim); text-transform: uppercase; }

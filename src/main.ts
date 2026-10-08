@@ -39,7 +39,15 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
+const bootEl = document.getElementById('boot');
+async function boot(msg: string, pct: number) {
+  bootEl.querySelector('.boot-msg').textContent = msg;
+  bootEl.querySelector<HTMLElement>('.boot-bar i').style.width = pct + '%';
+  await new Promise(r => requestAnimationFrame(() => setTimeout(r))); // let the screen paint before the next heavy step
+}
+await boot('Loading the characters', 10);
 await Promise.all([loadBodies(), loadVehicles()]); // the realistic character models, before anyone is built
+await boot('Building Lagos', 55);
 const t0 = performance.now();
 const world = buildCity(scene, { lights: Q.lights });
 buildRoom(scene, world);
@@ -168,9 +176,10 @@ function attract(time) {
   camera.cam.lookAt(h.x, 3, h.z);
 }
 
-let audioState = null, lastState = null, stillFrames = 0, last = performance.now() / 1000, nextAt = 0;
+let audioState = null, lastState = null, stillFrames = 0, last = performance.now() / 1000, nextAt = 0, held = false;
 function frame() {
   requestAnimationFrame(frame);
+  if (held) return; // a test is fast-forwarding the game
   // frame-rate cap: skip display refreshes until the next frame is due (keeps the laptop cooler).
   // Frames are scheduled on a fixed grid, so a 45 fps cap averages 45 even on a 60 Hz screen.
   const now = performance.now() / 1000, iv = 1 / (state === 'play' || state === 'scene' ? Q.fps : 30);
@@ -219,14 +228,30 @@ function frame() {
   if (state === 'play' || state === 'paused') hud.update(dt, game);
   env.composer.render();
 }
+await boot('Lighting the streets', 85);
+renderer.compile(scene, camera.cam); // compile every shader now, so the first frames don't stutter
 frame();
+requestAnimationFrame(() => { bootEl.classList.add('gone'); setTimeout(() => bootEl.remove(), 600); });
 
 // leaving the tab (or the laptop going to sleep) saves too
 document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'play' || state === 'paused')) game.save(); });
 
 // debug hooks (used by the automated smoke test)
 import('./game/thugs.js').then(m => { window.__ThugClass = m.Thug; });
-window.__game = { game, player, crowd, traffic, world, camera, input, fx, nav, hud, tutorial, state: () => state, start: () => hudRoot.querySelector<HTMLElement>('[data-start]')?.click() };
+window.__game = { game, player, crowd, traffic, world, camera, input, fx, nav, hud, tutorial, state: () => state, start: () => hudRoot.querySelector<HTMLElement>('[data-start]')?.click(),
+  // fast-forward the game without drawing it: `each(dt)` runs before every tick and can steer Bolaji or stop early by returning true
+  step(seconds: number, each?: (dt: number) => boolean | void, dt = 1 / 30) {
+    held = true;
+    const idle = { move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 }, held: {}, pressed: {} };
+    for (let t = 0; t < seconds; t += dt) {
+      if (each?.(dt)) break;
+      game.update(dt, idle);
+      camera.update(dt, idle, player); camera.cam.updateMatrixWorld();
+      crowd.update(dt * game.timeScale, game);
+    }
+  },
+  resume() { held = false; last = performance.now() / 1000; },
+};
 
 // ---- the Hunter demo ----
 if (DEMO === 'hunter') {
