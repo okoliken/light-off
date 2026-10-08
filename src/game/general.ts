@@ -299,7 +299,7 @@ export function createGeneral(game) {
       brief: 'His compound on Broad Street. Colonel Gbenga Sowande, retired. Trained to kill. He knows you\'re coming.',
       steps: [
         { label: 'Get through his guards before he escapes', limit: 180, late: 'The General got to his car and was gone. He\'ll be in Abuja by morning.', where: () => compound, enter: () => { C.data.g = gang(compound.x, compound.z, 4, 1); wake(C.data.g); }, done: () => alive(C.data.g || none) === 0 },
-        { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const g = api.thug({ x: compound.x + 4, z: compound.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say one dispatch rider go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
+        { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const g = api.thug({ x: compound.x + 4, z: compound.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say one man in a cat suit go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
         { label: 'Take the evidence to Commissioner Adaeze at City Hall', where: () => hall, use: 'handover', done: () => C.data.used === 'handover' },
       ],
       finish: () => ending() },
