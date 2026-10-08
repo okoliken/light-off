@@ -331,9 +331,9 @@ export function createGeneral(game) {
           tick: (dt) => { const car = C.data.car; if (!car) return; C.data.lost = dist(car.pos, player.pos) < 150 ? 0 : C.data.lost + dt; if (C.data.lost > 14) fail('The danfo got away with Tunde.'); },
           done: () => C.data.car?.ai.stopped },
         { label: 'Beat the crew', where: () => C.data.car?.pos, enter: () => {
-          const car = C.data.car; C.data.crew = [-1, 1].map(k => api.gunman({ x: car.pos.x + car.rt.x * k * 1.8, z: car.pos.z + car.rt.z * k * 1.8, yaw: car.yaw, role: 'thief' }));
-          C.data.g = { boys: [boy(car.pos.x - car.fwd.x * 3, car.pos.z - car.fwd.z * 3, car.yaw)], guns: [] }; wake(C.data.g); hud.popup('THE CREW JUMPS OUT'); },
-          done: () => gone(C.data.crew) && alive(C.data.g || none) === 0 },
+          const car = C.data.car; C.data.g = { boys: [...[-1, 1].map(k => boy(car.pos.x + car.rt.x * k * 1.8, car.pos.z + car.rt.z * k * 1.8, car.yaw)), boy(car.pos.x - car.fwd.x * 3, car.pos.z - car.fwd.z * 3, car.yaw)], guns: [] };
+          wake(C.data.g); hud.popup('THE CREW JUMPS OUT'); }, // they stand and fight (a crew that ran off left the mission stuck)
+          done: () => alive(C.data.g || none) === 0 },
         { label: 'Untie Tunde (F)', where: () => C.data.tunde?.pos, use: 'tunde', enter: () => { const car = C.data.car; const v = keep(api.victim({ x: car.pos.x - car.rt.x * 2.4, z: car.pos.z - car.rt.z * 2.4, yaw: 0, mood: 'cower' })); v.name = 'Tunde'; C.data.tunde = v; }, done: () => C.data.used === 'tunde' },
         { label: 'Their friends are coming for Tunde: hold them off', limit: 90, late: 'They dragged Tunde back into a car while you were busy.', where: () => C.data.tunde?.pos,
           enter: () => { lead('tunde'); hud.say('Tunde', 'They talk am for inside: the shipment land this week. And one "specialist" dey come for Street Cat. Behind you!', 5); moment('BACKUP', 'Protect Tunde'); const t = C.data.tunde.pos; C.data.g2 = gang(t.x + 10, t.z + 6, 3, 0); wake(C.data.g2); },
