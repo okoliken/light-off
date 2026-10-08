@@ -4,7 +4,7 @@
 const KEY = 'light-off-settings';
 
 export const PRESETS = {
-  low:    { label: 'Low · coolest, longest battery', pixelRatio: 0.75, shadows: false, shadowSize: 512, bloom: false, fps: 30, crowd: 70, lights: 4 }, // Low targets integrated graphics: a thin crowd
+  low:    { label: 'Low · coolest, longest battery', pixelRatio: 1, shadows: false, shadowSize: 512, bloom: false, fps: 30, crowd: 70, lights: 4 }, // Low targets integrated graphics: a thin crowd
   medium: { label: 'Medium · recommended for laptops', pixelRatio: 1, shadows: true, shadowSize: 1024, bloom: true, fps: 45, crowd: 280, lights: 6 },
   high:   { label: 'High · best looking, runs hot', pixelRatio: 1.5, shadows: true, shadowSize: 2048, bloom: true, fps: 60, crowd: 380, lights: 10 },
 };

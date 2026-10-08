@@ -776,3 +776,8 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 /* the radio sits under the health bar, clear of the corner card */
 #hud .radiobox { left: 20px; top: 132px; bottom: auto; max-width: 340px; }
 @media (max-height: 500px) { #hud .radiobox { top: 92px; max-width: 260px; } }
+body.missions .tpad [data-k="patrolBoard"] { display: none; }
+@media (max-height: 500px) {
+  #hud .radiobox { width: min(300px, 40vw); padding: 6px 10px; } #hud .radiobox .tx { font-size: 11.5px; line-height: 1.35; } #hud .radiobox .st { font-size: 9px; }
+}
+#hud .radiobox, #hud .toasts, #hud .mcard, #hud .objective { pointer-events: none; } /* never swallow a thumb on the joystick or buttons */

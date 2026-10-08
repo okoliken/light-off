@@ -25,7 +25,8 @@ import { loadVehicles } from './world/vehicles.ts';
 
 const touchDevice = isTouchDevice();
 const settings = loadSettings();
-if (touchDevice && !localStorage.getItem('light-off-settings')) settings.quality = 'low'; // phones and tablets start on Low
+// phones and tablets start on Medium (Low was blurry on their sharp screens); a Low saved before that is moved up once
+if (touchDevice && (!localStorage.getItem('light-off-settings') || (settings.quality === 'low' && !settings.v2))) { settings.quality = 'medium'; settings.v2 = true; saveSettings(settings); }
 let Q = preset(settings);
 
 const canvas = document.getElementById('game');
@@ -215,6 +216,7 @@ function frame() {
   const playing = state === 'play' || state === 'title' || state === 'scene';
   if (playing !== audioState) { audioState = playing; if (playing) { if (state !== 'title') audio.start(); } else audio.pause(); }
   touch?.show(state === 'play' && DEMO !== 'hunter');
+  document.body.classList.toggle('missions', game.sub === 'story'); // no job button in Missions
   tutorial.show(state === 'play' && !hudRoot.querySelector('.overlay'));
   const inp = input.poll();
   if (state === 'play') {
@@ -224,7 +226,7 @@ function frame() {
     if (inp.pressed.patrolBoard && game.mode === 'patrol' && game.sub === 'free') tutorial.event('job'), openMenu(done => hud.jobSheet({ ...game.job.sheet(), case: game.general.caseFile() }, done));
     game.update(dt, DEMO === 'hunter' ? { ...inp, move: { x: 0, y: 0 }, held: {}, pressed: {} } : inp);
     tutorial.update(dt, inp);
-    if (!tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
+    if (game.sub === 'free' && !tutorial.active && game.life.suit && !game.life.inside && tutorial.done('day') && !tutorial.done('night')) tutorial.start('night'); // first time out in the suit
     if (DEMO === 'hunter') { player.pos.copy(game.hunter.body.pos); player.vel.set(0, 0, 0); player.rig.root.visible = false; } // Bolaji tags along unseen, so the city fills in around the Hunter
     if (DEMO === 'suit') { const still = !inp.move.x && !inp.move.y && !inp.look.dx; if (still) camera.yaw += dt * 0.35; if (!camera.lockClose) camera.closeUp = still ? 2.3 : 0; } // still: the camera comes in close and circles him
     camera.update(dt, inp, DEMO === 'hunter' ? game.hunter.body : player);
