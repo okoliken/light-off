@@ -34,13 +34,13 @@ const LEADS = {
   },
   kolade: {
     paper: 'THE NATION: Mechanic dragged from workshop by cult boys, eyewitnesses say',
-    radio: 'Wazobia FM: Na Baba Kolade, the mechanic for Ojuelegba. Red Caps drag am comot for im workshop. People dey talk say na because of that "boy in black".',
-    gossip: ['Baba Kolade? The mechanic?', 'Dem say Chairman wan send message to the boy in black.', 'That motor park no safe again o.'],
+    radio: 'Wazobia FM: Na Baba Kolade, the mechanic for Ojuelegba. Red Caps drag am comot for im workshop. People dey talk say na because of that "Street Cat".',
+    gossip: ['Baba Kolade? The mechanic?', 'Dem say Chairman wan send message to Street Cat.', 'That motor park no safe again o.'],
   },
   showdown: {
     paper: 'GUARDIAN: Tension in Surulere as cult gathers under Ojuelegba flyover',
     radio: 'Wazobia FM: Everybody wey dey Ojuelegba, abeg go house early tonight. Dem say Red Caps from everywhere dey gather under the bridge.',
-    gossip: ['Red Caps plenty under that bridge now.', 'Dem say na the boy in black dem dey wait for.', 'Tonight na tonight.'],
+    gossip: ['Red Caps plenty under that bridge now.', 'Dem say na Street Cat dem dey wait for.', 'Tonight na tonight.'],
   },
   levyrun: {
     paper: 'PUNCH: Surulere market women accuse cult of "weekly levy convoy"',
@@ -54,13 +54,13 @@ const LEADS = {
   },
   blackmaria: {
     paper: 'THE SUN: Police raid in Aguda, youths bundled into van, residents protest',
-    radio: 'Police don dey pack Aguda boys enter Black Maria. Dem say dem dey find the boy in black. Mothers dey cry for street.',
+    radio: 'Police don dey pack Aguda boys enter Black Maria. Dem say dem dey find Street Cat. Mothers dey cry for street.',
     gossip: ['Dem carry Dayo last night!', 'Na Okafor men.', 'Anybody wey wear black, dem go carry am.'],
   },
   fire: {
     paper: 'PUNCH: Arson feared as masked vigilante threatens Adelabu Market',
     radio: 'The masquerade man don talk say fire go burn Adelabu because Red Caps dey sleep inside. Market women, abeg be careful.',
-    gossip: ['Fire for market? God forbid!', 'That Egúngún man don craze.', 'The boy in black go stop am, you go see.'],
+    gossip: ['Fire for market? God forbid!', 'That Egúngún man don craze.', 'Street Cat go stop am, you go see.'],
   },
 };
 const FLAVOUR = {
@@ -70,7 +70,7 @@ const FLAVOUR = {
     'Wazobia FM: Fuel don reach new price for some stations. Who we go complain to?', 'Wazobia FM: Na rain go fall this evening. Surulere people, una gutter don clear?'],
   gossip: [['This fuel price go kill person.', 'Na so o. Danfo don add ₦100.'], ['You see Chioma new phone?', 'Na POS money she dey use.'], ['NEPA take light since Monday!', 'Na generator we dey use cook.'],
     ['Super Eagles go win this time.', 'You dey dream.'], ['The road for Lawanson don spoil finish.', 'Na canoe we go dey use soon.']],
-  boy: ['PUNCH: Who is the "boy in black" of Surulere? Traders say a masked youth is fighting back', 'Wazobia FM: Na who be this boy in black? Dem say im dey jump like cat!', ['You don hear about the boy in black?', 'Them say im fit jump pass two storey building!']],
+  boy: ['PUNCH: Who is "Street Cat" of Surulere? Traders say a masked youth is fighting back', 'Wazobia FM: Na who be this Street Cat? Dem say im dey jump like cat!', ['You don hear about Street Cat?', 'Them say im fit jump pass two storey building!']],
 };
 
 const ERRANDS = [
@@ -79,7 +79,7 @@ const ERRANDS = [
   { id: 'tailor', poi: 'tailor', money: 1500, text: "Collect Tobi's school uniform from Sunny Tailoring", act: 'Collect the uniform (₦1,500)', done: 'Tobi will be the neatest boy in class.' },
   { id: 'kolade', poi: 'kolade', money: 0, text: 'Take Baba Kolade the food flask Mama packed for him', act: 'Give Baba Kolade the food', done: 'Baba Kolade: "Tell your mama I said thank you. And you... be careful at night."' },
   { id: 'kerosene', poi: 'filling', money: 1800, text: 'Buy a gallon of kerosene at the filling station for the lamp', act: 'Buy kerosene (₦1,800)', done: 'The attendant says there\'s "no fuel" for cars. There\'s always fuel for the black market.' },
-  { id: 'lunch', poi: 'school', money: 0, text: "Take Tobi's lunch to his school at break time", act: 'Hand Tobi his lunch', done: 'Tobi (whispering): "Bros, everybody in my class is talking about the boy in black."' },
+  { id: 'lunch', poi: 'school', money: 0, text: "Take Tobi's lunch to his school at break time", act: 'Hand Tobi his lunch', done: 'Tobi (whispering): "Bros, everybody in my class is talking about Street Cat."' },
   { id: 'water', poi: 'borehole', money: 200, text: 'Fetch two kegs of water from the borehole', act: 'Fill the kegs (₦200)', done: 'Heavy. Good for the arms, the borehole man says.' },
   { id: 'recharge', poi: 'recharge', money: 1000, text: 'Buy Mama a ₦1,000 recharge card', act: 'Buy the recharge card (₦1,000)', done: 'Scratch carefully. Last time you scratched off the numbers.' },
   { id: 'bread', poi: 'bakery', money: 800, text: 'Buy a loaf of Agege bread from the bakery', act: 'Buy the bread (₦800)', done: 'Still warm. You eat the end on the way home.' },

@@ -574,7 +574,7 @@ export function createHUD(root, world) {
     <p class="mm-note">Resolution, shadows, glow and frame rate change right away. The crowd size and street lights change the next time the game loads. If your laptop runs hot, pick Low.</p>`;
   // the story and the two ways to play: open by themselves the first time, and under "The story"
   const STORY = `<p class="mm-story">Lagos. <em>Bolaji</em> rents one room in Aguda, Surulere. By day he rides for <em>SwiftDrop Dispatch</em>: parcels, deadlines, angry customers, rent every week.</p>
-    <p class="mm-story">By night he's <em>the boy in black</em>. He climbs, wall-runs and rides the NEPA wires like a cat. But the city is filling up with other men in black: the armed boys of <em>the General</em>, a retired colonel who owns half the streets and pays half the police. The police can't tell Bolaji from them, so they chase him too.</p>
+    <p class="mm-story">By night he's <em>Street Cat</em>. He climbs, wall-runs and rides the NEPA wires like a cat. But the city is filling up with other men in black: the armed boys of <em>the General</em>, a retired colonel who owns half the streets and pays half the police. The police can't tell Bolaji from them, so they chase him too.</p>
     <p class="mm-story">Find out who the General is, prove it, and <em>bring him down</em>.</p>`;
   const MODES = `<div class="modes2">
       <div class="mode2"><small>THE STORY</small><b>Missions</b><p>Ten missions, one after another, from the burning market to the General's compound. Each one tells you what to do before you start and drops you right there. Some run against a clock. Fail one and you go again.</p></div>

@@ -9,7 +9,7 @@ export const RIDE_TALK: [string, string][][] = [
   [['D', 'Third Mainland don block again. Somebody car spoil for the middle.'], ['B', 'Every day na the same story.'], ['D', 'Na why I no dey cross that bridge after four o\'clock.']],
   [['D', 'You watch Super Eagles yesterday?'], ['B', 'I no see light watch am.'], ['D', 'Better. Them for give you high BP. That defence na open gate.']],
   [['D', 'My guy just japa go Canada last week.'], ['B', 'Everybody dey comot.'], ['D', 'Me sef, if I see visa today, this okada go meet you for road.']],
-  [['D', 'You hear about this boy in black? Them say he dey collect money from agberos give market women.'], ['B', 'Na story. Who go do that for Lagos?'], ['D', 'My sister see am with her eye for Ojuelegba! Police dey find am like mad.']],
+  [['D', 'You hear about this Street Cat? Them say he dey collect money from agberos give market women.'], ['B', 'Na story. Who go do that for Lagos?'], ['D', 'My sister see am with her eye for Ojuelegba! Police dey find am like mad.']],
   [['D', 'Police stop me for Ojuelegba this morning. ₦1,000 roger, before seven.'], ['B', 'Na their own salary.'], ['D', 'If I no give, na "where your particulars" till evening.']],
   [['D', 'Rain go fall today. See as the sky black.'], ['B', 'Then Adelabu go flood again.'], ['D', 'Last time water reach my knee for that junction.']],
   [['D', 'Which way you dey go sef? You get work?'], ['B', 'I dey run delivery. Parcel, food, anything.'], ['D', 'Hustle na hustle. No shame for am.']],
@@ -34,7 +34,7 @@ export const STREET_TALK: [string, string][] = [
   ['Girl', 'Make we go E-Centre this evening, new film don come.'],
   ['Preacher', 'Repent! The end is near! Even NEPA cannot stop the light of God!'],
   ['Vulcanizer', 'Your tyre don flat? Bring am, I go gum am.'],
-  ['Woman', 'Them say the boy in black wear cat ears. Na juju or na costume?'],
+  ['Woman', 'Them say Street Cat wear cat ears. Na juju or na costume?'],
 ];
 
 export function createChatter(game) {

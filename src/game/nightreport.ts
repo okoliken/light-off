@@ -7,13 +7,13 @@ const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and 
 const MISSION_HEADLINES = {
   babaade: 'PUNCH: Masked youth rescues Surulere shoemaker from cult boys',
   roger: 'THE SUN: Ojuelegba checkpoint "robbed" of envelope, Inspector vows arrest',
-  bridge: 'VANGUARD: Missing Adelabu traders return home, say "boy in black" freed them',
+  bridge: 'VANGUARD: Missing Adelabu traders return home, say "Street Cat" freed them',
   egungun: 'PUNCH: Mob justice stopped in Surulere as masked vigilantes clash',
   kolade: 'THE NATION: Cult enforcer "Scorpion" flees motor park battle',
   levyrun: 'PUNCH: Cult "levy car" crashes on Adelabu Road, market women get their money back',
   stadium: 'VANGUARD: Axes and machetes found scattered across National Stadium track',
   blackmaria: 'THE SUN: Aguda youths escape police van in the dark, Inspector Okafor fumes',
-  fire: 'PUNCH: Adelabu Market fire put out by "boy in black" before fire service arrives',
+  fire: 'PUNCH: Adelabu Market fire put out by "Street Cat" before fire service arrives',
   showdown: 'GUARDIAN: "Surulere is not for sale": message painted under Ojuelegba Bridge',
 };
 
@@ -51,7 +51,7 @@ export function nightReport(game, ending) {
     // where he wakes up depends on the night: police still hunting (a clinic bench), a friend in Kolade, or the gutter
     const kolade = (game.story.progress?.() ?? 0) >= 7;
     if ((game.beatenHeat || 0) > 0) { title = 'The clinic bench'; kicker = `Night ${L.night} · Police still out looking`; story = 'You woke on a bench outside the clinic by the stadium. The night nurse cleaned your cuts and asked no questions, because the police were asking enough of them outside. You walked home the long way, through the back roads.'; }
-    else if (kolade && Math.random() < 0.5) { title = "Kolade's floor"; kicker = `Night ${L.night} · Picked up and hidden`; story = 'You woke on the oily floor of Baba Kolade\'s workshop with a jacket over you. "The street talks," he said, handing you tea. "Tonight it said a boy in black was lying in a gutter. Drink, then go home before your mother wakes."'; }
+    else if (kolade && Math.random() < 0.5) { title = "Kolade's floor"; kicker = `Night ${L.night} · Picked up and hidden`; story = 'You woke on the oily floor of Baba Kolade\'s workshop with a jacket over you. "The street talks," he said, handing you tea. "Tonight it said Street Cat was lying in a gutter. Drink, then go home before your mother wakes."'; }
     else story = pick([
       'Iya Bose, on her way to fry akara, found you by the gutter at first light. She asked no questions, just helped you back to your room.',
       'A keke driver starting his early run saw you on the roadside. He carried you to your gate and drove off before you could thank him.',
@@ -86,7 +86,7 @@ export function nightReport(game, ending) {
   if (top && MISSION_HEADLINES[top.id]) headline = MISSION_HEADLINES[top.id];
   else if (ending === 'arrested') headline = 'THE SUN: Police round up "suspected cultists" in overnight Surulere raid';
   else if (ending === 'beaten') headline = 'VANGUARD: Young man found beaten near Aguda gutter, police say "no report"';
-  else if (tonight.returned >= 10000) headline = `PUNCH: "Boy in black" returns ${money(tonight.returned)} to Surulere families`;
+  else if (tonight.returned >= 10000) headline = `PUNCH: "Street Cat" returns ${money(tonight.returned)} to Surulere families`;
   else if (tonight.down >= 3) headline = `THE SUN: ${tonight.down} cult boys beaten in overnight street fights, residents say`;
   else headline = pick(['BUSINESSDAY: Fuel queues return as scarcity bites Lagos', 'PUNCH: NEPA promises 18 hours of light for Surulere', 'THE SUN: Danfo drivers hike fares again, blame fuel']);
 

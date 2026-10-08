@@ -1,4 +1,4 @@
-// The boy in black's street kit. Not weapons: things to get away with.
+// Street Cat's street kit. Not weapons: things to get away with.
 //   1  Pepper ("ata") bomb: thrown, bursts into a red cloud. Anyone inside is blinded for a few seconds.
 //   2  Ash pouch: a cloud of grey smoke around him. Police can't see into it, so he can vanish.
 //   3  Nail plank: dropped behind him across the road. A police car that runs over it is done.

@@ -1,9 +1,9 @@
-// The Hunter: a specialist from Japan the government brought in to bring the boy in black in.
+// The Hunter: a specialist from Japan the government brought in to bring Street Cat in.
 // He moves on the same movement code as Bolaji (run, cat leap, climb, wall-run, roll, flips), fights with
 // a katana, and wears armour most of Bolaji's strikes can't get through: counters, heavy hits, slams,
 // throws and pepper do. Bolaji's edge is Lagos: the Hunter doesn't know the shortcuts (no wires, no
 // hitching a ride), and once Bolaji breaks his line of sight he can only go where he saw him last.
-// He only hunts the boy in black: out of the suit, Bolaji is nobody to him.
+// He only hunts Street Cat: out of the suit, Bolaji is nobody to him.
 //
 // To combat, the lock-on and the danger warnings he looks like any other enemy (the Thug fields).
 import { createPlayer } from '../player/player.ts';
@@ -13,7 +13,7 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const G = 24;
 const LINES = {
-  arrive: ['Boy in black. I was told you run. Run, then.', 'Lagos is small. You will see.', 'They pay me to bring you in. Not to like it.'],
+  arrive: ['Street Cat. I was told you run. Run, then.', 'Lagos is small. You will see.', 'They pay me to bring you in. Not to like it.'],
   duel: ['Too slow.', 'Again.', 'Street fighting. Hm.', 'You have no training. Only luck.'],
   lost: ['...Where did he go?', 'These streets...', 'He knows this city. I do not. Yet.'],
   hurt: ['Good. Finally.', 'Hm. That one I felt.'],
@@ -295,7 +295,7 @@ export function createHunter(game) {
     return null;
   };
 
-  // ---- when he comes: at night, for the boy in black, more likely once the police are after him ----
+  // ---- when he comes: at night, for Street Cat, more likely once the police are after him ----
   H.cd = 200 + Math.random() * 120;
   H.tick = (dt) => {
     return; // he only comes in Mission 7 (docs/story-bible.md): never at random

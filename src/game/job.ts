@@ -195,7 +195,7 @@ export function createJob(game) {
     hud.banner(timeUp ? 'SHIFT OVER' : 'CLOCKED OUT', `${done} on time · ${late} late · ${missed} never delivered${passed ? ` · ${passed} passed on (−₦${J.orders.filter(o => o.status === 'passed').reduce((n, o) => n + (o.lost || 0), 0).toLocaleString()})` : ''} · rating ${J.rating().toFixed(1)}`, missed || late > done ? 'red' : 'green', 4.5);
     payOut(atOffice);
     const nx = laterShift();
-    if (J.employed) setTimeout(() => hud.toast(`Off duty.${nx ? ` The <b>${SHIFTS[nx].name.toLowerCase()} shift</b> starts at ${fmt(SHIFTS[nx].open)}${nx === 'night' ? ' (better pay, but the night is the boy in black\'s too)' : ''}.` : ''} At home you can change out of the uniform.`, 'blue'), 5200);
+    if (J.employed) setTimeout(() => hud.toast(`Off duty.${nx ? ` The <b>${SHIFTS[nx].name.toLowerCase()} shift</b> starts at ${fmt(SHIFTS[nx].open)}${nx === 'night' ? ' (better pay, but the night is Street Cat\'s too)' : ''}.` : ''} At home you can change out of the uniform.`, 'blue'), 5200);
     if ((J.reviews.length >= 6 && J.rating() < 2.8) || J.strikes >= 3) fire(J.strikes >= 3 ? 'You keep not showing up.' : 'Too many complaints.');
     game.setWaypoint(null); game.save();
   }
@@ -264,7 +264,7 @@ export function createJob(game) {
     if (!J.employed) return L.night >= J.rehireDay && L.phase === 'day' ? `No job. <b>Go to SwiftDrop and ask for it back</b><small>RENT ₦${(RENT + J.rentDebt).toLocaleString()} DUE DAY ${J.rentDue}</small>` : `No job until day ${J.rehireDay}<small>RENT ₦${(RENT + J.rentDebt).toLocaleString()} DUE DAY ${J.rentDue} · THE SUIT COMES OUT AT NIGHT</small>`;
     if (!J.clockedIn) {
       const sh = openShift(), nx = laterShift();
-      if (L.suit) return null; // the night is the boy in black's
+      if (L.suit) return null; // the night is Street Cat's
       if (sh && SHIFTS[sh].rostered) return `Get to <b>SwiftDrop</b> and clock in<small>OJUELEGBA · BEFORE NOON · ON THE BICYCLE OR ON FOOT</small>`;
       if (sh) return `<b>${SHIFTS[sh].name} shift</b> open at SwiftDrop till ${fmt(SHIFTS[sh].close)}<small>EXTRA WORK · ₦${SHIFTS[sh].pay.toLocaleString()} A PARCEL · OR TAKE THE TIME FOR YOURSELF</small>`;
       if (nx) return `Off duty · <b>₦${L.wallet.toLocaleString()}</b> in your pocket<small>${SHIFTS[nx].name.toUpperCase()} SHIFT AT ${fmt(SHIFTS[nx].open)} · RENT ₦${(RENT + J.rentDebt).toLocaleString()} DUE DAY ${J.rentDue}</small>`;

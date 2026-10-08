@@ -1,6 +1,6 @@
 // Coach Ayo: an old gymnast who taught Lagos street kids acrobatics on the empty track at the National
 // Stadium. Bolaji was one of them. He's still there most days, and for a fee (and an hour of sweat)
-// he'll teach or sharpen a move. Nothing deep: a light way to grow the boy in black.
+// he'll teach or sharpen a move. Nothing deep: a light way to grow Street Cat.
 import { Civilian } from './npcs.ts';
 
 export const LESSONS = [

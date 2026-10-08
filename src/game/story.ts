@@ -106,7 +106,7 @@ export function createStory(game, api) {
         B('Mama', 'From Baba Ade? For free? That man has never given anybody free anything in his life.'),
         B('Mama', '(looking at you) Bolaji. Why is Baba Ade sending us tomatoes?'),
         B('Bolaji', 'Maybe he\'s happy, Mama.'),
-        ...(f.clip ? ['On the radio, a caller says there is a video of "the boy in black" going round the viewing centres. Blurry. But it exists.'] : ['The radio is full of rumours about the boy in black. Just rumours. Nobody has a picture.']),
+        ...(f.clip ? ['On the radio, a caller says there is a video of "Street Cat" going round the viewing centres. Blurry. But it exists.'] : ['The radio is full of rumours about Street Cat. Just rumours. Nobody has a picture.']),
       ],
       scene: c => [
         'Aguda, after midnight. The streetlights hum. Somewhere a generator coughs.',
@@ -128,7 +128,7 @@ export function createStory(game, api) {
           },
           tick: (c, dt) => { c.phoneT += dt; const f = c.filmer; if (c.phoneT > 1.2 && f.alive && f.state === 'idle') { f.state = 'run'; f.t = 0; f.runSpeed = 5.8; f.runTo = c.runTo; } },
           check: c => !c.filmer.alive || c.filmer.escaped || c.phoneT > 25,
-          done: c => { const smashed = c.filmer.state === 'ko' || (c.filmer.hp <= 0 && !c.filmer.escaped); S.flags.clip = !smashed; if (smashed) { api.notice('PHONE SMASHED', 'No video. The boy in black stays a rumour.', 'green'); game.addRespect(150, 'NO EVIDENCE'); } else api.notice('THE CLIP EXISTS', 'Somewhere in Surulere, a blurry video of the boy in black is being copied onto flash drives.', 'red'); } },
+          done: c => { const smashed = c.filmer.state === 'ko' || (c.filmer.hp <= 0 && !c.filmer.escaped); S.flags.clip = !smashed; if (smashed) { api.notice('PHONE SMASHED', 'No video. Street Cat stays a rumour.', 'green'); game.addRespect(150, 'NO EVIDENCE'); } else api.notice('THE CLIP EXISTS', 'Somewhere in Surulere, a blurry video of Street Cat is being copied onto flash drives.', 'red'); } },
         { label: 'Get the cash box', text: () => 'Pick up <b>Baba Ade\'s cash box</b>', target: () => api.droppedPos(), check: c => api.carrying('Baba Ade\'s cash box'), enter: c => { c.victim.mood = 'idle'; c.victim.faceTarget = P(); } },
         { label: 'Return it', text: () => 'Give the cash box back to <b>Baba Ade</b>', target: c => c.victim.pos, check: c => c.returned },
         {
@@ -206,14 +206,14 @@ export function createStory(game, api) {
           ], P(), null, 'THE ENVELOPE'),
         },
       ],
-      finish: 'The police are on the Red Caps\' payroll, and three traders are being held under Ojuelegba Bridge. The police will remember the boy in black.',
+      finish: 'The police are on the Red Caps\' payroll, and three traders are being held under Ojuelegba Bridge. The police will remember Street Cat.',
     },
     // 3 ------------------------------------------------------------------------------------------
     {
       id: 'bridge', title: 'Under the Bridge', hint: 'the traders held under Ojuelegba Bridge',
       morning: () => [
           'Morning. Iya Sade is back at her stall. Half of Adelabu has gone to greet her.',
-          B('Mama', 'They say a boy in black carried them out from under Ojuelegba. God knows his mother.'),
+          B('Mama', 'They say Street Cat carried them out from under Ojuelegba. God knows his mother.'),
           B('Bolaji', '(chewing slowly) God knows.'),
       ],
       radio: 'Three traders from Adelabu Market never reach house since two days. Iya Sade, Mama Chioma, Oga Emeka. Families beg police, police say dem never see anything. Some people say na under Ojuelegba Bridge dem dey.',
@@ -242,7 +242,7 @@ export function createStory(game, api) {
         {
           home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home,
           enter: c => api.scene([
-            B('Iya Sade', 'You are the boy in black. God bless your mother.'),
+            B('Iya Sade', 'You are Street Cat. God bless your mother.'),
             B('Iya Sade', 'Hear this. Every Thursday night they collect the levy from every market in Surulere and drive it to the Chairman in one car.'),
             B('Mama Chioma', 'A black car, no plate. It leaves Adelabu after midnight. That is our money inside it.'),
             B('Bolaji', 'Then it\'s not getting to the Chairman.'),
@@ -342,7 +342,7 @@ export function createStory(game, api) {
     {
       id: 'egungun', title: 'The Masquerade', hint: 'the Egúngún and a crowd with a tyre',
       morning: () => [
-          'Morning. The newspaper says a masquerade and the boy in black fought in the street over a phone thief.',
+          'Morning. The newspaper says a masquerade and Street Cat fought in the street over a phone thief.',
           B('Mama', 'In my time, masquerades danced. Now they burn people. What kind of Lagos is this?'),
       ],
       radio: 'Breaking! Crowd don gather for street, dem say dem catch phone thief. One man for Egúngún costume dey lead them, dem don bring tyre and petrol! Somebody, anybody, do something!',
@@ -391,7 +391,7 @@ export function createStory(game, api) {
             const caught = !c.eg.removed && near(c.eg.pos, 3.2), at = { x: c.eg.pos.x, y: c.eg.pos.y, z: c.eg.pos.z };
             const vanish = () => { if (!c.eg.removed) { game.fx.burst(c.eg.pos.x, c.eg.pos.y + 1, c.eg.pos.z, 0x9e9e9e, 30, 4); c.eg.remove(); } };
             if (caught) api.scene([
-              B('The Egúngún', 'You and I want the same thing, boy in black. A Lagos where nobody is afraid.'),
+              B('The Egúngún', 'You and I want the same thing, Street Cat. A Lagos where nobody is afraid.'),
               B('Bolaji', 'You made them afraid of you instead.'),
               B('The Egúngún', 'Fear is the only language this city understands. The Red Caps will learn it. And so will you.'),
               'A cloud of dust and coloured cloth. When it clears, he is gone.',
@@ -457,7 +457,7 @@ export function createStory(game, api) {
           act: c => { const k = c.crates.find(q => !q.done && near(q, 2.2)); if (!k) return; k.done = true; game.scene.remove(k.m); game.fx.burst(k.x, 0.8, k.z, 0x8d6e63, 18, 4); game.audio.punch(); game.addRespect(150, 'CRATE WRECKED'); },
           check: c => c.crates.every(k => k.done),
           done: c => api.scene([
-            'Under the last crate, a school notebook. Names, and next to one of them, in red biro: "KOLADE. MECHANIC. FIXES THE BOY IN BLACK\'S BOARD."',
+            'Under the last crate, a school notebook. Names, and next to one of them, in red biro: "KOLADE. MECHANIC. FIXES STREET CAT\'S BOARD."',
             B('Bolaji', 'They know about Baba Kolade.'),
           ], c.stash, null, 'THE NOTEBOOK') },
         { home: true, label: 'Get home to finish the mission', text: () => game.homeObjective(), target: () => api.home, check: c => c.home, enter: c => api.tails(c.alarm ? c.tails + 1 : c.tails) },
@@ -471,8 +471,8 @@ export function createStory(game, api) {
           'Morning. Baba Kolade\'s workshop is open like nothing happened. A new padlock on the door. A new board strap left on your step, no note.',
           B('Mama', 'Kolade the mechanic sent you something. Since when are you and that old man friends?'),
       ],
-      radio: 'Eyewitnesses say Red Caps drag Baba Kolade, the Ojuelegba mechanic, comot for im workshop go the motor park. Dem dey shout say na message for "the boy in black".',
-      intro: 'The radio said it: the Red Caps dragged Baba Kolade (the mechanic who helped build your board) out of his workshop to the motor park. The Chairman wants to send a message to "the boy in black".',
+      radio: 'Eyewitnesses say Red Caps drag Baba Kolade, the Ojuelegba mechanic, comot for im workshop go the motor park. Dem dey shout say na message for "Street Cat".',
+      intro: 'The radio said it: the Red Caps dragged Baba Kolade (the mechanic who helped build your board) out of his workshop to the motor park. The Chairman wants to send a message to "Street Cat".',
       setup() {
         const m = api.motorpark;
         const kolade = V({ x: m.x, z: m.z + 5, yaw: Math.PI, outfit: { ...ELDER, top: '#37474f', cap: null }, mood: 'captive' }); kolade.name = 'Baba Kolade';
@@ -484,7 +484,7 @@ export function createStory(game, api) {
       },
       scene: c => [
         'Ojuelegba Motor Park. The danfos are parked for the night. Baba Kolade is on his knees in the middle of it all.',
-        B('Red Cap', 'Old man, who be the boy in black? Who fix im board?'),
+        B('Red Cap', 'Old man, who be Street Cat? Who fix im board?'),
         B('Baba Kolade', 'I fix every board in Surulere. Ask them.'),
         B('Red Cap', 'Scorpion go soon come. Then you go talk.'),
       ],
@@ -499,7 +499,7 @@ export function createStory(game, api) {
             c.wave2.push(T({ x: m.x, z: m.z - 16, yaw: 0, variant: 'scorpion', weapon: 'machete', role: 'guard', group: c.wave2 }));
             c.wave2.push(T({ x: m.x - 5, z: m.z - 15, yaw: 0, variant: 'redcap', weapon: 'knife', role: 'guard', group: c.wave2 }));
             c.wave2.push(T({ x: m.x + 5, z: m.z - 15, yaw: 0, variant: 'redcap2', weapon: 'stick', role: 'guard', group: c.wave2 }));
-            api.scene([B('Scorpion', 'So you be the boy in black. Small boy like this?'), B('Scorpion', 'Chairman say make I bring your head.')], c.wave2[0].pos, () => { for (const t of c.wave2) t.engage(0.6); }, 'SCORPION');
+            api.scene([B('Scorpion', 'So you be Street Cat. Small boy like this?'), B('Scorpion', 'Chairman say make I bring your head.')], c.wave2[0].pos, () => { for (const t of c.wave2) t.engage(0.6); }, 'SCORPION');
           },
           check: c => c.wave2[0].hp <= 4 || !c.wave2[0].alive,
           done: c => {
@@ -533,7 +533,7 @@ export function createStory(game, api) {
           B('Bolaji', 'Sleeping, Mama.'),
           B('Mama', 'Hmm.'),
       ],
-      radio: 'Aguda people, stay inside! Police don block one street, dem dey pack young boys enter Black Maria. Dem say dem dey find "the boy in black". Anybody wey wear black, dem go carry am.',
+      radio: 'Aguda people, stay inside! Police don block one street, dem dey pack young boys enter Black Maria. Dem say dem dey find "Street Cat". Anybody wey wear black, dem go carry am.',
       intro: 'Okafor\'s men are rounding up the young men of Aguda into a police van, to beat a name out of them. Get them out before the van leaves.',
       setup() {
         const sp = api.spot(45, 110), vx = sp.x + sp.nx * 3.5, vz = sp.z + sp.nz * 3.5, vyaw = Math.atan2(-sp.nz, sp.nx);
@@ -553,7 +553,7 @@ export function createStory(game, api) {
       },
       scene: c => [
         'Your own street. A black police van, doors open, and three boys you grew up with on their knees behind it.',
-        B('Inspector Okafor', 'One of you is the boy in black. Or one of you knows him. At the station we will find out which.'),
+        B('Inspector Okafor', 'One of you is Street Cat. Or one of you knows him. At the station we will find out which.'),
         B('Dayo', 'Oga, I sell recharge card! I don\'t know anything!'),
         B('Bolaji', '(from the rooftop) Four officers. Guns. If they see me, they shoot. Quiet. Or dark.'),
       ],
@@ -616,7 +616,7 @@ export function createStory(game, api) {
       },
       scene: c => [
         'Adelabu Market is burning. Smoke over the stalls, women screaming inside, and the masquerade standing in the middle of it.',
-        B('The Egúngún', 'You again. Look at it, boy in black. The Red Caps sleep in this market. Tonight, they burn with it.'),
+        B('The Egúngún', 'You again. Look at it, Street Cat. The Red Caps sleep in this market. Tonight, they burn with it.'),
         B('Bolaji', 'So do the women who sell here!'),
         B('The Egúngún', 'Every war has a price. Boys, keep him busy.'),
       ],
@@ -655,7 +655,7 @@ export function createStory(game, api) {
           'Morning. Five words on a pillar under Ojuelegba, and all of Lagos is reading them on their phones.',
           B('Mama', '(holding her handbag very carefully) Bolaji. Something came for you. From JAMB.'),
       ],
-      radio: 'Everybody wey dey Ojuelegba, abeg go house early tonight. Red Caps from everywhere dey gather under the bridge. Dem say dem dey wait for the boy in black. Tonight na tonight.',
+      radio: 'Everybody wey dey Ojuelegba, abeg go house early tonight. Red Caps from everywhere dey gather under the bridge. Dem say dem dey wait for Street Cat. Tonight na tonight.',
       intro: 'Every Red Cap in Surulere is under Ojuelegba Bridge tonight: axes, knives, machetes. The Chairman is there. End it, and leave him a message.',
       setup() {
         const u = api.underBridge(2), c0 = { x: u.cx, z: u.cz };
@@ -670,7 +670,7 @@ export function createStory(game, api) {
       },
       scene: c => [
         'Friday night. Ojuelegba. Fires under the flyover, and more red berets than Bolaji has ever seen in one place.',
-        B('The Chairman', 'So this is the boy in black. The one who takes my money, my traders, my police envelope.'),
+        B('The Chairman', 'So this is Street Cat. The one who takes my money, my traders, my police envelope.'),
         B('The Chairman', 'Surulere has a landlord, boy. And rent is due.'),
         B('Bolaji', 'Surulere doesn\'t belong to you.'),
         B('The Chairman', '(walking away) Finish him. All of you.'),

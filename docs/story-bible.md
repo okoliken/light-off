@@ -6,7 +6,7 @@
 ## Bolaji
 - An adult living alone in a rented room in Aguda, Surulere. Rent is due every week.
 - **By day:** a rider for **SwiftDrop Dispatch**. His work clothes are the orange SwiftDrop shirt and cap. He's paid weekly, per delivery, and he can lose the job.
-- **By night:** **the boy in black.** The suit is hidden in the water drum at home, or carried in his backpack (U to change where nobody can see).
+- **By night:** **Street Cat.** The suit is hidden in the water drum at home, or carried in his backpack (U to change where nobody can see).
 - He moves like a cat: runs, climbs, wall-runs, rides the NEPA wires, hangs off danfos. Nobody knows why he can.
 
 ## The two modes
@@ -16,7 +16,7 @@
 - **What happens:** ordinary street life only.
   - Pickpockets, bag snatchers, armed robbers, one chance danfos.
   - People to help: return what was stolen, stop a robbery.
-  - The police, who chase the boy in black on sight.
+  - The police, who chase Street Cat on sight.
   - Side jobs, skating, the bridge sprint, transport, the malls, Coach Ayo.
 - **Not in Patrol:** the General, his boys in black, Inspector Okafor, the Hunter, the Red Caps, impostors, hit squads.
 - No progression to worry about. Just your own play.
@@ -43,17 +43,17 @@
 | 2 | **The Address** | Day | Work clothes | A special parcel for G.S. Holdings, Ladipo, comes up at work. Deliver it and look around without starting trouble. | Rifles and money through the door. The receipt has the gold eagle badge. |
 | 3 | **The Warehouse** | Night | Suit | Back to Ladipo in black. Take out the guards, take the ledger, escape the police. | The payroll ledger: Inspector Okafor and six officers are paid by the General. |
 | 4 | **Okafor** | Night | Suit | Tail Inspector Okafor from the Ojuelegba checkpoint without being seen, then listen in under the bridge. | "The shipment lands at Marina jetty." And a rider saw too much at Ladipo. |
-| 5 | **One Chance** | Day | Work clothes | Tunde, a fellow SwiftDrop rider who saw the crates at Ladipo, is snatched into a one chance danfo. Catch it, stop it, beat the crew, free Tunde. | Tunde heard them: the shipment is this week, and "a specialist is coming for the boy in black." |
+| 5 | **One Chance** | Day | Work clothes | Tunde, a fellow SwiftDrop rider who saw the crates at Ladipo, is snatched into a one chance danfo. Catch it, stop it, beat the crew, free Tunde. | Tunde heard them: the shipment is this week, and "a specialist is coming for Street Cat." |
 | 6 | **The Shipment** | Night | Suit | Get to Marina jetty on Lagos Island. Fight the guards, photograph the rifle crates, survive a big police chase. | Photos of AK-47 crates stamped G.S. Holdings. |
 | 7 | **The Hunter** | Night | Suit | The General's friends bring in the Hunter, a specialist from Japan with a sword who moves like you. He finds you at the National Stadium. Beat him or lose him. | You survive, but the old suit is cut to rags. |
 | 8 | **A New Skin** | Day | Work clothes | Sunny the tailor has made something special. Collect it at Sunny Tailoring. | **The panther suit:** matte black, a helmet with eye slits, silver trim, claws. |
-| 9 | **Okafor's Last Stand** | Night | Suit | The General orders Okafor to finish the boy in black. Okafor's crooked officers wait under Ojuelegba bridge. Beat them, beat Okafor, take his phone, lose the police. | Okafor's phone: calls with the General, and the way into his compound on Broad Street. |
-| 10 | **The General** | Night | Suit | His compound on Broad Street. Get through his guards, beat the General, and take the evidence to Commissioner Adaeze at City Hall. | The General is arrested. The newspapers ask: who is the boy in black? **The end.** |
+| 9 | **Okafor's Last Stand** | Night | Suit | The General orders Okafor to finish Street Cat. Okafor's crooked officers wait under Ojuelegba bridge. Beat them, beat Okafor, take his phone, lose the police. | Okafor's phone: calls with the General, and the way into his compound on Broad Street. |
+| 10 | **The General** | Night | Suit | His compound on Broad Street. Get through his guards, beat the General, and take the evidence to Commissioner Adaeze at City Hall. | The General is arrested. The newspapers ask: who is Street Cat? **The end.** |
 
 ## Characters
 | Who | Role |
 |---|---|
-| **Bolaji** | The hero. SwiftDrop rider by day, the boy in black by night. |
+| **Bolaji** | The hero. SwiftDrop rider by day, Street Cat by night. |
 | **The General** (Col. rtd Gbenga Sowande) | The villain. G.S. Holdings. Trained soldier, hard to beat in a fight. |
 | **The boys in black** | The General's armed men. Only appear in missions. |
 | **Inspector Okafor** | The General's man in the police. Missions 4 and 9. |

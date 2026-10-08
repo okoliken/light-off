@@ -266,7 +266,7 @@ export function createGeneral(game) {
           done: () => gone(C.data.crew) && alive(C.data.g || none) === 0 },
         { label: 'Untie Tunde (F)', where: () => C.data.tunde?.pos, use: 'tunde', enter: () => { const car = C.data.car; const v = api.victim({ x: car.pos.x - car.rt.x * 2.4, z: car.pos.z - car.rt.z * 2.4, yaw: 0, mood: 'cower' }); v.name = 'Tunde'; C.data.tunde = v; }, done: () => C.data.used === 'tunde' },
       ],
-      finish: () => { lead('tunde'); hud.say('Tunde', 'They talk am for inside: the shipment land this week. And one "specialist" dey come for the boy in black.', 5); if (C.data.tunde && !C.data.tunde.gone) setTimeout(() => C.data.tunde?.runHome?.(C.data.tunde.pos.x + 30, C.data.tunde.pos.z), 5000); } },
+      finish: () => { lead('tunde'); hud.say('Tunde', 'They talk am for inside: the shipment land this week. And one "specialist" dey come for Street Cat.', 5); if (C.data.tunde && !C.data.tunde.gone) setTimeout(() => C.data.tunde?.runHome?.(C.data.tunde.pos.x + 30, C.data.tunde.pos.z), 5000); } },
     { title: 'The Shipment', time: 'night', start: () => jetty(),
       brief: 'Marina jetty, Lagos Island. Get pictures of what comes off that boat.',
       steps: [
@@ -275,7 +275,7 @@ export function createGeneral(game) {
         { label: 'Lose the police', where: () => null, enter: () => { lead('photos'); api.addHeat(3, 'Police everywhere. The General\'s friends want those photos back.'); }, done: () => game.heat === 0 },
       ] },
     { title: 'The Hunter', time: 'night', start: stadium,
-      brief: 'The General\'s friends in government brought someone in from Japan for the boy in black. He moves like you. He has a sword. He\'s waiting at the stadium.',
+      brief: 'The General\'s friends in government brought someone in from Japan for Street Cat. He moves like you. He has a sword. He\'s waiting at the stadium.',
       steps: [
         { label: 'The Hunter: beat him, or lose him (he doesn\'t know Lagos)', where: () => game.hunter?.active ? game.hunter.pos : null, enter: () => { const q = stadium(); game.hunter.start(q.x + 8, q.z); C.data.hs = true; }, done: () => C.data.hs && !game.hunter.active },
         { label: 'Lose the police, if they came', where: () => null, done: () => game.heat === 0 },
@@ -288,10 +288,10 @@ export function createGeneral(game) {
       ],
       finish: () => { game.catSuit = true; L.suitHP = 100; game.refreshFit?.(); hud.notice('THE PANTHER SUIT', 'Matte black, a helmet with eye slits, silver trim, claws. It\'s in your bag: put it on at night.', 'green', 5); } },
     { title: 'Okafor\'s Last Stand', time: 'night', start: () => meet(),
-      brief: 'The General gave the order: finish the boy in black. Okafor and his crooked officers are waiting under Ojuelegba bridge.',
+      brief: 'The General gave the order: finish Street Cat. Okafor and his crooked officers are waiting under Ojuelegba bridge.',
       steps: [
         { label: 'Beat Okafor\'s officers', where: () => meet(), enter: () => { const m = meet(); C.data.crew = [0, 1, 2].map(k => { const g = api.gunman({ x: m.x + (k - 1) * 3, z: m.z + 6, yaw: Math.PI, role: 'hitman', outfit: OUTFITS.police }); g.name = 'Okafor\'s man'; return g; }); hud.say('Police', 'Na him! No arrest. Finish am!', 3); }, done: () => gone(C.data.crew) },
-        { label: 'Beat Inspector Okafor', where: () => C.data.ok?.pos, enter: () => { const m = meet(); const t = api.thug({ x: m.x, z: m.z + 3, yaw: Math.PI, variant: 'police', weapon: 'stick', role: 'guard' }); t.name = 'Insp. Okafor'; t.hp = t.maxHp = 10; t.engage(0.5); C.data.ok = t; hud.say('Insp. Okafor', 'Twenty years in uniform. You think say I go fear small boy?', 4); }, done: () => C.data.ok && !C.data.ok.alive },
+        { label: 'Beat Inspector Okafor', where: () => C.data.ok?.pos, enter: () => { const m = meet(); const t = api.thug({ x: m.x, z: m.z + 3, yaw: Math.PI, variant: 'police', weapon: 'stick', role: 'guard' }); t.name = 'Insp. Okafor'; t.hp = t.maxHp = 10; t.engage(0.5); C.data.ok = t; hud.say('Insp. Okafor', 'Twenty years in uniform. You think say I go fear you?', 4); }, done: () => C.data.ok && !C.data.ok.alive },
         { label: 'Take Okafor\'s phone before his backup arrives (F)', limit: 30, late: 'His backup arrived and took the phone. Whatever was on it is gone.', where: () => C.data.ok?.pos, use: 'okphone', enter: () => { C.data.okPos = { x: C.data.ok.pos.x, z: C.data.ok.pos.z }; }, done: () => C.data.used === 'okphone' },
         { label: 'Lose the police', where: () => null, enter: () => { lead('okphone'); api.addHeat(2, 'Every radio in Surulere: "Officer down under Ojuelegba!"'); }, done: () => game.heat === 0 },
       ] },
@@ -299,14 +299,14 @@ export function createGeneral(game) {
       brief: 'His compound on Broad Street. Colonel Gbenga Sowande, retired. Trained to kill. He knows you\'re coming.',
       steps: [
         { label: 'Get through his guards before he escapes', limit: 180, late: 'The General got to his car and was gone. He\'ll be in Abuja by morning.', where: () => compound, enter: () => { C.data.g = gang(compound.x, compound.z, 4, 1); wake(C.data.g); }, done: () => alive(C.data.g || none) === 0 },
-        { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const g = api.thug({ x: compound.x + 4, z: compound.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say na small boy go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
+        { label: 'Beat the General (counter him: he punishes mistakes)', where: () => C.data.gen?.pos, enter: () => { const g = api.thug({ x: compound.x + 4, z: compound.z, yaw: 0, variant: 'general', weapon: null, role: 'guard' }); g.engage(1); C.data.gen = g; hud.say('The General', 'Thirty years in the army. You think say one dispatch rider go stop me?', 4.5); lead('general'); }, done: () => C.data.gen && !C.data.gen.alive },
         { label: 'Take the evidence to Commissioner Adaeze at City Hall', where: () => hall, use: 'handover', done: () => C.data.used === 'handover' },
       ],
       finish: () => ending() },
   ];
   const CH = MISSIONS;
   G.missions = MISSIONS;
-  LEADS.tunde = 'Tunde, a SwiftDrop rider, overheard the kidnappers: the shipment lands this week, and a "specialist" is coming for the boy in black.';
+  LEADS.tunde = 'Tunde, a SwiftDrop rider, overheard the kidnappers: the shipment lands this week, and a "specialist" is coming for Street Cat.';
   LEADS.okphone = 'Okafor\'s phone: calls with the General, and the gate code for his compound on Broad Street.';
   const USE: any = { ledger: 'Take the ledger from the desk', photos: 'Photograph the rifle crates', handover: 'Give Commissioner Adaeze the ledger, the photos and the phones', tunde: 'Untie Tunde', panther: 'Take what Sunny made', okphone: 'Take Okafor\'s phone' };
   const step = () => CH[C.ch]?.steps[C.st];
@@ -362,8 +362,8 @@ export function createGeneral(game) {
     }
   }
   function ending() {
-    setTimeout(() => hud.banner('THE GENERAL FALLS', 'Colonel Sowande is arrested at dawn. Okafor and six officers are suspended. Nobody knows who the boy in black is.', 'green', 7), 5000);
-    setTimeout(() => game.onNewspaper?.(['PUNCH: "G.S. Holdings" boss arrested with arms cache at Marina', 'THE NATION: Inspector Okafor and six officers on General\'s payroll suspended', 'VANGUARD: Who is the boy in black? Lagos asks', 'BUSINESSDAY: Ladipo warehouse sealed by EFCC']), 12500);
+    setTimeout(() => hud.banner('THE GENERAL FALLS', 'Colonel Sowande is arrested at dawn. Okafor and six officers are suspended. Nobody knows who Street Cat is.', 'green', 7), 5000);
+    setTimeout(() => game.onNewspaper?.(['PUNCH: "G.S. Holdings" boss arrested with arms cache at Marina', 'THE NATION: Inspector Okafor and six officers on General\'s payroll suspended', 'VANGUARD: Who is Street Cat? Lagos asks', 'BUSINESSDAY: Ladipo warehouse sealed by EFCC']), 12500);
   }
   G.option = () => {
     if (!story() || !C.on) return null;

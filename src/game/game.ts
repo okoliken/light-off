@@ -35,7 +35,7 @@ const FAMILIES: any[] = [
   ['Alhaji Musa', 'suya seller, three children'], ['Aunty Kemi', 'sells pure water at the junction'],
 ];
 // tips for the new game (Story and Patrol): the job first, the street second
-// tips for the new game, kept apart: the rider by day only hears about the job; the boy in black only
+// tips for the new game, kept apart: the rider by day only hears about the job; Street Cat only
 // hears about the night (seconds = time spent in that life)
 const DAY_TIPS: any[] = [
   [3, '<span class="key">J</span> opens your <b>job sheet</b>: today\'s parcels, deadlines, your rating, pay and rent.'],
@@ -98,7 +98,7 @@ export function createGame(ctx) {
     if (game.exposure >= 100) {
       game.exposure = 35; game.recognisedAt = game.time;
       game.life.suspicion = Math.min(100, game.life.suspicion + 30);
-      hud.banner('RECOGNISED', 'People saw Bolaji the SwiftDrop rider fight like the boy in black. Word will spread.', 'red', 4);
+      hud.banner('RECOGNISED', 'People saw Bolaji the SwiftDrop rider fight like Street Cat. Word will spread.', 'red', 4);
       addHeat(1, 'Police: "You! Aguda boy! Come here, we want to ask you questions."');
     }
   };
@@ -457,7 +457,7 @@ export function createGame(ctx) {
     const M = world.mall; game.inMall = true; M.light.visible = true; M.light.intensity = 9;
     player.respawn(M.spawn.x, M.spawn.z, M.spawn.yaw); player.pos.y = 0; camera.snapBehind(M.spawn.yaw);
     audio.grab(); hud.notice(shop.name.toUpperCase(), 'Cold AC hits you at the door.', 'white', 2.2);
-    hud.say('Security', ['Welcome. No running inside o.', 'Bag check... ok, enter.', 'Small boy, you dey buy or you dey look?'][Math.floor(Math.random() * 3)], 2.6);
+    hud.say('Security', ['Welcome. No running inside o.', 'Bag check... ok, enter.', 'Oga, you dey buy or you dey look?'][Math.floor(Math.random() * 3)], 2.6);
   }
   function leaveMall() {
     const f = game.mallFrom || { x: world.homeDoor.x, z: world.homeDoor.z, yaw: 0 };
@@ -574,14 +574,14 @@ export function createGame(ctx) {
       case 'mallshop': hud.say(opt.shop.seller, opt.shop.line, 3); game.onShop?.(opt.shop); return true;
       case 'leaveMall': leaveMall(); return true;
       case 'nepaBribe': {
-        if (L.wallet < 1000) { hud.say('NEPA man', 'Wetin you hold? Comot here, small boy.', 3); return true; }
+        if (L.wallet < 1000) { hud.say('NEPA man', 'Wetin you hold? Comot here, my friend.', 3); return true; }
         L.wallet -= 1000; audio.pickup(); hud.say('NEPA man', ['Ehen! I no see this street today.', 'You get sense. Oya, we dey go.', 'Tell your people make una pay bill o.'][Math.floor(R() * 3)], 3.5);
         game.nepa.cut = true; game.nepa.t = 31; hud.toast('The crew packs up. <b>The light stays on</b>, for now.', 'green'); return true;
       }
       case 'pickhint': return true;
       case 'uncuff': if (!game.story.flags.canPick) { game.story.flags.canPick = true; setTimeout(() => hud.toast('Baba Kolade showed you how: <b>a bent hair pin and two minutes of patience.</b> Buy pins at a mall, and next time you can <b>pick the cuffs yourself</b> (hold F where no police can see you).', 'blue'), 2500); }
         player.cuffed = false; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Baba Kolade: "I did not see you. I did not see these. Go home."', 'green'); game.addRespect(200, 'ESCAPED CUSTODY'); return true;
-      case 'roger': { game.logNight('roger'); const amt = game.police.take(opt.cp); audio.snatch(); startCarry(rogerItem(amt)); game.addRespect(200, 'ROGER SNATCHED'); game.say(opt.o, 'Thief! Na the boy in black! Catch am!', 'Police', 60); addHeat(1, 'The police want their roger back.', true); return true; }
+      case 'roger': { game.logNight('roger'); const amt = game.police.take(opt.cp); audio.snatch(); startCarry(rogerItem(amt)); game.addRespect(200, 'ROGER SNATCHED'); game.say(opt.o, 'Thief! Na Street Cat! Catch am!', 'Police', 60); addHeat(1, 'The police want their roger back.', true); return true; }
       case 'story': return game.story.doOption(opt);
       case 'activity': return game.activities.doOption(opt);
       case 'food': { const v = opt.v; if (L.wallet < v.price) { hud.toast(`Not enough money for ${v.food}. People you help sometimes give you something "for food".`, 'red'); return true; } L.wallet -= v.price; L.eat(v.fill, v.food.toUpperCase()); hud.say(v.label === 'SUYA' ? 'Mallam' : 'Mama', ['Enjoy, my son.', 'You look tired o. Eat well.', 'Extra pepper for you.'][Math.floor(R() * 3)], 2); return true; }
@@ -601,7 +601,7 @@ export function createGame(ctx) {
       case 'tobi': {
         if (game.story.unlocked <= game.story.index && game.story.upcoming()) game.story.unlocked = game.story.index + 1;
         const m = game.story.next();
-        const lines = m ? [m.intro] : ['Tobi (half asleep): "Bro... everybody is talking about the boy in black. Is it you?" You tell him to go back to sleep.', 'Tobi: "The Red Caps are asking questions in the market. Be careful."'];
+        const lines = m ? [m.intro] : ['Tobi (half asleep): "Bro... everybody is talking about Street Cat. Is it you?" You tell him to go back to sleep.', 'Tobi: "The Red Caps are asking questions in the market. Be careful."'];
         hud.say('Tobi', lines[Math.floor(R() * lines.length)], 7); return true;
       }
       case 'sleep': game.sleep(); return true;
@@ -662,9 +662,9 @@ export function createGame(ctx) {
     if (L.suit) { L.suit = false; L.bag = true; player.setOutfit(dayFit()); } else { L.suit = true; player.setOutfit(suitFit()); }
     reattachBag(); updateBackpack(); audio.grab(); fx.dust(player.pos.x, player.pos.y + 0.1, player.pos.z, 6);
     if (n > 0) {
-      // somebody saw Bolaji from Aguda turn into the boy in black (or back)
+      // somebody saw Bolaji from Aguda turn into Street Cat (or back)
       game.exposure = 0; L.suspicion = Math.min(100, L.suspicion + 12); game.recognisedAt = game.time;
-      hud.banner('SEEN CHANGING', `${n === 1 ? 'Somebody' : n + ' people'} saw you change. Your face and the boy in black, in the same moment.`, 'red', 3.5);
+      hud.banner('SEEN CHANGING', `${n === 1 ? 'Somebody' : n + ' people'} saw you change. Your face and Street Cat, in the same moment.`, 'red', 3.5);
       addHeat(1, 'Somebody is on the phone to the police.');
     } else hud.popup(L.suit ? 'SUITED UP · NOBODY SAW' : 'CHANGED BACK · NOBODY SAW');
   }
@@ -728,10 +728,10 @@ export function createGame(ctx) {
     if (pickT >= 2.5) { pickT = 0; player.cuffed = false; if (game.mode !== 'patrol') L.items.pins--; game.hudMeter = null; game.catchLabel = null; audio.clank?.(player.pos); hud.notice('CUFFS OFF', 'Click. You pocket the cuffs. They might be useful.', 'green'); game.addRespect(250, 'PICKED THE CUFFS'); }
   }
   let dayAttT = 0, dayToldT = -999;
-  function updateDaySuit(dt) { // the boy in black in broad daylight draws a crowd and the police
+  function updateDaySuit(dt) { // Street Cat in broad daylight draws a crowd and the police
     if (!(L.suit && !L.inside && L.daylight() > 0.5)) { dayAttT = 0; return; }
     dayAttT += dt;
-    if (game.time - dayToldT > 120) { dayToldT = game.time; hud.notice('BROAD DAYLIGHT', 'People are stopping to point their phones at the boy in black.', 'red'); game.radio?.say('Una see am? The boy in black, for afternoon! Na film o. Police dey come.'); }
+    if (game.time - dayToldT > 120) { dayToldT = game.time; hud.notice('BROAD DAYLIGHT', 'People are stopping to point their phones at Street Cat.', 'red'); game.radio?.say('Una see am? Street Cat, for afternoon! Na film o. Police dey come.'); }
     if (dayAttT > 12 && game.heat === 0) { dayAttT = 0; addHeat(1, 'A crowd is following you, and somebody called the police.'); }
   }
   function reattachBag() { bagOnHip.parent?.remove(bagOnHip); player.rig.b.hips.add(bagOnHip); }
@@ -1229,7 +1229,7 @@ export function createGame(ctx) {
       if (input.pressed.g1) game.gadgets.use(1); if (input.pressed.g2) game.gadgets.use(2); if (input.pressed.g3) game.gadgets.use(3);
     }
 
-    player.noBoard = !L.suit; // the board belongs to the boy in black; by day he walks and pays for rides
+    player.noBoard = !L.suit; // the board belongs to Street Cat; by day he walks and pays for rides
     if (player.noBoard && ['board', 'grind'].includes(player.mode)) { player.mode = 'foot'; player.prone = false; }
     player.update(sdt, input, camera.yaw, game.time);
     for (const e of player.events) handleEvent(e);
@@ -1474,7 +1474,7 @@ export function createGame(ctx) {
   function handleEvent(ev) {
     switch (ev.e) {
       case 'tooTired': if (!game.tiredT || game.time - game.tiredT > 6) { game.tiredT = game.time; hud.popup('TOO TIRED TO FLIP · <b>EAT OR REST</b>'); } break;
-      case 'noBoard': if (!game.noBoardT || game.time - game.noBoardT > 15) { game.noBoardT = game.time; hud.toast('No board by day: it stays hidden with the suit. <b>Walk, run, or pay for a danfo, keke or okada.</b> The board comes out with the boy in black.', 'blue'); } break;
+      case 'noBoard': if (!game.noBoardT || game.time - game.noBoardT > 15) { game.noBoardT = game.time; hud.toast('No board by day: it stays hidden with the suit. <b>Walk, run, or pay for a danfo, keke or okada.</b> The board comes out with Street Cat.', 'blue'); } break;
       case 'bikeOn': audio.horn?.(player.pos); break;
       case 'bikeOff': if (ev.crash) { audio.land(1); camera.shake = 0.6; hud.popup('CRASHED'); } break;
       case 'jump': audio.ollie(); if (ev.power > 0.6) { fx.dust(player.pos.x, player.pos.y + 0.05, player.pos.z, 10); camera.shake = 0.2; } break;

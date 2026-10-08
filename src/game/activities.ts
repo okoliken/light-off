@@ -271,7 +271,7 @@ export function createActivities(game, h) {
     A.hit = { squad, gun, t: 0 };
     hud.banner('THE BLADES', 'Somebody with a lot of money wants you gone.', 'red', 3);
     game.radio?.say('...'); audio.alert();
-    game.say(squad[0], 'Boy in black. The man sends his greetings.', 'Blade', 60);
+    game.say(squad[0], 'Street Cat. The man sends his greetings.', 'Blade', 60);
   }
   function updateHit(dt) {
     A.hitCd -= dt;
@@ -327,27 +327,27 @@ export function createActivities(game, h) {
       A.block = null;
     }
   }
-  // ---- the copycat: someone in a black hoodie using the boy in black's name to collect "protection" ----
+  // ---- the copycat: someone in a black hoodie using Street Cat's name to collect "protection" ----
   A.fake = null; A.fakeCd = 300 + Math.random() * 200;
   function startFake() {
     const spot = h.spot(60, 160); if (!spot) return;
     const trader = h.victim({ x: spot.x, z: spot.z, yaw: Math.atan2(spot.nx, spot.nz), mood: 'scared' }); trader.name = pick(['Mama Rasheed', 'Iya Bisi', 'Oga Chidi', 'Aunty Funke']);
     const crew = [];
-    const fake = h.thug({ x: spot.x + spot.nx * 1.4, z: spot.z + spot.nz * 1.4, yaw: Math.atan2(-spot.nx, -spot.nz), variant: 'impostor', role: 'guard', group: crew }); fake.name = 'the fake boy in black'; crew.push(fake);
+    const fake = h.thug({ x: spot.x + spot.nx * 1.4, z: spot.z + spot.nz * 1.4, yaw: Math.atan2(-spot.nx, -spot.nz), variant: 'impostor', role: 'guard', group: crew }); fake.name = 'the fake Street Cat'; crew.push(fake);
     for (const k of [-1, 1]) crew.push(h.thug({ x: spot.x + spot.nx * 2 + spot.nz * k * 1.6, z: spot.z + spot.nz * 2 - spot.nx * k * 1.6, variant: 'agbero2', weapon: k > 0 ? 'stick' : null, role: 'guard', group: crew }));
     const take = 8000 + Math.floor(Math.random() * 5) * 2000;
     h.giveItem(fake, { label: `${trader.name}'s money`, amount: take, owner: trader });
     A.fake = { trader, crew, fake, t: 0, area: world.areaAt(spot.x, spot.z) };
-    game.radio?.say(`Callers dey vex: one "boy in black" dey collect protection money for ${A.fake.area}! Dem say na him. Na him?`);
-    hud.notice('SOMEBODY IS USING YOUR NAME', `A fake boy in black is collecting "protection" money in ${A.fake.area}.`, 'red');
+    game.radio?.say(`Callers dey vex: one "Street Cat" dey collect protection money for ${A.fake.area}! Dem say na him. Na him?`);
+    hud.notice('SOMEBODY IS USING YOUR NAME', `A fake Street Cat is collecting "protection" money in ${A.fake.area}.`, 'red');
     game.audio.alert();
   }
   function updateFake(dt) {
     A.fakeCd -= dt;
     if (!A.fake) { if (NO_SPECIALS) return; if (A.fakeCd <= 0 && !A.anyActive() && game.respect >= 3000 && L.phase !== 'day' && !L.inside && !game.story.active && !game.carrying && !player.cuffed) { A.fakeCd = 420 + Math.random() * 300; startFake(); } return; }
     const F = A.fake; F.t += dt;
-    if (F.t > 150 && F.fake.alive) { // he got away with it: the city now thinks the boy in black extorts people
-      game.respect = Math.max(0, game.respect - 600); hud.notice('THE NAME TAKES A HIT', `People in ${F.area} now say the boy in black takes money from traders.`, 'red');
+    if (F.t > 150 && F.fake.alive) { // he got away with it: the city now thinks Street Cat extorts people
+      game.respect = Math.max(0, game.respect - 600); hud.notice('THE NAME TAKES A HIT', `People in ${F.area} now say Street Cat takes money from traders.`, 'red');
       for (const t of F.crew) t.remove(); F.trader.runHome(F.trader.pos.x + 30, F.trader.pos.z); A.fake = null; return;
     }
     if (!F.fake.alive && !F.unmasked) {
@@ -355,7 +355,7 @@ export function createActivities(game, h) {
       game.playScene?.([
         { who: 'Bolaji', text: 'Take that thing off your face.' },
         'Under the rag: a boy from Lawanson, maybe nineteen. Shaking.',
-        { who: 'The fake', text: 'Everybody dey fear the boy in black now... I just wan make dem pay me too. Na hunger, bros.' },
+        { who: 'The fake', text: 'Everybody dey fear Street Cat now... I just wan make dem pay me too. Na hunger, bros.' },
         { who: 'Bolaji', text: 'The black isn\'t a costume. Give it back to them.' },
       ], { x: F.fake.pos.x, y: F.fake.pos.y, z: F.fake.pos.z }, () => game.addRespect(500, 'NAME CLEARED'), 'THE COPYCAT');
     }

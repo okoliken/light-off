@@ -146,7 +146,7 @@ export class Thug {
         if (p.mode === 'down' || p.mode === 'getup') { // he's down: gloat, don't hit a man on the ground
           Pose.idle(r, game.time, false); r.set('shRX', -2.2 + Math.sin(game.time * 6) * 0.3); r.set('elRX', -0.6);
           if (dist < 3.5) { ax = -Math.sin(toP) * 2; az = -Math.cos(toP) * 2; }
-          if (Math.random() < dt * 0.3) game.say(this, pick(['Na so! Stay there!', 'Where your power now?', 'Oya get up make we finish am!', 'Boy in black, abi?']), 'Red Cap', 40);
+          if (Math.random() < dt * 0.3) game.say(this, pick(['Na so! Stay there!', 'Where your power now?', 'Oya get up make we finish am!', 'Street Cat, abi?']), 'Red Cap', 40);
           break;
         }
         if (p.mode === 'crawl') { speed = 1.9; Pose.idle(r, game.time, true); break; } // closing in on him

@@ -16,7 +16,7 @@ const STEPS: Step[] = [
   { id: 'pause', title: 'Pause the game', how: { kb: 'Press <kbd>Esc</kbd>, then Resume', touch: 'Tap <b>❚❚</b> at the top, then Resume', pad: 'Press <kbd>Start</kbd>, then Resume' }, done: s => s.paused },
 ];
 
-// the boy in black: the night skills (taught the first time he's out in the suit)
+// Street Cat: the night skills (taught the first time he's out in the suit)
 const NIGHT: Step[] = [
   { id: 'board', title: 'Get on your board', how: { kb: 'Press <kbd>R</kbd>', touch: 'Tap <b>BOARD</b>', pad: 'Press <kbd>Y</kbd> / <kbd>△</kbd>' }, done: s => s.mode === 'board' },
   { id: 'ride', title: 'Skate fast', how: { kb: 'Hold <kbd>W</kbd> and <kbd>Shift</kbd> to push', touch: 'Push the joystick forward, all the way', pad: 'Left stick forward, hold <kbd>RT</kbd>' }, done: s => s.mode === 'board' && s.speed > 9 },
@@ -59,7 +59,7 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
   const draw = (tick = false) => {
     const st = list[i];
     if (touch) point(tick ? '' : st.how.touch);
-    el.innerHTML = `<div class="tut-k">${kind === 'night' ? 'THE BOY IN BLACK' : 'FIRST STEPS'} · ${i + 1} OF ${list.length}</div>
+    el.innerHTML = `<div class="tut-k">${kind === 'night' ? 'STREET CAT' : 'FIRST STEPS'} · ${i + 1} OF ${list.length}</div>
       <div class="tut-t">${tick ? '<span class="tut-ok">✓</span>' : ''}${st.title}</div><div class="tut-h">${st.how[dev()]}</div>
       <div class="tut-bar"><i style="width:${(i / list.length) * 100}%"></i></div><div class="tut-s">${touch ? 'Skip: ❚❚ → Skip tutorial' : 'Skip: Esc → Skip tutorial'}</div>`;
   };
@@ -71,7 +71,7 @@ export function createTutorial(root: HTMLElement, { game, player, camera, input,
   T.start = (k = 'day') => { kind = k; list = k === 'night' ? NIGHT : STEPS; for (const q in cb) delete cb[q]; spar = []; T.active = true; game.tutorialOn = true; document.body.classList.add('tut-on'); i = 0; s = fresh(); lastYaw = camera.yaw; el.classList.remove('hidden'); draw(); };
   T.stop = (finished = false) => {
     touch?.focus?.(null); T.active = false; game.tutorialOn = false; document.body.classList.remove('tut-on'); game.outT = 0; el.classList.add('hidden'); try { localStorage.setItem(kind === 'night' ? NKEY : KEY, '1'); } catch { /* */ }
-    if (finished) game.hud.banner(kind === 'night' ? 'THE BOY IN BLACK' : 'YOU\'RE READY', kind === 'night' ? 'The rooftops are yours. The police will chase the suit on sight: stay quick.' : 'Lagos is yours. Go anywhere: press M for the map.', 'green', 3.5);
+    if (finished) game.hud.banner(kind === 'night' ? 'STREET CAT' : 'YOU\'RE READY', kind === 'night' ? 'The rooftops are yours. The police will chase the suit on sight: stay quick.' : 'Lagos is yours. Go anywhere: press M for the map.', 'green', 3.5);
   };
   T.event = (e: string) => { if (!T.active) return; if (e === 'map') s.mapped = true; if (e === 'job') s.jobbed = true; if (e === 'pause') s.paused = true; };
   T.update = (dt: number, inp: any) => {

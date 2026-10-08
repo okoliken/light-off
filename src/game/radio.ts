@@ -1,6 +1,6 @@
 // Bolaji's pocket radio (N, or the radio on the window sill at home). Lagos runs on radio: this is how he
 // hears what is going on. The next story mission, daytime missions, trouble happening right now, and
-// the city talking about "the boy in black" all come over the air. A blinking RADIO light means there
+// the city talking about "Street Cat" all come over the air. A blinking RADIO light means there
 // is news he hasn't heard yet.
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const STATIONS = ['WAZOBIA FM 95.1', 'COOL FM 96.9', 'RADIO LAGOS 107.5', 'NAIJA FM 102.7'];
@@ -15,13 +15,13 @@ const FLAVOUR_DAY = [
 const FLAVOUR_NIGHT = [
   'Late night on the radio. Na only generators and mosquitoes dey talk now.',
   'If you dey drive this night, abeg lock your door. Third Mainland no be joke after midnight.',
-  'Callers dey ask: who be this boy in black wey dey jump like cat? Na spirit? Na human?',
+  'Callers dey ask: who be this Street Cat wey dey jump like cat? Na spirit? Na human?',
   'Police say make everybody stay indoors after 11. Some people say na the police dem dey fear.',
 ];
 const BOY = [
-  'The boy in black again! Market women for Adelabu say he return their money. Who is he?',
-  'One caller say the boy in black na Surulere pikin. Another one say na spirit. Wetin you think?',
-  'Police spokesman say the "boy in black" is a criminal. Traders say he\'s the only one protecting them.',
+  'Street Cat again! Market women for Adelabu say he return their money. Who is he?',
+  'One caller say Street Cat na Surulere pikin. Another one say na spirit. Wetin you think?',
+  'Police spokesman say "Street Cat" is a criminal. Traders say he\'s the only one protecting them.',
 ];
 
 export function createRadio(game) {
