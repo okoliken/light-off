@@ -59,7 +59,7 @@ export function createEnv(scene, renderer, camera, opt: any = {}) {
   }
   scene.add(moonL, moonL.target);
   // soft fill that follows the camera so the black hoodie still reads
-  const fill = new THREE.PointLight(0x9ab0e0, 9, 16, 1.2); scene.add(fill);
+  const fill = new THREE.PointLight(0x9ab0e0, 9, 26, 1.0); scene.add(fill);
 
   // post
   const composer = new EffectComposer(renderer);
@@ -73,7 +73,7 @@ export function createEnv(scene, renderer, camera, opt: any = {}) {
       void main(){ vec4 c = texture2D(tDiffuse, vUv); vec2 d = vUv - 0.5; float r = dot(d, d);
         float l = dot(c.rgb, vec3(0.299,0.587,0.114));
         c.rgb = mix(c.rgb, vec3(l) * vec3(0.75, 0.95, 1.25) + vec3(0.0,0.01,0.03), sense * 0.8);
-        c.rgb *= 1.0 - r * (0.9 + sense * 1.6 + dark * 0.6);
+        c.rgb *= 1.0 - r * (0.5 + sense * 1.6 + dark * 0.25);
         c.rgb = mix(c.rgb, vec3(0.6,0.02,0.02), hurt * smoothstep(0.08, 0.35, r));
         float g = fract(sin(dot(vUv * (time + 1.0), vec2(12.9898,78.233))) * 43758.5453);
         c.rgb += (g - 0.5) * 0.025;
@@ -92,19 +92,19 @@ export function createEnv(scene, renderer, camera, opt: any = {}) {
       starMat.opacity = (0.25 + (1 - p) * 0.75) * (1 - d);
       moon.visible = d < 0.6;
       hemi.color.set(0x4a5c90).lerp(new THREE.Color(0xc8dcff), d); hemi.groundColor.set(0x3a2a1a).lerp(new THREE.Color(0x8a6f4f), d);
-      hemi.intensity = i ? L(0.18, 0.9, d) : L(0.8 + 0.5 * p, 1.7, d);
-      amb.intensity = i ? L(0.25, 0.5, d) : L(0.9, 0.6, d);
+      hemi.intensity = i ? L(0.18, 0.9, d) : L(2.3 + 0.4 * p, 1.7, d);
+      amb.intensity = i ? L(0.25, 0.5, d) : L(1.5, 0.6, d);
       moonL.color.set(0x9fb4ff).lerp(new THREE.Color(0xfff0d8), d);
-      moonL.intensity = i ? L(0.08, 0.35, d) : L(0.55, 2.8, d);
-      fill.intensity = i ? L(1.2, 0.4, d) : L(9, 1, d);
-      scene.fog.density = L(0.0085 + (1 - p) * 0.004, 0.0032, d) + 0.009 * this._rain;
+      moonL.intensity = i ? L(0.08, 0.35, d) : L(1.0, 2.8, d);
+      fill.intensity = i ? L(1.2, 0.4, d) : L(22, 1, d);
+      scene.fog.density = L(0.006 + (1 - p) * 0.002, 0.0032, d) + 0.009 * this._rain;
       hemi.intensity *= 1 - 0.35 * this._rain; moonL.intensity *= 1 - 0.6 * this._rain;
       const nf = new THREE.Color(0.047 * (0.6 + 0.4 * p), 0.07 * (0.6 + 0.4 * p), 0.125 * (0.7 + 0.3 * p));
       scene.fog.color.copy(nf).lerp(new THREE.Color(0.72, 0.76, 0.8), d);
       scene.background.set(0x05070d).lerp(new THREE.Color(0x9fb8d8), d).lerp(new THREE.Color(0x4a525c), 0.7 * this._rain * d);
       scene.fog.color.lerp(new THREE.Color(0x59616b), 0.6 * this._rain * d);
       grade.uniforms.dark.value = (1 - p) * (1 - d);
-      renderer.toneMappingExposure = L(1.45, 0.95, d);
+      renderer.toneMappingExposure = L(1.65, 0.95, d);
       bloom.strength = L(0.85, 0.25, d);
     },
     setIndoor(v) { if (v === this._indoor) return; this._indoor = v; this.apply(); },
