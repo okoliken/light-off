@@ -624,6 +624,7 @@ export function createGame(ctx) {
   game.refreshBag = () => updateBackpack();
   // what he wears by day: the SwiftDrop uniform while he has the job, plain clothes when he doesn't
   // the suit as it is: whole, torn, or in rags
+  game.catSuit = true; // the panther suit is his suit from the start (the user's call, 2026-10-08)
   const suitFit = () => game.catSuit ? OUTFITS.bolajiCat : (L.suitHP ?? 100) > 60 ? OUTFITS.bolaji : (L.suitHP ?? 100) > 25 ? OUTFITS.bolajiTorn : OUTFITS.bolajiRags; // game.catSuit: the new suit (Act 3 on)
   game.suitFit = suitFit;
   // On shift it's always the uniform; off duty, whatever he last picked from the nail at home (L.wear)

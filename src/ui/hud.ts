@@ -32,7 +32,7 @@ export function createHUD(root, world) {
       <div class="health"><div class="hbar"><i class="cap"></i><b></b></div><span class="hv">100</span></div>
       <div class="heat"><span class="lbl">HEAT</span><i class="star"></i><i class="star"></i><i class="star"></i></div>
       <div class="naira">₦0<span>RETURNED</span></div>
-      <div class="wanted" hidden><span class="lbl">RED CAPS</span><i></i><i></i><i></i></div>
+      <div class="wanted" style="display:none"><span class="lbl">RED CAPS</span><i></i><i></i><i></i></div>
       <div class="respect"><span class="lbl">REP</span> <b class="rv">0</b></div>
       <div class="suitline hidden"><span class="lbl">SUIT</span><div class="meter suitm"><b></b></div></div>
       <div class="needs">
