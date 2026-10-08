@@ -671,6 +671,7 @@ export function createGame(ctx) {
   game.changeClothes = changeClothes;
   // ---------- the suit wears out: torn, then rags; stitch it at home or buy a new one from Sunny Tailoring ----------
   function wearSuit(n) {
+    if (game.catSuit) { L.suitHP = 100; return; } // the panther suit doesn't wear out
     const before = suitFit(); L.suitHP = Math.max(0, (L.suitHP ?? 100) - n);
     if (suitFit() !== before) { player.setOutfit(suitFit()); reattachBag();
       if (suitFit() === OUTFITS.bolajiTorn) hud.notice('SUIT TORN', 'The padding is gone in places: hits land harder now. Stitch it at home, or get a new one.', 'red', 3.5);

@@ -279,7 +279,7 @@ export function createGeneral(game) {
       steps: [
         { label: 'The Hunter: beat him, or lose him (he doesn\'t know Lagos)', where: () => game.hunter?.active ? game.hunter.pos : null, enter: () => { const q = stadium(); game.hunter.start(q.x + 8, q.z); C.data.hs = true; }, done: () => C.data.hs && !game.hunter.active },
       ],
-      finish: () => { L.suitHP = 12; game.refreshFit?.(); if (L.suit) player.setOutfit?.(OUTFITS.bolajiRags); setTimeout(() => hud.toast('You got away, but his blade cut the old suit to rags.', 'red'), 4500); } },
+      finish: () => { setTimeout(() => hud.toast('You got away. His blade didn\'t even mark the suit.', 'green'), 4500); } },
     { title: 'A New Skin', time: 'day', start: tailor,
       brief: 'Sunny the tailor sent a text: "Come see me. I made something for you. No questions."',
       steps: [
