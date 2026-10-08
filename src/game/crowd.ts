@@ -13,6 +13,15 @@ const VIVID = ['#c62828', '#1565c0', '#f9a825', '#2e7d32', '#6a1b9a', '#ef6c00',
 const PLAIN = ['#eeeeee', '#263238', '#37474f', '#795548', '#1a237e', '#4e342e', '#9e9e9e', '#f5f5f5', '#212121', '#90a4ae'];
 const PANTS = ['#263238', '#1a237e', '#3e2723', '#212121', '#4e342e', '#37474f', '#5d4037', '#1c2833'];
 const SKINLIKE = new Set(['#795548', '#4e342e', '#5d4037', '#3e2723']);
+// a wrapper skirt for the realistic women: fitted at the waist, over the hips, flaring to a soft hem at the knee
+// or the ankle (pivot space: the hips pivot sits at the hip joints, the waist about 5 cm above)
+function skirtGeo(hem: number, flare: number) {
+  const pts = [[0.14, 0.06], [0.175, 0.0], [0.205, -0.09], [0.215, -0.18]].map(([r, y]) => new THREE.Vector2(r, y));
+  for (let k = 1; k <= 6; k++) { const t = k / 6; pts.push(new THREE.Vector2(0.215 + (flare - 0.215) * t ** 1.4, -0.18 + (hem + 0.18) * t)); }
+  pts.push(new THREE.Vector2(flare - 0.012, hem - 0.012));
+  return new THREE.LatheGeometry(pts, 28);
+}
+const SKIRT = { knee: skirtGeo(-0.47, 0.25), long: skirtGeo(-0.83, 0.29) };
 const BODY = new Set(['torso', 'pelvis', 'legL', 'legR', 'armL', 'armR', 'head', 'hair']);
 const PARTS = ['torso', 'pelvis', 'skirt', 'legL', 'legR', 'armL', 'armR', 'head', 'hair', 'gele', 'fila', 'basin'];
 
@@ -106,7 +115,9 @@ export function createCrowd(scene, world, count = 230) {
     if (!hasBody(female ? 'woman' : 'human')) continue;
     for (let k = 0; k < n; k++) {
       const r = new Rig({ female, skin: '#4a2e20', top: '#eeeeee', bottom: '#263238', sock: '#263238', sole: '#2b2b2b', scale: 1 });
-      r.root.visible = false; scene.add(r.root); pool.push({ rig: r, female, ped: null });
+      r.root.visible = false; scene.add(r.root);
+      const skirt = new THREE.Mesh(SKIRT.long, new THREE.MeshStandardMaterial({ color: '#888', roughness: 0.85, side: THREE.DoubleSide })); skirt.visible = false; skirt.castShadow = true; r.b.hips.add(skirt); r.skirt = skirt;
+      pool.push({ rig: r, female, ped: null });
     }
   }
   const REAL_R = 30; let assignT = 0;
@@ -125,6 +136,8 @@ export function createCrowd(scene, world, count = 230) {
       s.ped = p; p.real = s.rig; s.rig.root.visible = true;
       const top = SKINLIKE.has(p.col.torso) ? '#eeeeee' : p.col.torso; // a brown top on a real body reads as bare skin
       tintBody(s.rig.model, s.rig.kind, { skin: p.col.head, top, bottom: p.col.pelvis, sole: '#2b2b2b' });
+      const sk = s.rig.skirt, wears = p.female && (p.skirt === 'long' || p.skirt === 'knee');
+      sk.visible = wears; if (wears) { sk.geometry = SKIRT[p.skirt]; (sk.material as THREE.MeshStandardMaterial).color.set(p.col.skirt); }
     }
   };
 
@@ -177,7 +190,7 @@ export function createCrowd(scene, world, count = 230) {
         if (p.basin) { part.makeRotationZ(2.7); part.setPosition(0.2, 1.42, 0); tmp.multiplyMatrices(body, part); put('armL', tmp); } // one hand steadying the basin
         else limb('armL', 0.21, 1.42, sn * armA);
         limb('armR', -0.21, 1.42, -sn * armA);
-        if (p.skirt) { part.makeScale(1, p.skirt === 'knee' ? 0.75 : 1.3, 1); part.setPosition(0, p.skirt === 'knee' ? 0.18 : -0.2, 0); tmp.multiplyMatrices(body, part); put('skirt', tmp); } else put('skirt', zero);
+        if (p.skirt && !real) { part.makeScale(1, p.skirt === 'knee' ? 0.75 : 1.3, 1); part.setPosition(0, p.skirt === 'knee' ? 0.18 : -0.2, 0); tmp.multiplyMatrices(body, part); put('skirt', tmp); } else put('skirt', zero);
         put('hair', p.hairless || p.gele || p.fila ? zero : body);
         put('gele', p.gele ? body : zero); put('fila', p.fila ? body : zero); put('basin', p.basin ? body : zero);
         if (real) { // the same walk on the real body
@@ -185,8 +198,9 @@ export function createCrowd(scene, world, count = 230) {
           const t = real.t, f = longSkirt ? 0.5 : 1;
           t.thLX = -sn * legA * f; t.thRX = sn * legA * f;
           t.knLX = walk * 0.5 * Math.max(0, Math.sin(p.phase + 1.2)); t.knRX = walk * 0.5 * Math.max(0, -Math.sin(p.phase + 1.2));
-          t.shLX = p.basin ? 0 : sn * armA; t.shLZ = p.basin ? 2.7 : 0.06; t.elLX = p.basin ? -0.4 : -0.15 - walk * 0.2;
-          t.shRX = -sn * armA; t.shRZ = -0.06; t.elRX = -0.15 - walk * 0.2;
+          const out = p.female && p.skirt ? 0.16 : 0.06; // arms clear of the skirt
+          t.shLX = p.basin ? 0 : sn * armA; t.shLZ = p.basin ? 2.7 : out; t.elLX = p.basin ? -0.4 : -0.15 - walk * 0.2;
+          t.shRX = -sn * armA; t.shRZ = -out; t.elRX = -0.15 - walk * 0.2;
           t.spineX = hunch * 0.5; t.chestX = hunch * 0.5 + (p.scare > 0 ? 0.12 : 0);
           real.snap(); real.update(0);
         }

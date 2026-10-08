@@ -3,6 +3,8 @@
 // Each template = { body geometry (vertex colours), light geometry, spec }.
 import * as THREE from 'three';
 import { PrimBatch } from '../core/geo.ts';
+import { Rig } from '../player/rig.ts';
+import { bakePose, hasBody } from '../player/body.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ---- vehicles modelled in Blender (public/models/<type>.glb). Each part's material names its role; the game
@@ -46,6 +48,30 @@ export const SPECS = {
 const SKIN = ['#3b2418', '#4a2e20', '#5a3825', '#2f1c12'];
 const SHIRT = ['#c62828', '#1565c0', '#f9a825', '#2e7d32', '#6a1b9a', '#eeeeee', '#ff7043', '#37474f'];
 
+// ---- riders: the realistic body (the same model as the crowd), posed seated and baked into the vehicle ----
+const SEATS: Record<string, any> = {
+  ride: { spineX: 0.28, thLX: -1.3, thRX: -1.3, thLZ: 0.3, thRZ: -0.3, knLX: 1.65, knRX: 1.65, shLX: -1.05, shRX: -1.05, shLZ: 0.28, shRZ: -0.28, elLX: -0.45, elRX: -0.45 }, // hands on the bars
+  pillion: { spineX: 0.1, thLX: -1.3, thRX: -1.3, thLZ: 0.38, thRZ: -0.38, knLX: 1.6, knRX: 1.6, shLX: -0.45, shRX: -0.45, shLZ: 0.2, shRZ: -0.2, elLX: -0.9, elRX: -0.9 }, // hands on the knees
+  drive: { spineX: 0.15, thLX: -1.45, thRX: -1.45, thLZ: 0.08, thRZ: -0.08, knLX: 1.5, knRX: 1.5, shLX: -1.1, shRX: -1.1, shLZ: 0.12, shRZ: -0.12, elLX: -0.55, elRX: -0.55 }, // the keke's handlebar
+  bench: { spineX: 0.05, thLX: -1.5, thRX: -1.5, thLZ: 0.12, thRZ: -0.12, knLX: 1.5, knRX: 1.5, shLX: -0.3, shRX: -0.3, shLZ: 0.1, shRZ: -0.1, elLX: -0.95, elRX: -0.95 }, // sitting in the back
+};
+const baked: Record<string, any> = {};
+function seated(pose) {
+  if (baked[pose] !== undefined) return baked[pose];
+  if (!hasBody('human')) return (baked[pose] = null);
+  const r = new Rig({ skin: '#5b3a26', top: '#888', bottom: '#263238', sock: '#222', sole: '#222', scale: 1 });
+  Object.assign(r.t, SEATS[pose]); r.snap(); r.update(0);
+  return (baked[pose] = bakePose(r));
+}
+const PANTS = ['#263238', '#1a237e', '#3e2723', '#212121', '#37474f'];
+/** A realistic rider, pelvis at (x, y, z), facing +z; falls back to the old blocky one if the model isn't loaded. */
+function rider(b, x, y, z, pose, shirt, skin, R) {
+  const parts = seated(pose);
+  if (!parts) { person(b, x, y - 0.1, z, shirt, skin); return; }
+  const pants = PANTS[Math.floor(R() * PANTS.length)];
+  const col = { skin, top: shirt, bottom: pants, shoe: '#1c1c1c', sole: '#bdbdbd', hair: '#0e0b09', eye: '#1a1410' };
+  for (const p of parts) b.add(p.geo, { p: [x, y, z] }, col[p.role] ?? '#333');
+}
 function wheels(b, len, w, r, zs, width = 0.26) {
   for (const z of zs) for (const s of [-1, 1]) {
     b.cyl(r, r, width, { p: [s * (w / 2 - width / 2 + 0.02), r, z], r: [0, 0, Math.PI / 2] }, '#141414', 12);
@@ -102,9 +128,8 @@ function okada(R) {
   const b = new PrimBatch(), l = new PrimBatch();
   const c: any = ['#8e1b1b', '#1a237e', '#212121', '#bf360c'][Math.floor(R() * 4)];
   const riders = () => {
-    person(b, 0, 0.9, -0.1, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
-    if (R() < 0.5) person(b, 0, 0.95, -0.55, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
-    b.box(0.5, 0.12, 0.3, { p: [0.28, 0.9, -0.1], r: [0, 0, 0.4] }, '#263238'); b.box(0.5, 0.12, 0.3, { p: [-0.28, 0.9, -0.1], r: [0, 0, -0.4] }, '#263238');
+    rider(b, 0, 1.0, -0.05, 'ride', SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)], R);
+    if (R() < 0.5) rider(b, 0, 1.03, -0.5, 'pillion', SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)], R);
   };
   if (fromModel('okada', b, l, c)) { riders(); return { b, l }; }
   b.cyl(0.33, 0.33, 0.1, { p: [0, 0.33, 0.72], r: [0, 0, Math.PI / 2] }, '#111', 12);
@@ -126,8 +151,9 @@ function keke(R) {
   const b = new PrimBatch(), l = new PrimBatch();
   const Y = '#f6b81c', K = '#151515', C = '#2a2a2a';
   if (fromModel('keke', b, l, Y)) {
-    person(b, 0, 0.85, 0.45, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
-    if (R() < 0.6) person(b, 0.35, 1.0, -0.75, SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)]);
+    rider(b, 0, 0.98, 0.45, 'drive', SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)], R);
+    if (R() < 0.6) rider(b, 0.33, 1.33, -0.72, 'bench', SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)], R);
+    if (R() < 0.35) rider(b, -0.33, 1.33, -0.72, 'bench', SHIRT[Math.floor(R() * SHIRT.length)], SKIN[Math.floor(R() * 4)], R);
     return { b, l };
   }
   // nose and cockpit

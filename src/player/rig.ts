@@ -320,6 +320,7 @@ export class Rig {
       return { bone, pivot: this.b[k], q };
     });
     const qp = new THREE.Quaternion(), qparent = new THREE.Quaternion(), v = new THREE.Vector3();
+    const pelvisDy = (restPos(this.kind, 'pelvis')?.y ?? HIP_H) - HIP_H;
     this.drive = () => {
       this.root.updateMatrixWorld(true);
       for (const d of drive) {
@@ -328,7 +329,7 @@ export class Rig {
           d.pivot.getWorldQuaternion(qp).multiply(d.q);
           bone.parent.getWorldQuaternion(qparent);
           bone.quaternion.copy(qparent.invert().multiply(qp));
-          if (d.pivot === this.b.hips) { d.pivot.getWorldPosition(v); bone.position.copy(bone.parent.worldToLocal(v)); }
+          if (d.pivot === this.b.hips) { v.set(0, pelvisDy, 0); d.pivot.localToWorld(v); bone.position.copy(bone.parent.worldToLocal(v)); } // the model's own hip height, so its feet stay on the ground
         }
         bone.updateWorldMatrix(false, false);
       }

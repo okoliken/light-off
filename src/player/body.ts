@@ -96,3 +96,21 @@ function camoTexture(cols: string[]) {
   t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 4);
   camoCache.set(key, t); return t;
 }
+
+/** The rig's body as static geometry in its current pose, one piece per material role, with the pelvis at the
+ *  origin (riders on okadas and kekes are baked into the vehicle meshes this way). */
+export function bakePose(rig: any): { geo: THREE.BufferGeometry; role: string }[] {
+  rig.root.updateMatrixWorld(true);
+  const inv = rig.root.matrixWorld.clone().invert(), out: { geo: THREE.BufferGeometry; role: string }[] = [], v = new THREE.Vector3();
+  let pelvis = new THREE.Vector3();
+  rig.model.traverse((o: any) => { if (o.isBone && o.name === 'pelvis') pelvis = o.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv); });
+  rig.model.traverse((m: any) => {
+    if (!m.isSkinnedMesh) return;
+    m.skeleton.update();
+    const g = m.geometry, n = g.attributes.position.count, arr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { m.getVertexPosition(i, v); v.applyMatrix4(m.matrixWorld).applyMatrix4(inv).sub(pelvis); arr[i * 3] = v.x; arr[i * 3 + 1] = v.y; arr[i * 3 + 2] = v.z; }
+    const ng = new THREE.BufferGeometry(); ng.setAttribute('position', new THREE.BufferAttribute(arr, 3)); if (g.index) ng.setIndex(g.index.clone()); ng.computeVertexNormals();
+    out.push({ geo: ng, role: (m.userData.base || m.material).name });
+  });
+  return out;
+}
