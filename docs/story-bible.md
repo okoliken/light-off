@@ -22,15 +22,12 @@
 - No progression to worry about. Just your own play.
 
 ### Missions: the story, ten missions in order
-- **One mission at a time.** Mission 2 opens only when Mission 1 is complete, and so on to Mission 10.
-- **You start each mission yourself.** Every mission has a yellow start marker. Walk to it and press F.
-- **Clear requirements before you start.** The objective panel always says what you need:
-  - **Night missions:** after 8 PM, **in the suit**. If you aren't wearing it, the game tells you to put it on (U from the backpack, or the drum at home).
-  - **Day missions:** in daylight (7 AM to 4 PM), **in your SwiftDrop work clothes**. If you're in the suit, the game tells you to take it off.
-- **A clear end.** When the last step is done, a **MISSION COMPLETE** banner appears, and the next mission is named with what it needs.
-- **After a mission ends, nothing more happens.** No follow-up fights, no surprise events. You're free to move around, go to work, or go home, until you choose to start the next mission.
-- **Failing:** getting arrested, or (for a night mission) dawn arriving, fails the mission. Go back to its marker and start again.
-- Between missions the city is ordinary: the same street life as Patrol, plus the day job.
+- **Played back to back from the mission list.** No roaming, job or street crime in between. Mission 2 opens when Mission 1 is complete, and so on to Mission 10; finished missions can be replayed.
+- **A briefing before each one:** what's happening, day or night, every step, and any clock. Start drops Bolaji at the mission, at the right time of day, in the right clothes (night: the suit; day: SwiftDrop work clothes), at full health.
+- **Clocks where the story gives a reason:** the market burning (M1), the delivery window (M2), the ledger about to be burned (M3), the boat and trucks leaving (M6), Okafor's backup (M9), the General escaping (M10).
+- **Failing:** running out of time, being beaten, arrested or caught by the Hunter, losing Okafor or the danfo. The fail card says why and offers Retry, straight back in.
+- **Finishing:** a result card with the time taken, Next mission, Replay, and the list. The pause menu has Restart mission and Mission list.
+- **The Hunter (M7) is exclusive:** nothing else happens. A sword fight in the street gets the police called after a while, and they try to arrest both of them.
 
 ## The villain: the General
 - **Colonel (rtd) Gbenga Sowande**, "the General". His company is G.S. Holdings, and his badge is a gold eagle on a beret.
