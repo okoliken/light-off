@@ -572,7 +572,7 @@ export function createHUD(root, world) {
   const settingsPanel = (o: any) => `<div class="mm-sound"><span>SOUND</span><button class="mm-btn ${o.sound !== false ? 'hot' : ''}" data-snd="on" data-nav>On</button><button class="mm-btn ${o.sound === false ? 'hot' : ''}" data-snd="off" data-nav>Off</button></div><div class="mm-quality">${Object.entries(o.presets).map(([k, p]: [string, any]) => `<button class="qcard ${k === o.quality ? 'on' : ''}" data-q="${k}" data-nav><b>${k.toUpperCase()}</b><span>${p.label.split(' · ')[1] || ''}</span>
       <ul><li>${p.fps} fps cap</li><li>${p.shadows ? `Shadows ${p.shadowSize}` : 'No shadows'}</li><li>${p.bloom ? 'Glow on' : 'No glow'}</li><li>${p.crowd} people</li></ul></button>`).join('')}</div>
     <p class="mm-note">Resolution, shadows, glow and frame rate change right away. The crowd size and street lights change the next time the game loads. If your laptop runs hot, pick Low.</p>`;
-  // the story and the two ways to play: shown once before the first title screen, and under "The story"
+  // the story and the two ways to play: open by themselves the first time, and under "The story"
   const STORY = `<p class="mm-story">Lagos. <em>Bolaji</em> rents one room in Aguda, Surulere. By day he rides for <em>SwiftDrop Dispatch</em>: parcels, deadlines, angry customers, rent every week.</p>
     <p class="mm-story">By night he's <em>the boy in black</em>. He climbs, wall-runs and rides the NEPA wires like a cat. But the city is filling up with other men in black: the armed boys of <em>the General</em>, a retired colonel who owns half the streets and pays half the police. The police can't tell Bolaji from them, so they chase him too.</p>
     <p class="mm-story">Find out who the General is, prove it, and <em>bring him down</em>.</p>`;
@@ -581,18 +581,6 @@ export function createHUD(root, world) {
       <div class="mode2"><small>FREE ROAM</small><b>Patrol</b><p>Bolaji's life, your way, with no story. Work SwiftDrop shifts for pay and rent, put on the suit at night, stop robbers and snatchers, take side jobs, and keep the police off your back.</p></div>
     </div>`;
   const storyPanel = () => STORY + `<p class="mm-note">TWO WAYS TO PLAY</p>` + MODES;
-  H.intro = (onDone) => {
-    el.overlays.innerHTML = `<div class="overlay mm mm-intro"><div class="mm-shade"></div><div class="intro2">
-      <div class="mm-kicker">A BOLAJI STORY</div><h1>LIGHT-OFF</h1>
-      <div class="intro2-cols"><div class="intro2-story">${STORY}</div><div class="intro2-modes"><div class="rp-label">TWO WAYS TO PLAY</div>${MODES}</div></div>
-      <button class="mm-btn hot" data-go>Continue</button></div></div>`;
-    let raf = 0;
-    const go = () => { document.removeEventListener('keydown', key); cancelAnimationFrame(raf); try { localStorage.setItem('light-off-intro-v1', '1'); } catch { /* private window */ } onDone(); };
-    const key = (e) => { if (['Enter', 'Space', 'Escape'].includes(e.code)) { e.preventDefault(); go(); } };
-    const pad = () => { const gp = [...(navigator.getGamepads?.() || [])].find(g => g && g.connected); if (gp?.buttons[0]?.pressed || gp?.buttons[9]?.pressed) go(); else raf = requestAnimationFrame(pad); };
-    document.addEventListener('keydown', key); raf = requestAnimationFrame(pad);
-    (el.overlays.querySelector('[data-go]') as HTMLElement).onclick = go;
-  };
 
   let menuCleanup = null;
   function menuShell({ kind, header, items, hints = true }: any) {
@@ -689,10 +677,10 @@ export function createHUD(root, world) {
     items.push({ label: 'The story', action: (m) => m.open('THE STORY SO FAR', storyPanel()) });
     items.push({ label: 'Controls', action: (m) => m.open('CONTROLS', controlsPanel()) });
     items.push({ label: 'Settings', action: (m) => m.open('SETTINGS', settingsPanel({ ...o, quality: q }), qualityWire(o, v => { q = v; })) });
-    let M;
-    const build = () => { M = menuShell({ kind: 'title', header: logo(false), items }); };
-    let seen = false; try { seen = !!localStorage.getItem('light-off-intro-v1'); } catch { /* private window */ }
-    if (seen) build(); else H.intro(build); // the first time: what the game is, and the two ways to play
+    const M = menuShell({ kind: 'title', header: logo(false), items });
+    // the first time: the story and the two ways to play open in the side panel by themselves
+    let seen = false; try { seen = !!localStorage.getItem('light-off-intro-v1'); localStorage.setItem('light-off-intro-v1', '1'); } catch { /* private window */ }
+    if (!seen) M.open('THE STORY SO FAR', storyPanel());
   };
 
   // Missions mode, between missions: the briefing, the result, the retry. o.list from general.list()

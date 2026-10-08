@@ -761,12 +761,7 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
   #hud .mcard { top: 30px; bottom: auto; }
   #hud.in-fight .modebox .gadgets, #hud.in-fight .modebox .gkit { display: none; } /* the touch buttons say it */
 }
-/* the first-launch intro: the story and the two ways to play */
-.mm-intro { overflow-y: auto; }
-.intro2 { position: relative; max-width: 900px; margin: 0 auto; padding: 56px 24px 48px; display: flex; flex-direction: column; gap: 14px; }
-.intro2 h1 { font-family: Anton, Impact, sans-serif; font-weight: 400; font-size: clamp(56px, 9vw, 110px); line-height: 0.86; margin: 0 0 10px; color: var(--yellow); text-shadow: 0 6px 0 #000; }
-.intro2 .rp-label { margin-top: 14px; font-size: 12px; letter-spacing: 0.3em; font-weight: 800; color: var(--dim); }
-.intro2 .mm-btn { align-self: flex-start; margin-top: 10px; }
+/* the story panel's two mode cards */
 .modes2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .mode2 { border: 1px solid var(--line); background: rgba(8,10,16,0.55); padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
 .mode2 small { font-size: 11px; letter-spacing: 0.28em; font-weight: 800; color: var(--yellow); }
@@ -774,22 +769,7 @@ body:has(#hud .overlay) .tpad, body:has(#hud .ccard) .tpad { display: none !impo
 .mode2 p { margin: 0; font-size: 14px; line-height: 1.55; color: #d9d4c8; }
 .mm-panel .modes2 { margin-top: 10px; }
 @media (max-width: 700px) { .modes2 { grid-template-columns: 1fr; } }
-@media (max-height: 500px) { .intro2 { padding: 22px 20px 24px; gap: 8px; } .intro2 h1 { font-size: 48px; } .intro2 .mm-story { font-size: 14px; line-height: 1.5; } .mode2 { padding: 10px 12px; } .mode2 b { font-size: 22px; } .mode2 p { font-size: 12px; } }
-.intro2 { max-width: 1140px; padding-top: 44px; }
-.intro2 .mm-story { margin: 0 0 12px; font-size: 16px; }
-.intro2-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; align-items: start; }
-.intro2-modes .rp-label { margin: 0 0 10px; }
-.intro2 .modes2 { grid-template-columns: 1fr; }
-.intro2 .mm-btn { position: sticky; bottom: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.6); }
-@media (max-width: 900px) { .intro2-cols { grid-template-columns: 1fr; gap: 10px; } .intro2 .modes2 { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .intro2 .modes2 { grid-template-columns: 1fr; } }
-@media (max-height: 500px) { .intro2 .mm-story { font-size: 13px; margin-bottom: 8px; } .intro2-cols { gap: 20px; } }
 @media (max-height: 500px) {
-  .intro2 { padding: 16px 20px 20px; }
-  .intro2 .mm-kicker { display: none; }
-  .intro2 h1 { font-size: 40px; margin-bottom: 6px; }
-  .intro2-cols { grid-template-columns: 1.1fr 1fr; gap: 20px; }
-  .intro2 .modes2 { grid-template-columns: 1fr; gap: 8px; }
   .mode2 { padding: 8px 12px; gap: 3px; } .mode2 small { font-size: 9px; } .mode2 b { font-size: 20px; } .mode2 p { font-size: 11.5px; line-height: 1.45; }
-  .intro2 .mm-btn { position: fixed; top: 14px; right: 18px; bottom: auto; margin: 0; z-index: 2; }
 }
+@media (max-height: 500px) { .mm-panel .mm-story { font-size: 13px; line-height: 1.5; } }
