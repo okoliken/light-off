@@ -29,7 +29,7 @@ export function createGeneral(game) {
   const { hud, audio, player, world, scene } = game;
   const L = game.life, api = game.api;
   const G: any = { squad: null, squadCd: 70 + Math.random() * 50, oc: null, ocCd: 160 + Math.random() * 80, pp: null, ppCd: 60 + Math.random() * 40 };
-  const near = (a, b, r) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2 < r * r;
+  const near = (a, b, r) => !!a && !!b && (a.x - b.x) ** 2 + (a.z - b.z) ** 2 < r * r; // a place not worked out yet is never 'near'
   const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   const story = () => game.mode === 'patrol' && game.sub === 'story';
   const busy = () => L.inside || game.inMall || game.ferry?.ride || player.mode === 'ride' || player.cuffed || game.arrest || G.case.on;
@@ -512,6 +512,7 @@ export function createGeneral(game) {
     if (s.limit) { C.left -= dt; if (C.left <= 0) return fail(s.late); }
     s.tick?.(dt);
     if (!C.on) return; // the tick failed it
+    s.where?.(); // places a step uses (C.s5 and the like) are settled here, not only when the markers draw
     if (s.done()) {
       C.st++; C.entered = false; audio.pickup?.();
       if (C.st >= m.steps.length) complete(); else game.save();
