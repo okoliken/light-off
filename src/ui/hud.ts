@@ -673,12 +673,9 @@ export function createHUD(root, world) {
     const go = (mode, fresh) => { M.destroy(); onStart({ quality: q, fresh, mode }); };
     const confirm = (m, mode) => m.open('START OVER?', '<p class="mm-note big">' + (mode === 'free' ? 'Your saved patrol will be erased: money, job, everything.' : 'Your mission progress will be erased.') + '</p><div class="mm-row"><button class="mm-btn danger" data-nav data-yes>Yes, start over</button><button class="mm-btn" data-nav data-no data-default>Keep my save</button></div>',
       (p) => { p.querySelector('[data-yes]').onclick = () => go(mode, true); p.querySelector('[data-no]').onclick = m.close; });
-    if (o.life) items.push({ label: 'Continue', sub: `Missions · ${Math.min(o.life.done, 10)} of 10 complete`, attr: 'data-start', action: () => go('story', false) });
-    items.push({ label: o.life ? 'New missions' : 'Missions', sub: 'Ten missions, one after another. Each one has a job to do: fail it and you go again. Bring down the General.', attr: o.life ? 'data-new' : 'data-start', action: (m) => o.life ? confirm(m, 'story') : go('story', true) });
-    items.push({ label: 'Patrol', sub: o.free ? `Free roam · Day ${o.free.night}` : 'Free roam · no story · SwiftDrop shifts, street crime, the suit, the police', attr: 'data-patrol', action: (m) => {
-      m.open('PATROL', `<p class="mm-story">No story, no missions. Bolaji's life, your way: SwiftDrop shifts by day, the suit by night, robberies, snatchers, rooftop runs, and the police on your tail.</p><div class="mm-row">${o.free ? '<button class="mm-btn hot" data-nav data-pgo data-default>Continue patrol</button><button class="mm-btn" data-nav data-pnew>New patrol</button>' : '<button class="mm-btn hot" data-nav data-pnew data-default>Start patrol</button>'}</div>`,
-        (p) => { p.querySelector('[data-pgo]')?.addEventListener('click', () => go('free', false)); p.querySelector('[data-pnew]').onclick = () => go('free', true); });
-    } });
+    // one way to play: Bolaji's life in Lagos, free roam, its save picked up where you left it
+    if (o.free) items.push({ label: 'Continue', sub: `Day ${o.free.night} · pick up where you left off`, attr: 'data-start', action: () => go('free', false) });
+    items.push({ label: o.free ? 'New game' : 'Play', sub: 'SwiftDrop shifts by day, the suit by night. Street crime, rooftop runs, and the police on your tail.', attr: o.free ? 'data-new' : 'data-start', action: (m) => o.free ? confirm(m, 'free') : go('free', true) });
     items.push({ label: 'The story', action: (m) => m.open('THE STORY SO FAR', storyPanel()) });
     items.push({ label: 'Controls', action: (m) => m.open('CONTROLS', controlsPanel()) });
     items.push({ label: 'Settings', action: (m) => m.open('SETTINGS', settingsPanel({ ...o, quality: q }), qualityWire(o, v => { q = v; })) });
