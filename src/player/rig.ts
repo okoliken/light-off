@@ -27,7 +27,7 @@ export const OUTFITS = {
   bolajiTorn: { scale: 1.04, skin: '#5b3a26', top: '#2c2d33', bottom: '#222328', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, sheen: '#7a6a5a', cat: true },
   bolajiRags: { scale: 1.04, skin: '#5b3a26', top: '#3a3b41', bottom: '#2e2f35', sock: '#5b3a26', sole: '#2b2b2e', glove: null, hood: false, shorts: true, sheen: '#8a7a6a', cat: false },
   // the new suit (Act 3 on): a panther. Matte black, a full helmet, silver fangs and trim, violet energy lines, long claws.
-  bolajiCat: { scale: 1.05, skin: '#5b3a26', top: '#101116', bottom: '#0e0f13', sock: '#0b0b0e', sole: '#08080a', glove: '#0b0b0d', hood: false, shorts: false, sheen: '#4a4f66', panther: true },
+  bolajiCat: { scale: 1.05, skin: '#5b3a26', top: '#101116', bottom: '#0e0f13', sock: '#0b0b0e', sole: '#08080a', glove: '#0b0b0d', hood: false, shorts: false, sheen: '#4a4f66', panther: true, miles: true }, // the suit: Lagos's Miles (public/models/miles.glb); the panther shapes only if the model fails to load
   bolaji: { scale: 1.04, skin: '#5b3a26', top: '#17181c', bottom: '#141518', sock: '#111113', sole: '#2b2b2e', glove: '#0d0d0f', hood: true, shorts: true, sheen: '#6a7898', cat: true },
   agbero: { skin: '#4a2e1f', top: '#2e7d32', bottom: '#263238', sock: '#4e342e', sole: '#3e2723', glove: null, hood: false, shorts: false, singlet: true, cap: '#b71c1c', scale: 1.08, sheen: '#445544' },
   agbero2: { skin: '#3f2618', top: '#f9a825', bottom: '#1a1a1a', sock: '#3e2723', sole: '#2b2b2b', glove: null, hood: false, shorts: false, singlet: true, cap: null, scale: 1.1, sheen: '#665533' },
@@ -88,7 +88,7 @@ export class Rig {
 
   build() {
     const o = this.o, b = this.b;
-    const kind = o.panther ? 'panther' : o.female ? 'woman' : 'human';
+    const kind = o.miles ? 'miles' : o.panther ? 'panther' : o.female ? 'woman' : 'human';
     this.kind = kind;
     const real = hasBody(kind) && !o.egungun; // the masquerade's cloth covers a whole body: it keeps the simple one
     this.fitPivots(real && kind);

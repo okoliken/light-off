@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
-export type Kind = 'human' | 'panther' | 'woman';
+export type Kind = 'human' | 'panther' | 'woman' | 'miles';
 const bases: Partial<Record<Kind, THREE.Object3D>> = {};
 /** Each model's bones: rest orientation and position, relative to the model's root. */
 const rest: Partial<Record<Kind, Record<string, { q: THREE.Quaternion; p: THREE.Vector3 }>>> = {};
@@ -20,7 +20,7 @@ export const BONE_OF: Record<string, string> = {
 
 export async function loadBodies() {
   const loader = new GLTFLoader();
-  await Promise.all((['human', 'panther', 'woman'] as Kind[]).map(async (kind) => {
+  await Promise.all((['human', 'panther', 'woman', 'miles'] as Kind[]).map(async (kind) => {
     try {
       const g = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${kind}.glb`);
       bases[kind] = g.scene;
@@ -47,7 +47,7 @@ export function makeBody(kind: Kind, o: any): THREE.Object3D {
 
 /** Colour a body from an outfit (skin, top, bottom, shoes, hair). Cheap: materials are shared per colour. */
 export function tintBody(model: THREE.Object3D, kind: Kind, o: any) {
-  const tint: Record<string, string | undefined> = kind === 'panther' ? {}
+  const tint: Record<string, string | undefined> = kind === 'panther' || kind === 'miles' ? {}
     : { skin: o.skin, top: o.top, bottom: o.bottom, shoe: o.sole, hair: o.hair && o.hair.startsWith?.('#') ? o.hair : undefined };
   model.traverse((m: any) => {
     if (!m.isMesh) return;
