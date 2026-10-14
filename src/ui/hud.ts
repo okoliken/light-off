@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { N, HALF, CELL, ROAD, CAMPUS, I0, I1, roadLine } from '../world/layout.ts';
 import { buildStyledMap } from './mapstyle.ts';
 
-const MODE_NAMES = { foot: 'On foot', skitch: 'Hanging on', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', crawl: 'Badly hurt', getup: 'Getting up', act: 'Fighting', bike: 'Okada', ride: 'Riding', zip: 'Wire ride' };
+const MODE_NAMES = { foot: 'On foot', skitch: 'Hanging on', climb: 'Climbing', wallrun: 'Wall-run', roll: 'Roll', bail: 'Bail!', down: 'Down', crawl: 'Badly hurt', getup: 'Getting up', act: 'Fighting', bike: 'Okada', ride: 'Riding', zip: 'Wire ride', swing: 'Web swing', webzip: 'Web zip' };
 
 const FILLER = [
   'Residents say the situation has gone on for too long. "We are tired," said one trader who asked not to be named.',
@@ -547,6 +547,7 @@ export function createHUD(root, world) {
       ['Knocked down: mash to get back up', 'Space', 'A', 'Tap JUMP fast'], ['An officer has you: run, don\'t stand still', 'W A S D', 'L-Stick', 'Left thumb']]],
     ['Bicycle & okada', [['Get on your SwiftDrop bicycle (or take an okada)', 'F', 'X', 'HIT/USE'], ['Ride · full speed', 'W A S D · Shift', 'L-Stick · RT', 'Stick · all the way'], ['Brake', 'Space', 'A', 'JUMP'], ['Get off', 'R', 'Y', 'GET OFF']]],
     ['Police', [['Held for the car: get ready', '—', '—', '—'], ['In the police car: mash to kick the door out', 'F · Space', 'X · A', 'Tap JUMP fast'], ['In cuffs, out of sight: hold to slip them', 'F', 'X', 'Hold HIT/USE']]],
+    ['Powers (in the suit)', [['In the air: swing on a web from the nearest rooftop (hold) · let go', 'Hold E', 'Hold RB', 'Hold GRAB'], ['On the ground: zip to the rooftop you face', 'E', 'RB', 'GRAB'], ['Venom strike: a shock that drops everyone around you', 'B', '—', 'VENOM'], ['Camouflage: fade out; the police lose you (drains energy)', 'Z', '—', 'CAMO']]],
     ['Escape kit', [['Pepper bomb · Ash cloud · Nail plank', '1 · 2 · 3', '—', 'PEPPER · SMOKE'], ['Hang on a danfo (Space: climb onto the roof)', 'E', 'RB', 'GRAB'], ['Ride a NEPA wire (Coach Ayo teaches it)', 'E', 'RB', 'GRAB'], ['Blackout: pull a transformer fuse', 'F', 'X', 'HIT/USE']]],
     ['The street', [['Interact · buy · talk · hand over a parcel', 'F', 'X', 'HIT/USE'], ['Change into / out of the suit (nobody watching)', 'U', '—', 'SUIT'], ['At home: change clothes at the nail by the door', 'F', 'X', 'HIT/USE'], ['Pocket radio', 'N', 'D-Pad →', 'RADIO'], ['Torch (buy one at E-Centre Mall)', 'L', '—', 'TORCH'], ['Street Sense (hold)', 'Q', 'LB', 'SENSE']]],
   ];
@@ -560,7 +561,7 @@ export function createHUD(root, world) {
         <section><h3>Move</h3>${row(k('W A S D', 'LEFT THUMB'), 'Move')}${row(k('Mouse', 'DRAG RIGHT'), 'Look around')}${row(k('Space', 'JUMP'), 'Jump · climb · hold for a cat leap')}${row(k('Shift', 'STICK ALL THE WAY'), 'Sprint')}</section>
         <section><h3>Lock on</h3>${row(k('Tab', 'TAP THEM'), 'Lock on: a threat first, then escape spots · again: next')}${row(k('Flick mouse', 'SWIPE'), 'Switch to the next one that side')}${row(k('Hold Tab', '✕ LOCK'), 'Let go (or just run away from it)')}${row(k('Space', 'JUMP'), 'Locked on a roof or car roof: leap onto it')}</section>
         <section><h3>Fight</h3>${row(k('F', 'HIT/USE'), 'Strike (the locked one first)')}${row(k('C', 'DODGE'), 'Dodge · counter the "!"')}${row(k('V', 'POUNCE'), 'Pounce from far')}${row(k('Space', 'JUMP'), 'Knocked down: mash to get up')}</section>
-        <section><h3>Street</h3>${row(k('F', 'HIT/USE'), 'Use · hand over a parcel · get on the bicycle')}${row(k('J', 'JOB'), 'Job sheet · cancel a parcel')}${row(k('M', 'MAP'), 'Map: pick a place, pick a ride')}${row(k('U', 'SUIT'), 'Change into the suit')}${row(k('E', 'GRAB'), 'Grab a car · ride a wire')}</section>
+        <section><h3>Street</h3>${row(k('F', 'HIT/USE'), 'Use · hand over a parcel · get on the bicycle')}${row(k('J', 'JOB'), 'Job sheet · cancel a parcel')}${row(k('M', 'MAP'), 'Map: pick a place, pick a ride')}${row(k('U', 'SUIT'), 'Change into the suit')}${row(k('E', 'GRAB'), 'Grab a car · ride a wire · web swing (air) · web zip (ground)')}${row(k('B', 'VENOM'), 'Venom strike')}${row(k('Z', 'CAMO'), 'Camouflage')}</section>
         <section class="cc-hot"><h3>Menu</h3>${row(k('Esc', '❚❚'), 'Pause (any time)')}${row(k('H', '❚❚ → CONTROLS'), 'Every control')}</section>
       </div>
       <button class="cc-go">${first ? (T ? 'Got it · tap to play' : 'Got it · click to play') : 'Back to the game'}</button>${T ? '' : '<p class="cc-note">The mouse is captured while you play so it can turn the camera. Press <b>Esc</b> to get your cursor back (it pauses the game).</p>'}</div>`;
@@ -579,13 +580,13 @@ export function createHUD(root, world) {
     <p class="mm-note">Resolution, shadows, glow and frame rate change right away. The crowd size and street lights change the next time the game loads. If your laptop runs hot, pick Low.</p>`;
   // the story and the two ways to play: open by themselves the first time, and under "The story"
   const STORY = `<p class="mm-story">Lagos. <em>Bolaji</em> rents one room in Aguda, Surulere. By day he rides for <em>SwiftDrop Dispatch</em>: parcels, deadlines, angry customers, rent every week.</p>
-    <p class="mm-story">By night he's <em>Street Cat</em>. He climbs, wall-runs and rides the NEPA wires like a cat. But the city is filling up with other men in black: the armed boys of <em>the General</em>, a retired colonel who owns half the streets and pays half the police. The police can't tell Bolaji from them, so they chase him too.</p>
-    <p class="mm-story">Find out who the General is, prove it, and <em>bring him down</em>.</p>`;
+    <p class="mm-story">By night he's something the city has no name for yet. He climbs walls, swings between rooftops on webs, hits like a thunderclap, and can vanish in plain sight. The police don't know what he is either, so they chase him.</p>
+    <p class="mm-story">No missions, no script. Work your shifts, put on the suit when it's dark, and <em>look after your streets</em>.</p>`;
   const MODES = `<div class="modes2">
       <div class="mode2"><small>THE STORY</small><b>Missions</b><p>Ten missions, one after another, from the burning market to the General's compound. Each one tells you what to do before you start and drops you right there. Some run against a clock. Fail one and you go again.</p></div>
       <div class="mode2"><small>FREE ROAM</small><b>Patrol</b><p>Bolaji's life, your way, with no story. Work SwiftDrop shifts for pay and rent, put on the suit at night, stop robbers and snatchers, take side jobs, and keep the police off your back.</p></div>
     </div>`;
-  const storyPanel = () => STORY + `<p class="mm-note">TWO WAYS TO PLAY</p>` + MODES;
+  const storyPanel = () => STORY;
 
   let menuCleanup = null;
   function menuShell({ kind, header, items, hints = true }: any) {

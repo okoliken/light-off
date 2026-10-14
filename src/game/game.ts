@@ -658,6 +658,15 @@ export function createGame(ctx) {
     } else hud.popup(L.suit ? 'SUITED UP · NOBODY SAW' : 'CHANGED BACK · NOBODY SAW');
   }
   game.changeClothes = changeClothes;
+  // the suit fades to a shimmer while camouflaged (the model's own materials, cloned once so nobody else fades)
+  let camoOn = false, camoMats: any[] | null = null;
+  function setCamo(on) {
+    if (on === camoOn) return; camoOn = on;
+    const model = player.rig.model; if (!model) return;
+    if (on) { camoMats = []; model.traverse((m: any) => { if (!m.isMesh) return; if (!m.userData.camoSrc) m.userData.camoSrc = m.material; const c = m.material.clone(); c.transparent = true; c.opacity = 0.14; c.depthWrite = false; m.material = c; camoMats.push(m); }); }
+    else { model.traverse((m: any) => { if (m.isMesh && m.userData.camoSrc) { m.material = m.userData.camoSrc; m.userData.camoSrc = null; } }); camoMats = null; }
+  }
+  game.setCamo = setCamo;
   // ---------- the suit wears out: torn, then rags; stitch it at home or buy a new one from Sunny Tailoring ----------
   function wearSuit(n) {
     if (game.catSuit) { L.suitHP = 100; return; } // the panther suit doesn't wear out
@@ -1212,6 +1221,25 @@ export function createGame(ctx) {
 
     player.update(sdt, input, camera.yaw, game.time);
     for (const e of player.events) handleEvent(e);
+    // venom strike (B): a bio-electric burst that drops everyone around him
+    if (input.pressed.venom && L.suit && !L.inside && player.mode === 'foot' && !player.cuffed && (player.venomCd || 0) <= 0) {
+      if (L.energy < 15) hud.toast('Too tired for a venom strike.', 'red');
+      else { L.energy -= 15; player.venomCd = 2.5; player.startAct?.('spin', null, () => {}, { invuln: true, reach: 0 });
+        const P = player.pos; fx.burst?.(P.x, P.y + 1.1, P.z, 0xffe24a, 40, 7); fx.dust?.(P.x, P.y + 0.1, P.z, 10); audio.punch?.(); camera.shake = Math.max(camera.shake || 0, 0.4);
+        let hits = 0;
+        for (const t of game.thugs) if (t.alive && !t.removed && dist2(t.pos, P) < 3.6 * 3.6) { hits++; const ko = t.takeHit?.(4, P.x, P.z, 'heavy'); t.stun?.(3); if (ko) game.onKnockout?.(t); }
+        for (const g of game.gunmen) if (g.alive && !g.removed && dist2(g.pos, P) < 3.6 * 3.6) { hits++; g.stun?.(3); }
+        hud.popup?.(hits ? 'VENOM STRIKE' : 'VENOM STRIKE · NOBODY CLOSE'); if (hits) game.addRespect(60 * hits, 'VENOM STRIKE'); }
+    }
+    player.venomCd = Math.max(0, (player.venomCd || 0) - dt);
+    // camouflage (Z): he fades out; the police and the street lose him while it lasts
+    if (input.pressed.camo && L.suit && !L.inside && !player.cuffed) {
+      if (!player.camo && L.energy < 10) hud.toast('Too tired to camouflage.', 'red');
+      else { player.camo = !player.camo; hud.popup?.(player.camo ? 'CAMOUFLAGE' : 'VISIBLE'); audio.grab?.(); }
+    }
+    if (player.mode === 'swing') L.energy = Math.max(0, L.energy - dt * 0.8);
+    if (player.camo) { L.energy = Math.max(0, L.energy - dt * 3); if (L.energy <= 0 || !L.suit || L.inside || player.mode === 'act' || player.mode === 'down') { player.camo = false; hud.popup?.('VISIBLE'); } }
+    setCamo(player.camo);
     traffic.update(sdt, game);
     fx.update(sdt, () => null, () => {});
     TH.update(sdt, hitTest, onThrowHit);
@@ -1462,6 +1490,7 @@ export function createGame(ctx) {
       case 'bikeOn': audio.horn?.(player.pos); break;
       case 'bikeOff': if (ev.crash) { audio.land(1); camera.shake = 0.6; hud.popup('CRASHED'); } break;
       case 'jump': audio.hop(); if (ev.power > 0.6) { fx.dust(player.pos.x, player.pos.y + 0.05, player.pos.z, 10); camera.shake = 0.2; } break;
+      case 'webzip': L.energy = Math.max(0, L.energy - 3); break;
       case 'land': audio.land(Math.min(1, -ev.vy / 14)); if (ev.vy < -13) camera.shake = 0.35; break;
       case 'bail': audio.bail(); camera.shake = 0.5; break;
       case 'hurt': game.hitsTaken = (game.hitsTaken || 0) + 1; audio.hurt(); env.grade.uniforms.hurt.value = 1; combat.hit();

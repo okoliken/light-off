@@ -526,6 +526,96 @@ export function createPlayer(scene, world, traffic) {
     if (inp.pressed.jump || inp.pressed.skitch) { p.mode = 'foot'; p.zip = null; p.vel.y = 4.5; p.onGround = false; p.flip = { kind: 'front', t: 0, dur: 0.6 }; emit('zipEnd'); }
   }
 
+  // ---------------- webs: swing from a rooftop, zip to one ----------------
+  const web = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1, 6).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ color: '#f3f3f3' }));
+  web.visible = false; web.frustumCulled = false; scene.add(web);
+  const _wa = new THREE.Vector3(), _wb = new THREE.Vector3(), _wq = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0);
+  function updateWeb() {
+    const to = p.mode === 'swing' ? (p.swing?.anchor.tip || p.swing?.anchor) : p.mode === 'webzip' ? p.webzip?.to : null;
+    web.visible = !!to; if (!to) return;
+    rig.b.haR.getWorldPosition(_wa); _wb.set(to.x, to.y, to.z);
+    web.position.copy(_wa); web.scale.set(1, Math.max(0.1, _wa.distanceTo(_wb)), 1); web.quaternion.setFromUnitVectors(_up, _wb.sub(_wa).normalize());
+  }
+  const _q: any[] = [];
+  /** Something to swing from: a roof corner or a NEPA pole top, high above him, ahead and off to one side so he swings past it. */
+  function findAnchor() {
+    const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+    const cand = col.solids.query(p.pos.x - 22, p.pos.z - 22, p.pos.x + 22, p.pos.z + 22, _q);
+    let best = null, bs = 1e9;
+    for (const s of cand) {
+      if ((s.kind !== 'building' && s.kind !== 'pole') || s.maxy < p.pos.y + 5) continue;
+      const tx = p.pos.x + fx * 5, tz = p.pos.z + fz * 5; // the point on it nearest a spot just ahead of him
+      const ax = Math.max(s.minx, Math.min(s.maxx, tx)), az = Math.max(s.minz, Math.min(s.maxz, tz));
+      const dx = ax - p.pos.x, dz = az - p.pos.z, flat = Math.hypot(dx, dz), up = s.maxy - p.pos.y;
+      if (flat > up * 1.1 || flat > 16) continue; // too far out for the rope to clear the street
+      const ahead = (dx * fx + dz * fz) / (flat || 1); if (ahead < -0.2) continue;
+      const side = Math.abs(dx * fz - dz * fx);
+      const score = flat - ahead * 4 - Math.min(8, up) * 0.5 + (side < 1.5 ? 6 : 0) - Math.min(6, side) * 0.4;
+      if (score < bs) { // the web sticks to the edge; the rope hangs from a point just outside it so his body clears the wall
+        const cx = (s.minx + s.maxx) / 2, cz = (s.minz + s.maxz) / 2, ox = ax - cx, oz = az - cz, ol = Math.hypot(ox, oz) || 1, out = s.kind === 'pole' ? 0.6 : 1.2;
+        bs = score; best = { x: ax + ox / ol * out, y: s.maxy + 0.3, z: az + oz / ol * out, tip: { x: ax, y: s.maxy + 0.3, z: az } }; }
+    }
+    return best;
+  }
+  function startSwing(a) {
+    const gy = col.groundHeight(p.pos.x, p.pos.z, p.pos.y).h;
+    const d = Math.hypot(a.x - p.pos.x, a.y - (p.pos.y + 1.6), a.z - p.pos.z);
+    p.mode = 'swing'; p.swing = { anchor: a, rope: d, want: Math.max(3, Math.min(d, a.y - gy - 2.8)), t: 0 }; // the rope reels in to where the arc clears the ground
+    p.climb = null; p.wallrun = null; p.flip = null; p.riding = null; p.onGround = false; emit('swing');
+  }
+  function swing(dt, inp) {
+    const S = p.swing, a = S.anchor; S.t += dt;
+    const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+    if (S.t < 1.5) { p.vel.x += fx * 4 * dt; p.vel.z += fz * 4 * dt; } // a pump into the first arc
+    S.rope = Math.max(S.want, S.rope - 9 * dt);
+    const pre = Math.hypot(p.vel.x, p.vel.z);
+    const ph = physics(dt, { snap: 0 });
+    // the rope: keep him inside its length, drop any velocity pulling away from the anchor
+    const rx = p.pos.x - a.x, ry = p.pos.y + 1.6 - a.y, rz = p.pos.z - a.z, L = Math.hypot(rx, ry, rz);
+    if (L > S.rope) { const k = S.rope / L; p.pos.x = a.x + rx * k; p.pos.y = a.y + ry * k - 1.6; p.pos.z = a.z + rz * k; const nx = rx / L, ny = ry / L, nz = rz / L; const along = p.vel.x * nx + p.vel.y * ny + p.vel.z * nz; if (along > 0) { p.vel.x -= nx * along; p.vel.y -= ny * along; p.vel.z -= nz * along; } }
+    const sp = Math.hypot(p.vel.x, p.vel.y, p.vel.z); if (sp > 19) { p.vel.multiplyScalar(19 / sp); }
+    const hs = Math.hypot(p.vel.x, p.vel.z); if (hs > 1) p.yaw = p.heading = Math.atan2(p.vel.x, p.vel.z);
+    S.wallT = ph.contacts.length > 0 ? (S.wallT || 0) + dt : 0;
+    const slammed = ph.contacts.length > 0 && ((hs < pre * 0.5 && pre > 3) || S.wallT > 0.6); // a wall, or scraping along one, not a graze
+    const past = (p.pos.x - a.x) * fx + (p.pos.z - a.z) * fz > 0; // he's come up past the anchor: the top of the arc, time to fly
+    const apex = S.t > 0.4 && past && p.vel.y <= 0;
+    const letGo = !inp.held.skitch || p.onGround || S.t > 3.5 || slammed || apex;
+    if (letGo) { p.mode = 'foot'; p.swing = null; p.swingCd = 0.35; if (!p.onGround && !slammed) { p.vel.y += 2.5; p.flip = { kind: 'front', t: 0, dur: 0.7 }; p.airFlips = 1; } emit('swingEnd', { speed: hs }); }
+  }
+  /** A rooftop edge in the direction he's facing, for a web zip. */
+  function findZip(camYaw) {
+    const ox = p.pos.x, oy = p.pos.y + 1.3, oz = p.pos.z, dx = Math.sin(camYaw), dz = Math.cos(camYaw);
+    const cand = col.solids.query(Math.min(ox, ox + dx * 40) - 1, Math.min(oz, oz + dz * 40) - 1, Math.max(ox, ox + dx * 40) + 1, Math.max(oz, oz + dz * 40) + 1, _q);
+    let best = null, bt = 40;
+    for (const s of cand) {
+      if (s.kind !== 'building' || s.maxy < oy + 2.5) continue;
+      let t0 = -1e9, t1 = 1e9;
+      for (const [o, d, mn, mx] of <any[]>[[ox, dx, s.minx, s.maxx], [oz, dz, s.minz, s.maxz]]) { if (Math.abs(d) < 1e-9) { if (o < mn || o > mx) { t0 = 1e9; break; } continue; } let ta = (mn - o) / d, tb = (mx - o) / d; if (ta > tb) [ta, tb] = [tb, ta]; t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); }
+      if (t0 > t1 || t0 < 2 || t0 > bt) continue;
+      bt = t0; const hx = ox + dx * t0, hz = oz + dz * t0;
+      best = { x: Math.max(s.minx + 0.6, Math.min(s.maxx - 0.6, hx + dx * 0.8)), y: s.maxy + 0.05, z: Math.max(s.minz + 0.6, Math.min(s.maxz - 0.6, hz + dz * 0.8)) };
+    }
+    return best;
+  }
+  function startWebZip(to) {
+    p.mode = 'webzip'; p.webzip = { from: p.pos.clone(), to, t: 0, len: Math.hypot(to.x - p.pos.x, to.y - p.pos.y, to.z - p.pos.z) };
+    p.climb = null; p.wallrun = null; p.flip = null; p.riding = null; p.onGround = false; p.yaw = p.heading = Math.atan2(to.x - p.pos.x, to.z - p.pos.z); emit('webzip');
+  }
+  function webzip(dt, inp) {
+    const Z = p.webzip; Z.t += dt * 24 / Math.max(6, Z.len); const k = Math.min(1, Z.t), e = k * k * (3 - 2 * k);
+    p.pos.set(Z.from.x + (Z.to.x - Z.from.x) * e, Z.from.y + (Z.to.y - Z.from.y) * e, Z.from.z + (Z.to.z - Z.from.z) * e);
+    p.vel.set(Z.to.x - Z.from.x, Z.to.y - Z.from.y, Z.to.z - Z.from.z).multiplyScalar(24 / Math.max(6, Z.len));
+    if (k >= 1) { p.mode = 'foot'; p.webzip = null; p.vel.set(p.vel.x * 0.25, 2.2, p.vel.z * 0.25); p.onGround = false; emit('webzipEnd'); }
+  }
+  p.webAbility = (inp, camYaw) => { // E: in the air, swing from a rooftop; on the ground, zip to the rooftop you face
+    const again = inp.held.skitch && !p.onGround && p.airT > 0.2 && (p.swingCd || 0) <= 0; // E held in the air: the next web
+    if (!(inp.pressed.skitch || again) || p.cuffed || p.mode !== 'foot' || p.riding || p.aiming) return false;
+    if (!p.onGround || p.airT > 0.05) { const a = findAnchor(); if (a) { startSwing(a); inp.pressed.skitch = false; return true; } return false; }
+    const near = traffic.vehicles?.some?.(v => (v.pos.x - p.pos.x) ** 2 + (v.pos.z - p.pos.z) ** 2 < 3.2 * 3.2 && v.speed > 1); if (near) return false; // E next to a moving car is a skitch
+    const z = findZip(camYaw); if (z && p.energy > 4) { startWebZip(z); inp.pressed.skitch = false; return true; }
+    return false;
+  };
+
   // ---------------- main update ----------------
   p.update = (dt, inp, camYaw, time) => {
     p.events.length = 0;
@@ -535,12 +625,16 @@ export function createPlayer(scene, world, traffic) {
     p.lastMove.x = inp.move.x; p.lastMove.y = inp.move.y;
     p.aiming = !!inp.held.aim && !!p.holding && p.mode === 'foot';
     p.aimYaw = camYaw;
-    p.leapCd -= dt;
+    p.leapCd -= dt; updateWeb();
     if (p.hurtT > 6 && p.hp < p.cap() && !['down', 'crawl'].includes(p.mode)) p.hp = Math.min(p.cap(), p.hp + dt * 2.2 * Math.max(0.6, p.eff)); // even hungry, he heals (slowly)
     p.adrenT = Math.max(0, (p.adrenT || 0) - dt);
     if (inp.pressed.skitch && !p.cuffed && ['foot', 'climb', 'wallrun'].includes(p.mode) && (!p.onGround || p.pos.y > 3)) { const h = p.wireNear(); if (h) { p.climb = null; p.wallrun = null; p.startZip(h); inp.pressed.skitch = false; } }
+    p.swingCd = Math.max(0, (p.swingCd || 0) - dt);
+    if (p.mode === 'foot' && (inp.pressed.skitch || inp.held.skitch)) p.webAbility(inp, camYaw);
     switch (p.mode) {
       case 'foot': foot(dt, inp, camYaw); break;
+      case 'swing': swing(dt, inp); break;
+      case 'webzip': webzip(dt, inp); break;
       case 'skitch': skitch(dt, inp, camYaw); break;
       case 'climb': climb(dt, inp); break;
       case 'wallrun': wallrun(dt, inp); break;
@@ -589,6 +683,10 @@ export function createPlayer(scene, world, traffic) {
       case 'skitch': Pose.climb(rig, 0.4); bodyYaw = p.heading; break;
       case 'zip': rig.reset(); rig.set('hipsY', HIP_H); rig.set('shLX', -3.05); rig.set('shRX', -3.05); rig.set('elLX', -0.15); rig.set('elRX', -0.15); rig.set('thLX', -0.9); rig.set('thRX', -0.7); rig.set('knLX', 1.3); rig.set('knRX', 1.1); rig.set('spineX', -0.15 + Math.sin(time * 8) * 0.04); bodyYaw = p.zip ? p.zip.yaw : p.yaw; rate = 16; break;
       case 'climb': Pose.climb(rig, p.anim); bodyYaw = p.yaw; break;
+      case 'swing': { rig.reset(); rig.set('hipsY', HIP_H); const low = p.swing && (p.pos.y + 1.6) < p.swing.anchor.y - p.swing.rope * 0.75;
+        rig.set('shRX', -3.0); rig.set('shRZ', -0.15); rig.set('elRX', -0.1); rig.set('shLX', low ? -0.6 : -1.4); rig.set('shLZ', 0.5); rig.set('elLX', -0.8);
+        rig.set('spineX', 0.25); rig.set('chestX', 0.15); rig.set('headX', -0.3); rig.set('thLX', low ? 0.3 : -0.9); rig.set('knLX', low ? 0.4 : 1.2); rig.set('thRX', low ? 0.1 : -0.4); rig.set('knRX', low ? 0.3 : 0.9); rate = 12; break; }
+      case 'webzip': rig.reset(); rig.set('hipsY', HIP_H); rig.set('shRX', -3.05); rig.set('elRX', -0.05); rig.set('shLX', 0.9); rig.set('shLZ', 0.3); rig.set('elLX', -0.6); rig.set('spineX', 0.35); rig.set('thLX', 0.4); rig.set('thRX', 0.6); rig.set('knLX', 0.8); rig.set('knRX', 1.0); rate = 16; break;
       case 'wallrun': Pose.wallrun(rig, p.anim, p.wallrun?.side || 1); bodyYaw = p.yaw; rate = 18; break;
       case 'act': Pose.strike(rig, p.act.kind, p.act.t / p.act.dur); bodyYaw = p.yaw; rate = 34; break;
       case 'ride': Pose.idle(rig, time, false); rig.set('hipsY', HIP_H - 0.35); rig.set('thLX', -1.4); rig.set('thRX', -1.4); rig.set('knLX', 1.3); rig.set('knRX', 1.3); rig.set('thLZ', 0.35); rig.set('thRZ', -0.35); rig.set('shLX', -0.8); rig.set('shRX', -0.8); rig.set('elLX', -0.6); rig.set('elRX', -0.6); bodyYaw = p.yaw; break;

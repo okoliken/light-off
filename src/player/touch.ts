@@ -26,6 +26,12 @@ const SETS: { name: string; btns: Btn[] }[] = [
     { id: 'g1', label: 'PEPPER', key: 'g1' },
     { id: 'g2', label: 'SMOKE', key: 'g2' },
   ] },
+  { name: 'POWERS', btns: [
+    { id: 'venom', label: 'VENOM', key: 'venom' },
+    { id: 'camo', label: 'CAMO', key: 'camo' },
+    { id: 'skitch2', label: 'WEB', key: 'skitch' },
+    { id: 'sense2', label: 'SENSE', key: 'sense' },
+  ] },
 ];
 const TOP: Btn[] = [
   { id: 'map', label: 'MAP', key: 'map' },

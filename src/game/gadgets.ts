@@ -43,7 +43,7 @@ export function createGadgets(game) {
     }
   };
   // hidden from the police inside an ash cloud
-  Gd.hidden = (pos) => Gd.smokes.some(s => (s.x - pos.x) ** 2 + (s.z - pos.z) ** 2 < s.r * s.r);
+  Gd.hidden = (pos) => !!game.player?.camo || Gd.smokes.some(s => (s.x - pos.x) ** 2 + (s.z - pos.z) ** 2 < s.r * s.r);
   Gd.update = (dt) => {
     const now = game.time;
     for (let i = Gd.bombs.length - 1; i >= 0; i--) {

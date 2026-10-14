@@ -67,7 +67,7 @@ export class Gunman {
     const reachable = foe ? true : p.pos.y - this.pos.y < 1.6 && p.mode !== 'down';
     const canShoot = !!foe || this.role === 'thief' || this.role === 'hitman' || game.heat >= 3; // the police only draw at three stars
     let face = this.yaw, speed = 0, out = null;
-    const eye = () => !col.blocked(this.pos.x, this.pos.y + 1.5, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2);
+    const eye = () => !p.camo && !col.blocked(this.pos.x, this.pos.y + 1.5, this.pos.z, p.pos.x, p.pos.y + 1.2, p.pos.z, 1.2);
 
     switch (this.state) {
       case 'post': { // manning a checkpoint: face the traffic, wave cars down, collect "roger"

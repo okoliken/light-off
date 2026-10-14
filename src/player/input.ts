@@ -53,7 +53,7 @@ export function createInput(canvas) {
     };
     const pressed: any = {
       jump: t('Space'), off: t('KeyR'), skitch: t('KeyE'), act: t('KeyF') || mouse.clicked, roll: t('KeyC'),
-      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'), change: t('KeyU'), torch: t('KeyL'), lock: t('Tab'), g1: t('Digit1'), g2: t('Digit2'), g3: t('Digit3'),
+      sense: t('KeyQ'), help: t('KeyH'), pause: t('KeyP'), map: t('KeyM'), gadget: t('KeyG'), flash: t('KeyV'), throw: t('KeyT'), alt: t('KeyG'), radio: t('KeyN'), patrolBoard: t('KeyJ'), change: t('KeyU'), torch: t('KeyL'), venom: t('KeyB'), camo: t('KeyZ'), lock: t('Tab'), g1: t('Digit1'), g2: t('Digit2'), g3: t('Digit3'),
     };
     let lx = mouse.dx, ly = mouse.dy;
     mouse.dx = mouse.dy = 0; mouse.clicked = false; tapped.clear();
